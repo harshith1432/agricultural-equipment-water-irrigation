@@ -1,0 +1,28 @@
+{
+  "name": "agrispectra-flow-and-field",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Unified Precision Agriculture App: Handheld Leaf Spectroscopy & 1-Acre 6-Zone Smart Irrigation",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node tests/run-tests.js",
+    "test:governance": "node tests/governance-verification.test.js",
+    "seed": "node scripts/seed-firestore.js",
+    "security:audit": "node scripts/security-adversarial-audit.js",
+    "telemetry:mock": "node scripts/mock-telemetry-generator.js"
+  },
+  "dependencies": {
+    "chart.js": "^4.4.7",
+    "firebase": "^11.2.0",
+    "lucide": "^0.474.0"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "vite": "^6.0.11"
+  }
+}

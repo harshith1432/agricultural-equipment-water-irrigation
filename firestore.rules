@@ -1,0 +1,445 @@
+rules_version = '2';
+
+// ===============================================================
+// Assumed Data Model & Architecture
+// Application: AgriSpectra Flow & Field
+// Precision Agriculture & Smart Closed-Loop Irrigation
+// ===============================================================
+//
+// 1. Collection: farms/{farmId}
+//    - name: string (1..100 chars) [required]
+//    - totalArea: string (1..50 chars, e.g. "1 Acre") [required]
+//    - location: latlng OR map { latitude: number, longitude: number } [required]
+//    - createdAt: timestamp [required, immutable]
+//    - ownerId: string (UID, 1..128 chars) [required, immutable]
+//    - managers: list of string UIDs (max 20) [optional]
+//    - operators: list of string UIDs (max 50) [optional]
+//    - members: list of string UIDs (max 100) [optional]
+//    - updatedAt: timestamp [optional]
+//
+// 2. Collection: farms/{farmId}/plots/{plotId} (Plots 1 to 6)
+//    - crop: string (1..100 chars) [required]
+//    - stage: string (1..100 chars) [required]
+//    - plotNumber: int (1..6) [required, immutable]
+//    - targetVwcMin: number (0.0..100.0) [required]
+//    - targetVwcMax: number (0.0..100.0, >= targetVwcMin) [required]
+//    - valve: map [required]
+//        * id: string (1..10 chars, e.g. "G1") [required]
+//        * state: string ('OPEN' | 'CLOSED' | 'FAULT') [required]
+//        * flowRate: number (>= 0.0) [required]
+//        * timerEnd: timestamp or null [optional]
+//    - soilSensors: list of maps (max 10 sensors) [required]
+//        * probeId: string (1..50 chars)
+//        * vwc: number (0.0..100.0)
+//        * temperature: number (-40.0..85.0)
+//        * salinityEc: number (>= 0.0)
+//        * lastUpdated: timestamp
+//    - updatedAt: timestamp [optional]
+//
+// 3. Collection: farms/{farmId}/leafScans/{scanId}
+//    - plotId: string (1..20 chars, e.g. "plot-1" to "plot-6") [required, immutable]
+//    - scannedAt: timestamp [required, immutable]
+//    - vitalityScore: number (0.0..100.0) [required]
+//    - leafWaterIndex: number (>= 0.0, <= 5.0) [required]
+//    - nitrogenPrescriptionKg: number (>= 0.0, <= 500.0) [required]
+//    - rawSpectrumPreview: list of numbers (max 120 elements) [required]
+//    - diseaseRisk: map or null [optional]
+//        * pathogen: string (0..150 chars)
+//        * confidence: number (0.0..100.0)
+//        * preventativeAction: string (0..500 chars)
+//    - gpsLocation: latlng OR map { latitude: number, longitude: number } [optional]
+//    - scannedBy: string (UID, 1..128 chars) [optional]
+//
+// 4. Collection: farms/{farmId}/irrigationLogs/{logId} (APPEND-ONLY LEDGER)
+//    - plotId: string (1..20 chars) [required]
+//    - valveId: string (1..10 chars, e.g. "G1") [required]
+//    - action: string ('OPEN' | 'CLOSE' | 'EMERGENCY_SHUTOFF') [required]
+//    - durationMinutes: number (0.0..1440.0) [required]
+//    - litersDelivered: number (0.0..1000000.0) [required]
+//    - triggeredBy: string ('MANUAL' | 'MANUAL_TOUCH' | 'CLOSED_LOOP_SPECTROSCOPY' | 'LOCAL_FAILSAFE' | 'OFFLINE_FAILSAFE' | 'EMERGENCY') [required]
+//    - timestamp: timestamp [required]
+//    - operatorId: string (UID, 1..128 chars) [optional]
+//    * Strict Invariant: No update or delete allowed once written!
+//
+// 5. Collection: farms/{farmId}/actionRecommendations/{recId}
+//    - plotId: string (1..20 chars) [required, immutable]
+//    - status: string ('PENDING' | 'APPROVED' | 'DISMISSED' | 'EXECUTED') [required]
+//    - generatedAt: timestamp [required, immutable]
+//    - title: string (1..200 chars) [optional]
+//    - details: string (1..1000 chars) [optional]
+//    - triggerReason: string (1..500 chars) [optional]
+//    - suggestedAction: string (1..50 chars, e.g. 'OPEN') [optional]
+//    - suggestedDurationMinutes: number (0..1440) [optional]
+//    - plotNumber: int (1..6) [optional]
+//    - crop: string (1..100 chars) [optional]
+//    - gateId: string (1..10 chars) [optional]
+//    - nitrogenPrescriptionKg: number (>= 0.0) [optional]
+//    - diseaseAlert: map or null [optional]
+//    - leafScanId: string (1..100 chars) [optional]
+//    - resolvedBy: string (1..128 chars) [optional]
+//    - updatedAt: timestamp [optional]
+//
+// 6. Collection: users/{userId} (Strict PII & RBAC isolation)
+//    - uid: string [required, immutable]
+//    - email: string [required]
+//    - displayName: string (1..100 chars) [optional]
+//    - role: string ('admin' | 'manager' | 'operator' | 'viewer') [required]
+//    - farmIds: list of strings (max 20) [optional]
+//    - createdAt: timestamp [required, immutable]
+// ===============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Global Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.get('admin', false) == true ||
+        request.auth.token.get('role', '') == 'admin'
+      );
+    }
+
+    function isRecent(time) {
+      return time is timestamp &&
+             time > request.time - duration.value(5, 'm') &&
+             time <= request.time + duration.value(1, 'm');
+    }
+
+    function areImmutableFieldsUnchanged(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function isValidLocation(loc) {
+      return loc is latlng || (
+        loc is map &&
+        loc.keys().hasOnly(['latitude', 'longitude']) &&
+        loc.latitude is number && loc.latitude >= -90.0 && loc.latitude <= 90.0 &&
+        loc.longitude is number && loc.longitude >= -180.0 && loc.longitude <= 180.0
+      );
+    }
+
+    function isValidStringList(arr, maxSize, maxItemLen) {
+      return arr is list && arr.size() <= maxSize;
+    }
+
+    // ===============================================================
+    // Farm Access Control Helpers
+    // ===============================================================
+
+    function farmDocPath(farmId) {
+      return /databases/$(database)/documents/farms/$(farmId);
+    }
+
+    function farmExists(farmId) {
+      return exists(farmDocPath(farmId));
+    }
+
+    function getFarmData(farmId) {
+      return get(farmDocPath(farmId)).data;
+    }
+
+    function isFarmManager(farmId) {
+      return isAuthenticated() && (
+        isAdmin() ||
+        (request.auth.token.get('farmId', '') == farmId && request.auth.token.get('role', '') == 'manager') ||
+        (farmExists(farmId) && (
+          getFarmData(farmId).get('ownerId', '') == request.auth.uid ||
+          (getFarmData(farmId).get('managers', []) is list && request.auth.uid in getFarmData(farmId).get('managers', []))
+        ))
+      );
+    }
+
+    function isFarmOperator(farmId) {
+      return isAuthenticated() && (
+        isFarmManager(farmId) ||
+        (request.auth.token.get('farmId', '') == farmId && request.auth.token.get('role', '') in ['operator', 'manager']) ||
+        (farmExists(farmId) && (
+          (getFarmData(farmId).get('operators', []) is list && request.auth.uid in getFarmData(farmId).get('operators', []))
+        ))
+      );
+    }
+
+    function isFarmMember(farmId) {
+      return isAuthenticated() && (
+        isFarmOperator(farmId) ||
+        request.auth.token.get('farmId', '') == farmId ||
+        (farmExists(farmId) && (
+          (getFarmData(farmId).get('members', []) is list && request.auth.uid in getFarmData(farmId).get('members', []))
+        ))
+      );
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    // Farm Validator
+    function isValidFarm(data) {
+      return data.keys().hasAll(['name', 'totalArea', 'location', 'createdAt', 'ownerId']) &&
+             data.keys().hasOnly(['name', 'totalArea', 'location', 'createdAt', 'ownerId', 'managers', 'operators', 'members', 'updatedAt']) &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 100 &&
+             data.totalArea is string && data.totalArea.size() >= 1 && data.totalArea.size() <= 50 &&
+             isValidLocation(data.location) &&
+             data.createdAt is timestamp &&
+             data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 &&
+             (!('managers' in data) || isValidStringList(data.managers, 20, 128)) &&
+             (!('operators' in data) || isValidStringList(data.operators, 50, 128)) &&
+             (!('members' in data) || isValidStringList(data.members, 100, 128)) &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    // Plot Validator
+    function isValidValve(valve) {
+      return valve is map &&
+             valve.keys().hasAll(['id', 'state', 'flowRate']) &&
+             valve.keys().hasOnly(['id', 'state', 'flowRate', 'timerEnd']) &&
+             valve.id is string && valve.id.size() >= 1 && valve.id.size() <= 10 &&
+             valve.state in ['OPEN', 'CLOSED', 'FAULT'] &&
+             valve.flowRate is number && valve.flowRate >= 0.0 && valve.flowRate <= 10000.0 &&
+             (!('timerEnd' in valve) || valve.timerEnd == null || valve.timerEnd is timestamp);
+    }
+
+    function isValidPlot(data) {
+      return data.keys().hasAll(['crop', 'stage', 'plotNumber', 'targetVwcMin', 'targetVwcMax', 'valve', 'soilSensors']) &&
+             data.keys().hasOnly(['crop', 'stage', 'plotNumber', 'targetVwcMin', 'targetVwcMax', 'valve', 'soilSensors', 'updatedAt', 'name', 'createdAt']) &&
+             data.crop is string && data.crop.size() >= 1 && data.crop.size() <= 100 &&
+             data.stage is string && data.stage.size() >= 1 && data.stage.size() <= 100 &&
+             data.plotNumber is int && data.plotNumber >= 1 && data.plotNumber <= 6 &&
+             data.targetVwcMin is number && data.targetVwcMin >= 0.0 && data.targetVwcMin <= 100.0 &&
+             data.targetVwcMax is number && data.targetVwcMax >= data.targetVwcMin && data.targetVwcMax <= 100.0 &&
+             isValidValve(data.valve) &&
+             data.soilSensors is list && data.soilSensors.size() <= 10 &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp) &&
+             (!('name' in data) || (data.name is string && data.name.size() <= 100)) &&
+             (!('createdAt' in data) || data.createdAt is timestamp);
+    }
+
+    // Leaf Scan Validator
+    function isValidDiseaseRisk(dr) {
+      return dr == null || (
+        dr is map &&
+        dr.keys().hasOnly(['pathogen', 'confidence', 'preventativeAction']) &&
+        (!('pathogen' in dr) || (dr.pathogen is string && dr.pathogen.size() <= 150)) &&
+        (!('confidence' in dr) || (dr.confidence is number && dr.confidence >= 0.0 && dr.confidence <= 100.0)) &&
+        (!('preventativeAction' in dr) || (dr.preventativeAction is string && dr.preventativeAction.size() <= 500))
+      );
+    }
+
+    function isValidLeafScan(data) {
+      return data.keys().hasAll(['plotId', 'scannedAt', 'vitalityScore', 'leafWaterIndex', 'nitrogenPrescriptionKg', 'rawSpectrumPreview']) &&
+             data.keys().hasOnly(['plotId', 'scannedAt', 'vitalityScore', 'leafWaterIndex', 'nitrogenPrescriptionKg', 'rawSpectrumPreview', 'diseaseRisk', 'gpsLocation', 'scannedBy', 'crop', 'notes']) &&
+             data.plotId is string && data.plotId.size() >= 1 && data.plotId.size() <= 20 &&
+             data.scannedAt is timestamp &&
+             data.vitalityScore is number && data.vitalityScore >= 0.0 && data.vitalityScore <= 100.0 &&
+             data.leafWaterIndex is number && data.leafWaterIndex >= 0.0 && data.leafWaterIndex <= 5.0 &&
+             data.nitrogenPrescriptionKg is number && data.nitrogenPrescriptionKg >= 0.0 && data.nitrogenPrescriptionKg <= 500.0 &&
+             data.rawSpectrumPreview is list && data.rawSpectrumPreview.size() <= 120 &&
+             (!('diseaseRisk' in data) || isValidDiseaseRisk(data.diseaseRisk)) &&
+             (!('gpsLocation' in data) || data.gpsLocation == null || isValidLocation(data.gpsLocation)) &&
+             (!('scannedBy' in data) || (data.scannedBy is string && data.scannedBy.size() <= 128)) &&
+             (!('crop' in data) || (data.crop is string && data.crop.size() <= 100)) &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() <= 500));
+    }
+
+    // Irrigation Log Validator (ACID Volume Ledger)
+    function isValidIrrigationLog(data) {
+      return data.keys().hasAll(['plotId', 'valveId', 'action', 'durationMinutes', 'litersDelivered', 'triggeredBy', 'timestamp']) &&
+             data.keys().hasOnly(['plotId', 'valveId', 'action', 'durationMinutes', 'litersDelivered', 'triggeredBy', 'timestamp', 'operatorId', 'notes', 'logId']) &&
+             data.plotId is string && data.plotId.size() >= 1 && data.plotId.size() <= 20 &&
+             data.valveId is string && data.valveId.size() >= 1 && data.valveId.size() <= 10 &&
+             data.action in ['OPEN', 'CLOSE', 'EMERGENCY_SHUTOFF'] &&
+             data.durationMinutes is number && data.durationMinutes >= 0.0 && data.durationMinutes <= 1440.0 &&
+             data.litersDelivered is number && data.litersDelivered >= 0.0 && data.litersDelivered <= 1000000.0 &&
+             data.triggeredBy in ['MANUAL', 'MANUAL_TOUCH', 'CLOSED_LOOP_SPECTROSCOPY', 'LOCAL_FAILSAFE', 'OFFLINE_FAILSAFE', 'EMERGENCY'] &&
+             data.timestamp is timestamp &&
+             (!('operatorId' in data) || (data.operatorId is string && data.operatorId.size() <= 128)) &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() <= 500)) &&
+             (!('logId' in data) || (data.logId is string && data.logId.size() <= 100));
+    }
+
+    // Action Recommendation Validator
+    function isValidActionRecommendation(data) {
+      return data.keys().hasAll(['plotId', 'status', 'generatedAt']) &&
+             data.keys().hasOnly(['plotId', 'status', 'generatedAt', 'title', 'details', 'recId', 'plotNumber', 'crop', 'gateId', 'triggerReason', 'suggestedAction', 'suggestedDurationMinutes', 'nitrogenPrescriptionKg', 'diseaseAlert', 'leafScanId', 'resolvedBy', 'updatedAt']) &&
+             data.plotId is string && data.plotId.size() >= 1 && data.plotId.size() <= 20 &&
+             data.status in ['PENDING', 'APPROVED', 'DISMISSED', 'EXECUTED'] &&
+             data.generatedAt is timestamp &&
+             (!('title' in data) || (data.title is string && data.title.size() <= 200)) &&
+             (!('details' in data) || (data.details is string && data.details.size() <= 1000)) &&
+             (!('recId' in data) || (data.recId is string && data.recId.size() <= 100)) &&
+             (!('plotNumber' in data) || (data.plotNumber is int && data.plotNumber >= 1 && data.plotNumber <= 6)) &&
+             (!('crop' in data) || (data.crop is string && data.crop.size() <= 100)) &&
+             (!('gateId' in data) || (data.gateId is string && data.gateId.size() <= 10)) &&
+             (!('triggerReason' in data) || (data.triggerReason is string && data.triggerReason.size() <= 500)) &&
+             (!('suggestedAction' in data) || (data.suggestedAction is string && data.suggestedAction.size() <= 50)) &&
+             (!('suggestedDurationMinutes' in data) || (data.suggestedDurationMinutes is number && data.suggestedDurationMinutes >= 0.0 && data.suggestedDurationMinutes <= 1440.0)) &&
+             (!('nitrogenPrescriptionKg' in data) || (data.nitrogenPrescriptionKg is number && data.nitrogenPrescriptionKg >= 0.0)) &&
+             (!('diseaseAlert' in data) || data.diseaseAlert == null || data.diseaseAlert is map) &&
+             (!('leafScanId' in data) || (data.leafScanId is string && data.leafScanId.size() <= 100)) &&
+             (!('resolvedBy' in data) || (data.resolvedBy is string && data.resolvedBy.size() <= 128)) &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    function isValidRecommendationTransition() {
+      let prevStatus = resource.data.status;
+      let newStatus = request.resource.data.status;
+      return prevStatus == newStatus ||
+             (prevStatus == 'PENDING' && newStatus in ['APPROVED', 'DISMISSED', 'EXECUTED']) ||
+             (prevStatus == 'APPROVED' && newStatus in ['EXECUTED', 'DISMISSED']) ||
+             isAdmin();
+    }
+
+    // User Profile Validator (for optional users collection)
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role', 'createdAt']) &&
+             data.keys().hasOnly(['uid', 'email', 'role', 'createdAt', 'displayName', 'farmIds', 'updatedAt']) &&
+             data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 &&
+             data.email is string && data.email.size() <= 100 &&
+             data.role in ['admin', 'manager', 'operator', 'viewer'] &&
+             data.createdAt is timestamp &&
+             (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 100)) &&
+             (!('farmIds' in data) || isValidStringList(data.farmIds, 20, 100)) &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    // ===============================================================
+    // Root Match & Collection Rules
+    // ===============================================================
+
+    // Default deny all unhandled collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // -------------------------------------------------------------
+    // User Profiles: users/{userId}
+    // -------------------------------------------------------------
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) &&
+                       isValidUser(request.resource.data) &&
+                       request.resource.data.uid == request.auth.uid &&
+                       isRecent(request.resource.data.createdAt) &&
+                       (request.resource.data.role in ['operator', 'viewer'] || isAdmin());
+      allow update: if isOwner(userId) &&
+                       isValidUser(request.resource.data) &&
+                       areImmutableFieldsUnchanged(['uid', 'createdAt']) &&
+                       (request.resource.data.role == resource.data.role || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // -------------------------------------------------------------
+    // Farms: farms/{farmId}
+    // -------------------------------------------------------------
+    match /farms/{farmId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        resource.data.get('ownerId', '') == request.auth.uid ||
+        (resource.data.get('managers', []) is list && request.auth.uid in resource.data.get('managers', [])) ||
+        (resource.data.get('operators', []) is list && request.auth.uid in resource.data.get('operators', [])) ||
+        (resource.data.get('members', []) is list && request.auth.uid in resource.data.get('members', [])) ||
+        request.auth.token.get('farmId', '') == farmId
+      );
+
+      allow create: if isAuthenticated() &&
+                       isValidFarm(request.resource.data) &&
+                       (isAdmin() || request.resource.data.ownerId == request.auth.uid) &&
+                       isRecent(request.resource.data.createdAt);
+
+      allow update: if isAuthenticated() &&
+                       isValidFarm(request.resource.data) &&
+                       (isAdmin() || resource.data.ownerId == request.auth.uid ||
+                        (resource.data.get('managers', []) is list && request.auth.uid in resource.data.get('managers', []))) &&
+                       areImmutableFieldsUnchanged(['createdAt', 'ownerId']);
+
+      allow delete: if isAuthenticated() &&
+                       (isAdmin() || resource.data.ownerId == request.auth.uid);
+
+      // -----------------------------------------------------------
+      // Plots Subcollection: farms/{farmId}/plots/{plotId}
+      // -----------------------------------------------------------
+      match /plots/{plotId} {
+        allow read: if isFarmMember(farmId);
+
+        allow create: if isFarmManager(farmId) &&
+                         isValidPlot(request.resource.data);
+
+        allow update: if isFarmOperator(farmId) &&
+                         isValidPlot(request.resource.data) &&
+                         areImmutableFieldsUnchanged(['plotNumber']);
+
+        allow delete: if isFarmManager(farmId);
+      }
+
+      // -----------------------------------------------------------
+      // Leaf Spectroscopy Scans: farms/{farmId}/leafScans/{scanId}
+      // -----------------------------------------------------------
+      match /leafScans/{scanId} {
+        allow read: if isFarmMember(farmId);
+
+        allow create: if isFarmOperator(farmId) &&
+                         isValidLeafScan(request.resource.data) &&
+                         isRecent(request.resource.data.scannedAt);
+
+        allow update: if isFarmManager(farmId) &&
+                         isValidLeafScan(request.resource.data) &&
+                         areImmutableFieldsUnchanged(['plotId', 'scannedAt']);
+
+        allow delete: if isFarmManager(farmId);
+      }
+
+      // -----------------------------------------------------------
+      // Irrigation Logs: farms/{farmId}/irrigationLogs/{logId}
+      // Strictly Append-Only Water Ledger!
+      // -----------------------------------------------------------
+      match /irrigationLogs/{logId} {
+        allow read: if isFarmMember(farmId);
+
+        allow create: if isFarmOperator(farmId) &&
+                         isValidIrrigationLog(request.resource.data) &&
+                         isRecent(request.resource.data.timestamp);
+
+        // Append-only ledger invariant: no updates or deletes permitted
+        allow update: if false;
+        allow delete: if false;
+      }
+
+      // -----------------------------------------------------------
+      // Action Recommendations: farms/{farmId}/actionRecommendations/{recId}
+      // -----------------------------------------------------------
+      match /actionRecommendations/{recId} {
+        allow read: if isFarmMember(farmId);
+
+        allow create: if isFarmOperator(farmId) &&
+                         isValidActionRecommendation(request.resource.data) &&
+                         isRecent(request.resource.data.generatedAt);
+
+        allow update: if isFarmOperator(farmId) &&
+                         isValidActionRecommendation(request.resource.data) &&
+                         areImmutableFieldsUnchanged(['plotId', 'generatedAt']) &&
+                         isValidRecommendationTransition();
+
+        allow delete: if isFarmManager(farmId);
+      }
+    }
+  }
+}

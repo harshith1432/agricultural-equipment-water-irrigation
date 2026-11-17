@@ -1,0 +1,58 @@
+{
+  "name": "AgriSpectra Flow & Field",
+  "short_name": "AgriSpectra",
+  "description": "Unified Handheld Leaf-Clip Spectroscopy & 1-Acre 6-Zone Smart Irrigation System",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#020617",
+  "theme_color": "#020617",
+  "categories": ["agriculture", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Leaf Spectroscopy",
+      "short_name": "Spectro",
+      "description": "Acquire leaf scan and run Edge ML chemometrics",
+      "url": "/#spectroscopy-studio-section",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "6-Zone Valve Control",
+      "short_name": "Valves",
+      "description": "Control solenoid hydraulic gates",
+      "url": "/#valve-control-section",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

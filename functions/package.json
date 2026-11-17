@@ -1,0 +1,23 @@
+{
+  "name": "agrispectra-functions",
+  "version": "1.0.0",
+  "description": "Firebase Cloud Functions for AgriSpectra Flow & Field",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test/functions.test.js",
+    "lint": "eslint .",
+    "serve": "firebase emulators:start --only functions",
+    "shell": "firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "engines": {
+    "node": "20"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0",
+    "firebase-functions": "^6.0.1"
+  },
+  "private": true
+}
