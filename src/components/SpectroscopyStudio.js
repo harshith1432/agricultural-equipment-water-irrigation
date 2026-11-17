@@ -342,11 +342,16 @@ export function drawSpectralCurve(canvas, spectrum = []) {
   const width = rect.width;
   const height = rect.height;
 
+  const isCreamy = document.body.classList.contains('theme-creamy-agri') || !document.body.classList.contains('theme-dark-soil');
+  const gridStroke = isCreamy ? "rgba(180, 195, 185, 0.55)" : "rgba(51, 65, 85, 0.4)";
+  const tickText = isCreamy ? "#4A6B52" : "#64748b";
+  const curveStroke = isCreamy ? "#1B5E20" : "#10B981";
+
   // Clear background
   ctx.clearRect(0, 0, width, height);
 
   // Draw grid lines
-  ctx.strokeStyle = "rgba(51, 65, 85, 0.4)";
+  ctx.strokeStyle = gridStroke;
   ctx.lineWidth = 1;
   for (let y = 0.2; y <= 0.8; y += 0.2) {
     const py = height * (1 - y);
@@ -355,7 +360,7 @@ export function drawSpectralCurve(canvas, spectrum = []) {
     ctx.lineTo(width - 15, py);
     ctx.stroke();
 
-    ctx.fillStyle = "#64748b";
+    ctx.fillStyle = tickText;
     ctx.font = "9px 'JetBrains Mono', monospace";
     ctx.fillText(`${Math.round(y * 100)}%`, 8, py + 3);
   }
@@ -367,10 +372,10 @@ export function drawSpectralCurve(canvas, spectrum = []) {
     ctx.beginPath();
     ctx.moveTo(px, 10);
     ctx.lineTo(px, height - 20);
-    ctx.strokeStyle = "rgba(51, 65, 85, 0.3)";
+    ctx.strokeStyle = gridStroke;
     ctx.stroke();
 
-    ctx.fillStyle = "#64748b";
+    ctx.fillStyle = tickText;
     ctx.font = "9px 'JetBrains Mono', monospace";
     ctx.fillText(`${wl}nm`, px - 14, height - 6);
   });
@@ -381,13 +386,14 @@ export function drawSpectralCurve(canvas, spectrum = []) {
     const px = 40 + ((targetWl - 350) / (1100 - 350)) * (width - 60);
     ctx.fillStyle = color;
     ctx.fillRect(px - 10, 10, 20, height - 32);
+    ctx.fillStyle = isCreamy ? "#2D4B34" : "#cbd5e1";
     ctx.font = "9px 'Inter', sans-serif";
     ctx.fillText(label, px - 12, 22);
   };
 
-  drawBand(450, "rgba(59, 130, 246, 0.08)", "Chl-b");
-  drawBand(680, "rgba(239, 68, 68, 0.08)", "Chl-a");
-  drawBand(970, "rgba(6, 182, 212, 0.12)", "H₂O Dip");
+  drawBand(450, isCreamy ? "rgba(43, 108, 176, 0.12)" : "rgba(59, 130, 246, 0.08)", "Chl-b");
+  drawBand(680, isCreamy ? "rgba(197, 48, 48, 0.12)" : "rgba(239, 68, 68, 0.08)", "Chl-a");
+  drawBand(970, isCreamy ? "rgba(49, 151, 149, 0.15)" : "rgba(6, 182, 212, 0.12)", "H₂O Dip");
 
   // Draw Spectral Gradient Curve
   const points = spectrum.map((r, i) => {
@@ -399,9 +405,15 @@ export function drawSpectralCurve(canvas, spectrum = []) {
 
   // Area fill below curve
   const gradient = ctx.createLinearGradient(0, 0, 0, height);
-  gradient.addColorStop(0, "rgba(16, 185, 129, 0.4)");
-  gradient.addColorStop(0.6, "rgba(16, 185, 129, 0.1)");
-  gradient.addColorStop(1, "rgba(16, 185, 129, 0.0)");
+  if (isCreamy) {
+    gradient.addColorStop(0, "rgba(46, 125, 50, 0.35)");
+    gradient.addColorStop(0.6, "rgba(46, 125, 50, 0.12)");
+    gradient.addColorStop(1, "rgba(46, 125, 50, 0.0)");
+  } else {
+    gradient.addColorStop(0, "rgba(16, 185, 129, 0.4)");
+    gradient.addColorStop(0.6, "rgba(16, 185, 129, 0.1)");
+    gradient.addColorStop(1, "rgba(16, 185, 129, 0.0)");
+  }
 
   ctx.beginPath();
   ctx.moveTo(points[0].x, height - 25);
@@ -417,8 +429,8 @@ export function drawSpectralCurve(canvas, spectrum = []) {
     if (idx === 0) ctx.moveTo(p.x, p.y);
     else ctx.lineTo(p.x, p.y);
   });
-  ctx.strokeStyle = "#10B981"; // Emerald Glow
-  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = curveStroke;
+  ctx.lineWidth = 2.8;
   ctx.stroke();
 
   // Highlight points
@@ -426,11 +438,11 @@ export function drawSpectralCurve(canvas, spectrum = []) {
     const wl = WAVELENGTHS[idx];
     if (wl === 550 || wl === 680 || wl === 720 || wl === 970) {
       ctx.beginPath();
-      ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
-      ctx.fillStyle = "#ffffff";
+      ctx.arc(p.x, p.y, 4.5, 0, Math.PI * 2);
+      ctx.fillStyle = isCreamy ? "#FCFAF6" : "#ffffff";
       ctx.fill();
-      ctx.strokeStyle = "#10B981";
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = curveStroke;
+      ctx.lineWidth = 2.5;
       ctx.stroke();
     }
   });

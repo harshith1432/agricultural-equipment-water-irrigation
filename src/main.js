@@ -22,7 +22,7 @@ import { generateSpectralSignature, processSpectralVector } from './hardware/che
 class AgriSpectraApp {
   constructor() {
     this.appEl = document.getElementById('app');
-    this.isSunlightMode = false;
+    this.currentTheme = localStorage.getItem('agrispectra_theme') || 'creamy-agri';
     this.selectedPlotId = "plot-2"; // Start focused on Plot 2 to highlight water stress scenario
 
     // Reactive State
@@ -51,6 +51,9 @@ class AgriSpectraApp {
 
   async init() {
     console.log("[AgriSpectra] Initializing unified precision agriculture platform...");
+
+    // Apply the active agricultural visual theme (Creamy Light & Foliage Green default)
+    this.applyTheme(this.currentTheme);
 
     // 1. Connect Simulated BLE device by default so user has immediate out-of-the-box experience
     await leafClipDevice.connect({ forceSimulation: false });
@@ -125,15 +128,15 @@ class AgriSpectraApp {
 
     // Main layout container
     const mainWrapper = document.createElement('div');
-    mainWrapper.className = "flex-1 flex flex-col min-h-screen bg-slate-950 text-slate-100 transition-colors duration-300";
+    mainWrapper.className = "flex-1 flex flex-col min-h-screen transition-colors duration-300";
 
     // 1. Header
     const header = createHeader({
       onEmergencyStop: () => this.handleEmergencyStop(),
       onOpenCalibration: (type) => this.openCalibrationModal(type),
       onOpenSimModal: () => this.openTelemetrySimModal(),
-      onToggleSunlightMode: () => this.toggleSunlightMode(),
-      isSunlightMode: this.isSunlightMode,
+      onThemeChange: (themeId) => this.setTheme(themeId),
+      currentTheme: this.currentTheme,
       bleState: this.bleState,
       mqttState: this.mqttState
     });
@@ -301,16 +304,31 @@ class AgriSpectraApp {
   }
 
   /**
-   * Toggle Sunlight Visibility High-Contrast Ambient Mode
+   * Set and persist agricultural visual theme
    */
-  toggleSunlightMode() {
-    this.isSunlightMode = !this.isSunlightMode;
-    if (this.isSunlightMode) {
-      document.body.classList.add('sunlight-mode');
-    } else {
-      document.body.classList.remove('sunlight-mode');
-    }
+  setTheme(themeId) {
+    this.currentTheme = themeId;
+    try {
+      localStorage.setItem('agrispectra_theme', themeId);
+    } catch (e) {}
+    this.applyTheme(themeId);
     this.render();
+  }
+
+  applyTheme(themeId) {
+    const body = document.body;
+    body.classList.remove('theme-creamy-agri', 'theme-lush-emerald', 'theme-sunlight', 'theme-dark-soil', 'sunlight-mode');
+    
+    if (themeId === 'sunlight') {
+      body.classList.add('theme-sunlight', 'sunlight-mode');
+    } else if (themeId === 'lush-emerald') {
+      body.classList.add('theme-lush-emerald');
+    } else if (themeId === 'dark-soil') {
+      body.classList.add('theme-dark-soil');
+    } else {
+      // Default: Creamy light theme & botanical green
+      body.classList.add('theme-creamy-agri');
+    }
   }
 
   openCalibrationModal(type = 'FULL') {

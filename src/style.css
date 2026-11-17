@@ -3,23 +3,24 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 body {
   margin: 0;
   padding: 0;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background-color: #0b1120;
-  color: #f1f5f9;
+  background-color: #F8F5EE;
+  color: #1A2E1F;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
   touch-action: manipulation;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* =========================================================================
-   Outdoor One-Handed Field Usability: Minimum 48px Touch Targets
+   Universal 48px Touch Targets for Field Ergonomics
    ========================================================================= */
 button, select, input, .touch-target, [role="button"] {
   min-height: 48px;
@@ -27,147 +28,215 @@ button, select, input, .touch-target, [role="button"] {
 }
 
 /* =========================================================================
-   Neo-Bento Grid & Frosted Glassmorphism Accents
+   THEME 1: CREAMY AGRICULTURAL LIGHT & GREEN THEME (Default)
+   Rich Organic Farm Aesthetic: Warm Cream, Soil Loam & Botanical Greens
    ========================================================================= */
-.glass-panel {
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(51, 65, 85, 0.6);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+body.theme-creamy-agri {
+  background-color: #F7F4EB !important;
+  color: #172D1C !important;
 }
 
-.neo-bento-card {
-  position: relative;
-  overflow: hidden;
-  border-radius: 1rem;
-  background: rgba(30, 41, 59, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(71, 85, 105, 0.4);
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+body.theme-creamy-agri header {
+  background-color: rgba(246, 241, 230, 0.92) !important;
+  border-bottom-color: #E2D9CB !important;
+  box-shadow: 0 2px 12px rgba(35, 60, 40, 0.04);
 }
 
-.neo-bento-card:hover {
-  border-color: rgba(16, 185, 129, 0.5);
-  box-shadow: 0 12px 30px -10px rgba(16, 185, 129, 0.15);
+body.theme-creamy-agri h1, 
+body.theme-creamy-agri h2, 
+body.theme-creamy-agri h3,
+body.theme-creamy-agri h4 {
+  color: #12301A !important;
+}
+
+body.theme-creamy-agri .text-white {
+  color: #14321C !important;
+}
+
+body.theme-creamy-agri .text-slate-100,
+body.theme-creamy-agri .text-slate-200 {
+  color: #1E3D27 !important;
+}
+
+body.theme-creamy-agri .text-slate-300 {
+  color: #2F4D38 !important;
+}
+
+body.theme-creamy-agri .text-slate-400 {
+  color: #536D5A !important;
+}
+
+body.theme-creamy-agri .text-slate-500 {
+  color: #6C8272 !important;
+}
+
+/* Card surfaces: Rich Creamy White with warm borders */
+body.theme-creamy-agri .bg-slate-850,
+body.theme-creamy-agri .bg-slate-850\/80,
+body.theme-creamy-agri .bg-slate-850\/90,
+body.theme-creamy-agri .bg-slate-850\/95,
+body.theme-creamy-agri .bg-slate-900\/90,
+body.theme-creamy-agri .bg-slate-900,
+body.theme-creamy-agri .bg-slate-800,
+body.theme-creamy-agri .bg-slate-800\/50,
+body.theme-creamy-agri .bg-slate-800\/70,
+body.theme-creamy-agri .bg-slate-800\/80,
+body.theme-creamy-agri .bg-slate-800\/90 {
+  background-color: #FFFFFF !important;
+  border-color: #E4DCD0 !important;
+  box-shadow: 0 4px 18px -2px rgba(28, 56, 36, 0.06), 0 2px 6px -1px rgba(28, 56, 36, 0.03) !important;
+}
+
+/* Header & status pills */
+body.theme-creamy-agri .bg-slate-800 {
+  background-color: #F1E9DC !important;
+  border-color: #DFD5C5 !important;
+}
+
+body.theme-creamy-agri .bg-slate-700,
+body.theme-creamy-agri .bg-slate-750 {
+  background-color: #ECE2D4 !important;
+  border-color: #D8CCBC !important;
+}
+
+body.theme-creamy-agri select {
+  background-color: #F3ECE0 !important;
+  color: #14321C !important;
+  border-color: #D8CCBC !important;
+}
+
+/* Plot Card styling in Creamy Agri theme */
+body.theme-creamy-agri .plot-card {
+  background-color: #FCFAF6 !important;
+  border-color: #E6DECE !important;
+}
+
+body.theme-creamy-agri .plot-card:hover {
+  background-color: #FFFFFF !important;
+  border-color: #276E3E !important;
+}
+
+body.theme-creamy-agri .plot-card.ring-2 {
+  background-color: #FFFFFF !important;
+  border-color: #276E3E !important;
+  box-shadow: 0 0 0 2px #276E3E, 0 8px 24px -4px rgba(39, 110, 62, 0.16) !important;
+}
+
+/* Sub-sensor depth blocks */
+body.theme-creamy-agri .plot-card .grid-cols-3 > div,
+body.theme-creamy-agri .valve-card .grid-cols-3 > div {
+  background-color: #F4EDE2 !important;
+  border-color: #E2D7C8 !important;
+}
+
+body.theme-creamy-agri .plot-card .grid-cols-3 span.text-slate-200,
+body.theme-creamy-agri .valve-card .grid-cols-3 span.text-slate-200 {
+  color: #12301A !important;
+}
+
+/* Valve Actuation Controls in Creamy Agri */
+body.theme-creamy-agri .valve-card {
+  background-color: #FFFFFF !important;
+  border-color: #E3DBD0 !important;
+}
+
+body.theme-creamy-agri .valve-actuate-btn[data-action="OPEN"] {
+  background: linear-gradient(135deg, #276E3E 0%, #1A4728 100%) !important;
+  color: #FFFFFF !important;
+  border-color: #378850 !important;
+  box-shadow: 0 4px 14px rgba(39, 110, 62, 0.28) !important;
+}
+
+body.theme-creamy-agri .valve-actuate-btn[data-action="CLOSE"] {
+  background: linear-gradient(135deg, #C53030 0%, #9B2C2C 100%) !important;
+  color: #FFFFFF !important;
+  border-color: #E53E3E !important;
+}
+
+/* Spectroscopy Curve Canvas Container */
+body.theme-creamy-agri #spectroscopy-studio-section .bg-slate-900\/90 {
+  background-color: #FAF7F0 !important;
+  border-color: #E2D9CC !important;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.03) !important;
+}
+
+/* Closed-Loop Synergy Card in Creamy Agri */
+body.theme-creamy-agri #synergy-section-host > div {
+  background: linear-gradient(135deg, #FFFDF8 0%, #FBF6EB 100%) !important;
+  border-color: #E3B46D !important;
+  box-shadow: 0 6px 20px -3px rgba(217, 119, 6, 0.12) !important;
+}
+
+body.theme-creamy-agri #synergy-cards-list > div {
+  background-color: #FFFFFF !important;
+  border-color: #EED8B5 !important;
 }
 
 /* =========================================================================
-   Sunlight Visibility High-Contrast Ambient Mode (#000000 Deep Contrast)
-   Specifically designed for harsh outdoor direct solar glare & gloved hands
+   THEME 2: LUSH EMERALD (Deep Foliage Precision Agriculture Theme)
    ========================================================================= */
-body.sunlight-mode {
+body.theme-lush-emerald {
+  background-color: #0E2917 !important;
+  color: #E8F5EB !important;
+}
+
+body.theme-lush-emerald header {
+  background-color: rgba(10, 31, 18, 0.94) !important;
+  border-bottom-color: #1F4D2E !important;
+}
+
+body.theme-lush-emerald .bg-slate-850,
+body.theme-lush-emerald .bg-slate-800,
+body.theme-lush-emerald .bg-slate-900 {
+  background-color: #133920 !important;
+  border-color: #1F5430 !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* =========================================================================
+   THEME 3: SUNLIGHT HIGH-CONTRAST AMBIENT MODE (Direct Outdoor Glare)
+   ========================================================================= */
+body.theme-sunlight {
   background-color: #000000 !important;
-  color: #ffffff !important;
+  color: #FFFFFF !important;
 }
 
-body.sunlight-mode header {
-  background-color: #000000 !important;
-  border-bottom: 2px solid #525252 !important;
+body.theme-sunlight .bg-slate-850,
+body.theme-sunlight .bg-slate-800,
+body.theme-sunlight .bg-slate-900,
+body.theme-sunlight header {
+  background-color: #0A0A0A !important;
+  border-color: #4A4A4A !important;
 }
 
-body.sunlight-mode .bg-slate-950,
-body.sunlight-mode .bg-slate-900,
-body.sunlight-mode .bg-slate-900\/90,
-body.sunlight-mode .bg-slate-850,
-body.sunlight-mode .bg-slate-850\/80,
-body.sunlight-mode .bg-slate-850\/90,
-body.sunlight-mode .bg-slate-800,
-body.sunlight-mode .bg-slate-800\/50,
-body.sunlight-mode .bg-slate-800\/70,
-body.sunlight-mode .bg-slate-800\/80,
-body.sunlight-mode .bg-slate-800\/90,
-body.sunlight-mode .bg-slate-750 {
-  background-color: #050505 !important;
-  border-color: #525252 !important;
-  box-shadow: 0 0 0 1px #525252 !important;
+body.theme-sunlight .text-slate-300,
+body.theme-sunlight .text-slate-400,
+body.theme-sunlight .text-slate-500 {
+  color: #E5E5E5 !important;
 }
 
-body.sunlight-mode .text-slate-400,
-body.sunlight-mode .text-slate-500 {
-  color: #e2e8f0 !important;
+/* =========================================================================
+   THEME 4: DARK SOIL (Midnight Farm / Low-Light Night Inspections)
+   ========================================================================= */
+body.theme-dark-soil {
+  background-color: #0B1120 !important;
+  color: #F1F5F9 !important;
 }
 
-body.sunlight-mode .text-slate-300,
-body.sunlight-mode .text-slate-200 {
-  color: #ffffff !important;
-}
-
-/* High-Contrast Glowing States in Direct Sunlight */
-body.sunlight-mode .text-emeraldGlow,
-body.sunlight-mode .text-emeraldGlow-light {
-  color: #00ff88 !important;
-  text-shadow: 0 0 8px rgba(0, 255, 136, 0.85);
-}
-
-body.sunlight-mode .text-amberPulse,
-body.sunlight-mode .text-amberPulse-light {
-  color: #ffbb00 !important;
-  text-shadow: 0 0 8px rgba(255, 187, 0, 0.85);
-}
-
-body.sunlight-mode .text-crimsonCoral,
-body.sunlight-mode .text-crimsonCoral-light {
-  color: #ff3344 !important;
-  text-shadow: 0 0 8px rgba(255, 51, 68, 0.85);
-}
-
-body.sunlight-mode .bg-emeraldGlow {
-  background-color: #00ff88 !important;
-  color: #000000 !important;
-  box-shadow: 0 0 14px rgba(0, 255, 136, 0.9) !important;
-}
-
-body.sunlight-mode .bg-amberPulse {
-  background-color: #ffbb00 !important;
-  color: #000000 !important;
-  box-shadow: 0 0 14px rgba(255, 187, 0, 0.9) !important;
-}
-
-body.sunlight-mode .bg-crimsonCoral {
-  background-color: #ff3344 !important;
-  color: #ffffff !important;
-  box-shadow: 0 0 14px rgba(255, 51, 68, 0.9) !important;
-}
-
-body.sunlight-mode .border-emeraldGlow\/40,
-body.sunlight-mode .border-emeraldGlow\/80,
-body.sunlight-mode .border-emeraldGlow\/30 {
-  border-color: #00ff88 !important;
-}
-
-body.sunlight-mode .border-amber-500\/40,
-body.sunlight-mode .border-amber-500\/50,
-body.sunlight-mode .border-amber-500\/30 {
-  border-color: #ffbb00 !important;
-}
-
-body.sunlight-mode .border-red-500\/50,
-body.sunlight-mode .border-crimsonCoral\/40 {
-  border-color: #ff3344 !important;
-}
-
-/* High Contrast Canvas Outline */
-body.sunlight-mode canvas#spectral-canvas {
-  background-color: #000000 !important;
-  border-color: #00ff88 !important;
-}
-
-/* Custom Scrollbars */
+/* Custom Agricultural Scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
 }
-::-webkit-scrollbar-track {
-  background: #0f172a;
+body.theme-creamy-agri ::-webkit-scrollbar-track {
+  background: #F2ECE0;
 }
-::-webkit-scrollbar-thumb {
-  background: #334155;
-  border-radius: 3px;
+body.theme-creamy-agri ::-webkit-scrollbar-thumb {
+  background: #C4B8A2;
+  border-radius: 4px;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+body.theme-creamy-agri ::-webkit-scrollbar-thumb:hover {
+  background: #A3967F;
 }
 
 @keyframes fadeIn {
@@ -176,5 +245,5 @@ body.sunlight-mode canvas#spectral-canvas {
 }
 
 .animate-fadeIn {
-  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: fadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

@@ -43,7 +43,9 @@ export function getMoistureColor(vwc) {
 }
 
 export function getVitalityColor(score) {
-  if (score >= 75) return '#10B981'; // Emerald Glow
-  if (score >= 50) return '#F59E0B'; // Amber Pulse
-  return '#EF4444'; // Crimson Coral
+  const isCreamy = typeof document !== 'undefined' && 
+    (document.body.classList.contains('theme-creamy-agri') || !document.body.classList.contains('theme-dark-soil'));
+  if (score >= 75) return isCreamy ? '#2E7D32' : '#10B981'; // Deep Agricultural Green vs Emerald Glow
+  if (score >= 50) return isCreamy ? '#D97706' : '#F59E0B'; // Warm Harvest Amber
+  return isCreamy ? '#C53030' : '#EF4444'; // Agricultural Red Alert
 }
