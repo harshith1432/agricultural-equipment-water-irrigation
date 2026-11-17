@@ -1,24 +1,25 @@
 /**
  * Firebase App Configuration
- * Reads from environment variables (Vite) or falls back to standard demo project.
+ * Reads from environment variables (Vite) or falls back to the configured project.
  */
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 
 export const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "demo-mock-key-agrispectra-44812",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "agrispectra-flow-field.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "agrispectra-flow-field",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "agrispectra-flow-field.appspot.com",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "102938475610",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:102938475610:web:89ef82ac398e"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "water-irrigation-system-8aeeb.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "water-irrigation-system-8aeeb",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "water-irrigation-system-8aeeb.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "160643566396",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:160643566396:web:62dedea727308c050d6c39",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-VYL5W9P5NF"
 };
 
-// Check if live credentials are configured or if we are in demo/offline mode
+// True when live credentials are set and not a demo placeholder
 export const isLiveFirebaseConfigured = Boolean(
-  import.meta.env.VITE_FIREBASE_API_KEY && 
-  import.meta.env.VITE_FIREBASE_PROJECT_ID &&
-  !import.meta.env.VITE_FIREBASE_API_KEY.includes("demo-agrispectra")
+  firebaseConfig.apiKey &&
+  firebaseConfig.projectId &&
+  !firebaseConfig.apiKey.includes("demo-agrispectra")
 );
 
 let app = null;
