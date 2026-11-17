@@ -7,8 +7,8 @@
       "latitude": 36.7783,
       "longitude": -119.4179
     },
-    "createdAt": "2026-10-18T20:10:50.413Z",
-    "updatedAt": "2026-11-17T20:10:50.413Z",
+    "createdAt": "2026-10-18T20:18:22.220Z",
+    "updatedAt": "2026-11-17T20:18:22.220Z",
     "ownerId": "user-agrispectra-admin",
     "managers": [
       "user-agrispectra-admin",
@@ -45,7 +45,7 @@
           "vwc": 26.4,
           "temperature": 23.2,
           "salinityEc": 1.2,
-          "lastUpdated": "2026-11-17T20:10:50.413Z"
+          "lastUpdated": "2026-11-17T20:18:22.220Z"
         },
         {
           "probeId": "S1_30cm",
@@ -53,7 +53,7 @@
           "vwc": 29.1,
           "temperature": 21.8,
           "salinityEc": 1.1,
-          "lastUpdated": "2026-11-17T20:10:50.413Z"
+          "lastUpdated": "2026-11-17T20:18:22.220Z"
         },
         {
           "probeId": "S1_50cm",
@@ -61,11 +61,11 @@
           "vwc": 31.5,
           "temperature": 20.4,
           "salinityEc": 0.95,
-          "lastUpdated": "2026-11-17T20:10:50.413Z"
+          "lastUpdated": "2026-11-17T20:18:22.220Z"
         }
       ],
-      "createdAt": "2026-10-18T20:10:50.413Z",
-      "updatedAt": "2026-11-17T20:10:50.413Z"
+      "createdAt": "2026-10-18T20:18:22.220Z",
+      "updatedAt": "2026-11-17T20:18:22.220Z"
     },
     {
       "id": "plot-2",
@@ -88,7 +88,7 @@
           "vwc": 13.8,
           "temperature": 27.8,
           "salinityEc": 1.85,
-          "lastUpdated": "2026-11-17T20:10:50.413Z"
+          "lastUpdated": "2026-11-17T20:18:22.220Z"
         },
         {
           "probeId": "S2_30cm",
@@ -96,7 +96,7 @@
           "vwc": 17.2,
           "temperature": 25.1,
           "salinityEc": 1.6,
-          "lastUpdated": "2026-11-17T20:10:50.413Z"
+          "lastUpdated": "2026-11-17T20:18:22.220Z"
         },
         {
           "probeId": "S2_50cm",
@@ -104,11 +104,11 @@
           "vwc": 22,
           "temperature": 22,
           "salinityEc": 1.3,
-          "lastUpdated": "2026-11-17T20:10:50.413Z"
+          "lastUpdated": "2026-11-17T20:18:22.220Z"
         }
       ],
-      "createdAt": "2026-10-18T20:10:50.413Z",
-      "updatedAt": "2026-11-17T20:10:50.413Z"
+      "createdAt": "2026-10-18T20:18:22.220Z",
+      "updatedAt": "2026-11-17T20:18:22.220Z"
     },
     {
       "id": "plot-3",
@@ -131,7 +131,7 @@
           "vwc": 31.2,
           "temperature": 22.5,
           "salinityEc": 1.05,
-          "lastUpdated": "2026-11-17T20:10:50.413Z"
+          "lastUpdated": "2026-11-17T20:18:22.220Z"
         },
         {
           "probeId": "S3_30cm",
@@ -139,7 +139,7 @@
           "vwc": 34,
           "temperature": 21,
           "salinityEc": 0.92,
-          "lastUpdated": "2026-11-17T20:10:50.413Z"
+          "lastUpdated": "2026-11-17T20:18:22.220Z"
         },
         {
           "probeId": "S3_50cm",
@@ -147,11 +147,11 @@
           "vwc": 36.5,
           "temperature": 19.8,
           "salinityEc": 0.81,
-          "lastUpdated": "2026-11-17T20:10:50.413Z"
+          "lastUpdated": "2026-11-17T20:18:22.220Z"
         }
       ],
-      "createdAt": "2026-10-18T20:10:50.413Z",
-      "updatedAt": "2026-11-17T20:10:50.413Z"
+      "createdAt": "2026-10-18T20:18:22.220Z",
+      "updatedAt": "2026-11-17T20:18:22.220Z"
     },
     {
       "id": "plot-4",
@@ -174,7 +174,7 @@
           "vwc": 21.5,
           "temperature": 24.2,
           "salinityEc": 1.4,
-          "lastUpdated": "2026-11-17T20:10:50.413Z"
+          "lastUpdated": "2026-11-17T20:18:22.220Z"
         },
         {
           "probeId": "S4_30cm",
@@ -182,7 +182,7 @@
           "vwc": 24.8,
           "temperature": 22.3,
           "salinityEc": 1.25,
-          "lastUpdated": "2026-11-17T20:10:50.413Z"
+          "lastUpdated": "2026-11-17T20:18:22.220Z"
         },
         {
           "probeId": "S4_50cm",
@@ -190,11 +190,11 @@
           "vwc": 27,
           "temperature": 21.1,
           "salinityEc": 1.1,
-          "lastUpdated": "2026-11-17T20:10:50.413Z"
+          "lastUpdated": "2026-11-17T20:18:22.220Z"
         }
       ],
-      "createdAt": "2026-10-18T20:10:50.413Z",
-      "updatedAt": "2026-11-17T20:10:50.413Z"
+      "createdAt": "2026-10-18T20:18:22.220Z",
+      "updatedAt": "2026-11-17T20:18:22.220Z"
     },
     {
       "id": "plot-5",
@@ -217,7 +217,7 @@
           "vwc": 28,
           "temperature": 21.9,
           "salinityEc": 0.9,
-          "lastUpdated": "2026-11-17T20:10:50.413Z"
+          "lastUpdated": "2026-11-17T20:18:22.220Z"
         },
         {
           "probeId": "S5_30cm",
@@ -225,7 +225,7 @@
           "vwc": 32.5,
           "temperature": 20.8,
           "salinityEc": 0.82,
-          "lastUpdated": "2026-11-17T20:10:50.413Z"
+          "lastUpdated": "2026-11-17T20:18:22.220Z"
         },
         {
           "probeId": "S5_50cm",
@@ -233,11 +233,11 @@
           "vwc": 35,
           "temperature": 19.5,
           "salinityEc": 0.74,
-          "lastUpdated": "2026-11-17T20:10:50.413Z"
+          "lastUpdated": "2026-11-17T20:18:22.220Z"
         }
       ],
-      "createdAt": "2026-10-18T20:10:50.413Z",
-      "updatedAt": "2026-11-17T20:10:50.413Z"
+      "createdAt": "2026-10-18T20:18:22.220Z",
+      "updatedAt": "2026-11-17T20:18:22.220Z"
     },
     {
       "id": "plot-6",
@@ -260,7 +260,7 @@
           "vwc": 25.1,
           "temperature": 23.8,
           "salinityEc": 1.15,
-          "lastUpdated": "2026-11-17T20:10:50.413Z"
+          "lastUpdated": "2026-11-17T20:18:22.220Z"
         },
         {
           "probeId": "S6_30cm",
@@ -268,7 +268,7 @@
           "vwc": 27.4,
           "temperature": 22,
           "salinityEc": 1.02,
-          "lastUpdated": "2026-11-17T20:10:50.413Z"
+          "lastUpdated": "2026-11-17T20:18:22.220Z"
         },
         {
           "probeId": "S6_50cm",
@@ -276,11 +276,11 @@
           "vwc": 29.8,
           "temperature": 20.7,
           "salinityEc": 0.88,
-          "lastUpdated": "2026-11-17T20:10:50.413Z"
+          "lastUpdated": "2026-11-17T20:18:22.220Z"
         }
       ],
-      "createdAt": "2026-10-18T20:10:50.413Z",
-      "updatedAt": "2026-11-17T20:10:50.413Z"
+      "createdAt": "2026-10-18T20:18:22.220Z",
+      "updatedAt": "2026-11-17T20:18:22.220Z"
     }
   ],
   "leafScans": [
@@ -288,42 +288,42 @@
       "id": "scan-plot2-stress-01",
       "plotId": "plot-2",
       "crop": "Heirloom Tomatoes",
-      "scannedAt": "2026-11-17T19:52:50.413Z",
+      "scannedAt": "2026-11-17T20:00:22.220Z",
       "vitalityScore": 54.2,
       "leafWaterIndex": 0.62,
       "nitrogenPrescriptionKg": 14.5,
       "rawSpectrumPreview": [
-        0.073,
-        0.062,
-        0.07,
-        0.06,
-        0.06,
-        0.215,
-        0.212,
-        0.23,
-        0.213,
-        0.217,
-        0.182,
-        0.181,
-        0.172,
-        0.187,
-        0.165,
-        0.436,
-        0.456,
-        0.462,
+        0.068,
+        0.059,
+        0.053,
+        0.056,
+        0.069,
+        0.218,
+        0.218,
+        0.223,
+        0.207,
+        0.231,
+        0.193,
+        0.168,
+        0.178,
+        0.194,
+        0.188,
+        0.446,
+        0.463,
+        0.442,
+        0.587,
+        0.58,
+        0.567,
+        0.595,
+        0.577,
+        0.572,
+        0.591,
         0.575,
-        0.573,
-        0.575,
-        0.581,
-        0.592,
-        0.576,
-        0.59,
-        0.59,
         0.574,
-        0.392,
-        0.378,
-        0.379,
-        0.568
+        0.395,
+        0.366,
+        0.373,
+        0.583
       ],
       "diseaseRisk": {
         "pathogen": "Early Powdery Mildew",
@@ -341,42 +341,42 @@
       "id": "scan-plot1-optimal-01",
       "plotId": "plot-1",
       "crop": "Bell Peppers",
-      "scannedAt": "2026-11-17T19:18:50.413Z",
+      "scannedAt": "2026-11-17T19:26:22.220Z",
       "vitalityScore": 89.4,
       "leafWaterIndex": 1.82,
       "nitrogenPrescriptionKg": 0,
       "rawSpectrumPreview": [
+        0.049,
+        0.067,
+        0.063,
+        0.062,
         0.075,
-        0.048,
-        0.057,
-        0.06,
-        0.051,
-        0.152,
-        0.132,
-        0.13,
-        0.128,
+        0.147,
         0.144,
-        0.073,
-        0.066,
-        0.073,
+        0.149,
+        0.15,
+        0.13,
         0.087,
-        0.088,
-        0.437,
-        0.453,
-        0.458,
+        0.07,
+        0.071,
+        0.067,
+        0.083,
+        0.443,
+        0.444,
+        0.445,
+        0.575,
+        0.591,
+        0.586,
         0.574,
-        0.58,
-        0.592,
+        0.594,
+        0.581,
         0.59,
-        0.58,
-        0.588,
-        0.567,
+        0.589,
         0.574,
-        0.583,
-        0.477,
-        0.5,
-        0.478,
-        0.584
+        0.476,
+        0.489,
+        0.499,
+        0.573
       ],
       "diseaseRisk": null,
       "gpsLocation": {
@@ -390,42 +390,42 @@
       "id": "scan-plot3-optimal-01",
       "plotId": "plot-3",
       "crop": "Sweet Corn",
-      "scannedAt": "2026-11-17T17:10:50.413Z",
+      "scannedAt": "2026-11-17T17:18:22.220Z",
       "vitalityScore": 92.1,
       "leafWaterIndex": 2.15,
       "nitrogenPrescriptionKg": 0,
       "rawSpectrumPreview": [
-        0.047,
-        0.053,
-        0.061,
-        0.046,
-        0.071,
-        0.15,
-        0.153,
-        0.147,
-        0.134,
-        0.141,
         0.072,
-        0.085,
-        0.069,
-        0.071,
-        0.076,
-        0.445,
+        0.053,
+        0.072,
+        0.074,
+        0.048,
+        0.137,
+        0.149,
+        0.136,
+        0.128,
+        0.126,
+        0.067,
+        0.066,
+        0.095,
+        0.074,
+        0.082,
+        0.438,
+        0.444,
         0.442,
-        0.463,
-        0.576,
-        0.58,
-        0.567,
-        0.573,
-        0.592,
-        0.592,
+        0.579,
+        0.582,
         0.568,
-        0.585,
-        0.587,
-        0.494,
-        0.496,
-        0.48,
-        0.575
+        0.566,
+        0.592,
+        0.591,
+        0.59,
+        0.573,
+        0.574,
+        0.49,
+        0.484,
+        0.476,
+        0.567
       ],
       "diseaseRisk": null,
       "gpsLocation": {
@@ -439,42 +439,42 @@
       "id": "scan-plot4-mild-nitrogen-01",
       "plotId": "plot-4",
       "crop": "Strawberries",
-      "scannedAt": "2026-11-17T15:10:50.413Z",
+      "scannedAt": "2026-11-17T15:18:22.220Z",
       "vitalityScore": 71.8,
       "leafWaterIndex": 1.34,
       "nitrogenPrescriptionKg": 6.2,
       "rawSpectrumPreview": [
-        0.069,
-        0.055,
-        0.047,
-        0.063,
-        0.045,
-        0.218,
-        0.233,
-        0.212,
+        0.059,
+        0.049,
+        0.061,
+        0.064,
+        0.064,
+        0.23,
         0.221,
-        0.221,
-        0.184,
-        0.173,
-        0.192,
-        0.184,
-        0.185,
-        0.46,
-        0.437,
-        0.451,
-        0.586,
-        0.581,
-        0.567,
-        0.579,
+        0.206,
+        0.206,
+        0.234,
+        0.177,
+        0.178,
+        0.19,
+        0.181,
+        0.178,
+        0.462,
+        0.442,
+        0.457,
         0.573,
-        0.59,
-        0.587,
-        0.581,
+        0.589,
+        0.569,
         0.57,
-        0.497,
-        0.504,
-        0.483,
-        0.593
+        0.574,
+        0.578,
+        0.575,
+        0.588,
+        0.577,
+        0.499,
+        0.477,
+        0.499,
+        0.572
       ],
       "diseaseRisk": null,
       "gpsLocation": {
@@ -494,7 +494,7 @@
       "durationMinutes": 15,
       "litersDelivered": 112.5,
       "triggeredBy": "MANUAL",
-      "timestamp": "2026-11-17T14:10:50.413Z",
+      "timestamp": "2026-11-17T14:18:22.220Z",
       "operatorId": "operator-field-tech-1",
       "notes": "Pre-sunrise baseline pulse across South High-Tunnel"
     },
@@ -506,7 +506,7 @@
       "durationMinutes": 20,
       "litersDelivered": 203.3,
       "triggeredBy": "CLOSED_LOOP_SPECTROSCOPY",
-      "timestamp": "2026-11-17T16:10:50.413Z",
+      "timestamp": "2026-11-17T16:18:22.220Z",
       "operatorId": "operator-field-tech-2",
       "notes": "Autonomous replenishment following high mid-morning evapotranspiration"
     },
@@ -518,7 +518,7 @@
       "durationMinutes": 12,
       "litersDelivered": 80,
       "triggeredBy": "CLOSED_LOOP_SPECTROSCOPY",
-      "timestamp": "2026-11-17T17:40:50.413Z",
+      "timestamp": "2026-11-17T17:48:22.220Z",
       "operatorId": "operator-field-tech-1",
       "notes": "Cooling foliar micro-burst for head expansion greens"
     },
@@ -530,7 +530,7 @@
       "durationMinutes": 18,
       "litersDelivered": 102,
       "triggeredBy": "MANUAL_TOUCH",
-      "timestamp": "2026-11-17T18:58:50.413Z",
+      "timestamp": "2026-11-17T19:06:22.220Z",
       "operatorId": "operator-field-tech-2",
       "notes": "Citrus nursery deep-pot wetting verification"
     }
@@ -543,7 +543,7 @@
       "crop": "Heirloom Tomatoes",
       "gateId": "G2",
       "status": "PENDING",
-      "generatedAt": "2026-11-17T19:55:50.413Z",
+      "generatedAt": "2026-11-17T20:03:22.220Z",
       "title": "Urgent Drip Hydration & Nitrogen Foliar Correction",
       "details": "Handheld spectroscopy detected acute leaf dehydration (LWI 0.62, Vitality 54%). 10cm FDR probe confirms critical moisture deficit at 13.8% (Target: >20.0%).",
       "triggerReason": "Plot 2 leaf stress (LWI 0.62, Vitality 54%) confirmed by 13.8% FDR soil moisture (Target: >20.0%).",

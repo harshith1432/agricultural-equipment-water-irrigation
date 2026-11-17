@@ -36,7 +36,15 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
   // Firestore / Firebase API calls should bypass cache or handle offline natively
-  if (url.origin.includes('firestore.googleapis.com') || url.origin.includes('firebase')) {
+  const hostname = url.hostname;
+  const isFirebaseOrGoogleApi =
+    hostname === 'firestore.googleapis.com' ||
+    hostname.endsWith('.firestore.googleapis.com') ||
+    hostname.endsWith('.firebaseio.com') ||
+    hostname.endsWith('.firebaseapp.com') ||
+    hostname.endsWith('.googleapis.com');
+
+  if (isFirebaseOrGoogleApi) {
     return;
   }
 
