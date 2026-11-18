@@ -21,14 +21,16 @@ import {
 
 export function createSpectroscopyAnalysisView({
   plot = null,
-  onOpenCalibration
+  onOpenCalibration,
+  onAcquireScan,
+  latestScanAnalysis = null
 }) {
   const container = document.createElement('div');
-  container.className = "spectroscopy-analysis-view w-full space-y-4 pb-28 text-slate-800 select-none";
+  container.className = "spectroscopy-analysis-view w-full space-y-4 pb-32 text-slate-800 dark:text-slate-100 select-none overflow-x-hidden";
 
   let connectionMode = spectrometerUSBAdapter.connectionMode || CONNECTION_MODES.USB_TYPE_C;
   let viewMode = 'simple'; // 'simple' | 'advanced'
-  let currentScan = spectrometerUSBAdapter.lastScan;
+  let currentScan = latestScanAnalysis || spectrometerUSBAdapter.lastScan;
   let pollingIntervalId = null;
 
   async function acquireScanSafely(options = {}) {
@@ -100,79 +102,70 @@ export function createSpectroscopyAnalysisView({
     };
 
     container.innerHTML = `
-      <!-- 1. Connection Mode Switcher Pill (3-Way: USB-C | BLE | Wi-Fi Cloud) -->
-      <div class="bg-white dark:bg-slate-900 rounded-3xl p-3 shadow-sm border border-emerald-900/5 dark:border-slate-800 space-y-2.5">
-        <div class="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
-          <span class="flex items-center gap-1.5">
-            ${icon('layers', 'w-4 h-4 text-[#0E5431]')}
-            <span>Spectrometer Interface:</span>
-          </span>
-          <!-- Status Pill -->
-          <div class="flex items-center gap-1.5">
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${
-              isConnected ? 'bg-emerald-100 text-[#0E5431] border border-emerald-300' : 'bg-slate-100 text-slate-500'
-            }">
-              ${isConnected ? t('status_connected') : t('status_disconnected')}
+      <!-- 1. Sleek Compact Auto-Detected Status Bar with Mode Pills -->
+      <div class="bg-white dark:bg-slate-900 rounded-3xl p-3.5 shadow-sm border border-emerald-900/5 dark:border-slate-800 space-y-2.5">
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2 min-w-0">
+            <div class="w-8 h-8 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-[#0E5431] dark:text-emerald-300 flex items-center justify-center shrink-0">
+              ${icon('layers', 'w-4 h-4')}
+            </div>
+            <div class="min-w-0">
+              <h3 class="text-xs font-bold text-slate-800 dark:text-white truncate">Spectrometer Driver</h3>
+              <p class="text-[10px] text-slate-500 font-mono truncate">Multi-Mode VIS-NIR 350–1100nm</p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-1.5 shrink-0">
+            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold ${
+              isConnected ? 'bg-emerald-50 text-[#0E5431] border border-emerald-300' : 'bg-slate-100 text-slate-500'
+            } flex items-center gap-1 shadow-sm">
+              <span class="w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}"></span>
+              <span>${isConnected ? 'Active' : 'Standby'}</span>
             </span>
             ${isCalibrated ? `
-              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-300">
-                ${t('status_calibrated')}
+              <span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                Calibrated
               </span>
             ` : ''}
           </div>
         </div>
 
-        <div class="grid grid-cols-3 gap-1.5 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-2xl">
+        <!-- 3-Way Connection Mode Switcher Pills -->
+        <div class="grid grid-cols-3 gap-1.5 p-1 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-700/50">
           <button 
             type="button" 
             data-mode="${CONNECTION_MODES.USB_TYPE_C}"
-            class="mode-switch-btn py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition ${
-              connectionMode === CONNECTION_MODES.USB_TYPE_C 
-                ? 'bg-[#0E5431] text-white shadow-sm' 
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+            class="mode-switch-btn py-1.5 px-2 rounded-xl text-[10.5px] font-bold transition flex items-center justify-center gap-1 ${
+              connectionMode === CONNECTION_MODES.USB_TYPE_C
+                ? 'bg-white dark:bg-slate-900 text-[#0E5431] dark:text-emerald-300 shadow-xs border border-emerald-500/20'
+                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
             }"
           >
-            ${icon('usb', 'w-3.5 h-3.5')}
-            <span>${t('mode_usb')}</span>
+            <span>USB-C OTG</span>
           </button>
-
           <button 
             type="button" 
             data-mode="${CONNECTION_MODES.BLUETOOTH_BLE}"
-            class="mode-switch-btn py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition ${
-              connectionMode === CONNECTION_MODES.BLUETOOTH_BLE 
-                ? 'bg-[#0E5431] text-white shadow-sm' 
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+            class="mode-switch-btn py-1.5 px-2 rounded-xl text-[10.5px] font-bold transition flex items-center justify-center gap-1 ${
+              connectionMode === CONNECTION_MODES.BLUETOOTH_BLE
+                ? 'bg-white dark:bg-slate-900 text-[#0E5431] dark:text-emerald-300 shadow-xs border border-emerald-500/20'
+                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
             }"
           >
-            ${icon('bluetooth', 'w-3.5 h-3.5')}
-            <span>${t('mode_ble')}</span>
+            <span>Bluetooth</span>
           </button>
-
           <button 
             type="button" 
             data-mode="${CONNECTION_MODES.WIFI_CLOUD}"
-            class="mode-switch-btn py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition ${
-              connectionMode === CONNECTION_MODES.WIFI_CLOUD 
-                ? 'bg-[#0E5431] text-white shadow-sm' 
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+            class="mode-switch-btn py-1.5 px-2 rounded-xl text-[10.5px] font-bold transition flex items-center justify-center gap-1 ${
+              connectionMode === CONNECTION_MODES.WIFI_CLOUD
+                ? 'bg-white dark:bg-slate-900 text-[#0E5431] dark:text-emerald-300 shadow-xs border border-emerald-500/20'
+                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
             }"
           >
-            ${icon('wifi', 'w-3.5 h-3.5')}
-            <span>${t('mode_wifi')}</span>
+            <span>Wi-Fi Cloud</span>
           </button>
         </div>
-
-        <!-- Wi-Fi Cloud Live Badge -->
-        ${connectionMode === CONNECTION_MODES.WIFI_CLOUD ? `
-          <div class="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-700/50 flex items-center justify-between text-xs text-[#0E5431] dark:text-emerald-300">
-            <span class="font-bold flex items-center gap-1.5">
-              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-              <span>${t('wifi_synced_badge')}</span>
-            </span>
-            <span class="text-[10px] font-mono opacity-80">Auto-polling 5s</span>
-          </div>
-        ` : ''}
       </div>
 
       <!-- 2. Main Spectral Curve Studio Card -->
@@ -449,9 +442,10 @@ export function createSpectroscopyAnalysisView({
 
   function updateCanvas() {
     const canvas = container.querySelector('#spectral-curve-canvas');
-    if (!canvas) return;
+    if (!canvas || !canvas.getContext) return;
     const ctx = canvas.getContext('2d');
-    const width = canvas.width = canvas.parentElement.clientWidth;
+    if (!ctx) return;
+    const width = canvas.width = (canvas.parentElement?.clientWidth || 360);
     const height = canvas.height = 176;
 
     ctx.clearRect(0, 0, width, height);
@@ -528,6 +522,9 @@ export function createSpectroscopyAnalysisView({
     // Scan Button
     container.querySelector('#btn-acquire-scan')?.addEventListener('click', async () => {
       try {
+        if (typeof onAcquireScan === 'function') {
+          await onAcquireScan(plot?.id || 'plot-1');
+        }
         const scan = await acquireScanSafely();
         currentScan = scan;
         render();
@@ -548,7 +545,11 @@ export function createSpectroscopyAnalysisView({
 
     // Calibration Wizard Modal
     container.querySelector('#btn-open-calibration')?.addEventListener('click', () => {
-      openCalibrationModal();
+      if (typeof onOpenCalibration === 'function') {
+        onOpenCalibration('FULL');
+      } else {
+        openCalibrationModal();
+      }
     });
 
     // TTS Buttons

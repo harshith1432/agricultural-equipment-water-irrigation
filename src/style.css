@@ -81,11 +81,33 @@ body.theme-official-enterprise aside .text-slate-400 {
 }
 
 /* =========================================================================
-   Universal 48px Touch Targets for Field Ergonomics
+   Field Ergonomics & Responsive Touch Targets
    ========================================================================= */
-button, select, input, .touch-target, [role="button"] {
+.touch-target,
+.btn-touch {
   min-height: 48px;
   touch-action: manipulation;
+}
+
+button, input, select {
+  touch-action: manipulation;
+}
+
+/* Ensure micro-controls, dots, switches and ranges are never stretched by global styles */
+.slide-dot-btn {
+  min-height: unset !important;
+  height: 0.5rem !important;
+}
+
+input[type="checkbox"],
+input[type="radio"],
+input[type="range"] {
+  min-height: unset !important;
+}
+
+/* Prevent layout breaking for elements inside cards */
+.no-shrink {
+  flex-shrink: 0;
 }
 
 /* =========================================================================

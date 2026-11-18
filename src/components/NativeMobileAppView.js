@@ -38,13 +38,15 @@ export function createNativeMobileAppView({
   onEmergencyStop,
   onOpenSimModal,
   onOpenEnterpriseAdmin,
+  onOpenCropZoneManager,
   currentUser = null,
   initialTab = 'dashboard',
   currentTheme = 'creamy-agri',
   onThemeChange,
   onOpenAuthModal,
   onReplayOnboarding,
-  onSignOut
+  onSignOut,
+  onSynergyAction
 }) {
   const container = document.createElement('div');
   container.className = "native-mobile-app w-full min-h-screen bg-[#F4F6F3] dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col relative overflow-x-hidden selection:bg-[#0E5431] selection:text-white";
@@ -85,6 +87,7 @@ export function createNativeMobileAppView({
     onOpenSimModal,
     onOpenCalibration,
     onOpenEnterpriseAdmin,
+    onOpenCropZoneManager,
     onNavigate: (targetView) => {
       activeTab = TAB_ALIASES[targetView] || targetView;
       renderActiveScreen();
@@ -98,7 +101,7 @@ export function createNativeMobileAppView({
 
   // 3. Main scrollable body container
   const scrollBody = document.createElement('main');
-  scrollBody.className = "relative z-10 flex-1 w-full max-w-lg mx-auto px-3.5 pt-3 pb-28 overflow-y-auto no-scrollbar scroll-smooth";
+  scrollBody.className = "relative z-10 flex-1 w-full max-w-lg mx-auto px-3.5 pt-3 pb-32 overflow-y-auto no-scrollbar scroll-smooth";
   container.appendChild(scrollBody);
 
   // 4. Create Floating Bottom Navigation Bar (6 Tabs)
@@ -195,8 +198,10 @@ export function createNativeMobileAppView({
               renderActiveScreen();
             },
             onActuateValve,
+            onOpenCropZoneManager,
             actionRecommendations,
-            telemetryMetrics
+            telemetryMetrics,
+            onSynergyAction
           });
         }, 'overview');
         break;
@@ -217,6 +222,8 @@ export function createNativeMobileAppView({
         renderScreenSafely(() => {
           return createSpectroscopyAnalysisView({
             plot,
+            latestScanAnalysis,
+            onAcquireScan,
             onOpenCalibration
           });
         }, 'spectroscopy');
@@ -229,7 +236,9 @@ export function createNativeMobileAppView({
           return createAIIntelligenceView({
             plots: activePlots,
             latestScanAnalysis,
-            onActuateValve
+            actionRecommendations,
+            onActuateValve,
+            onSynergyAction
           });
         }, 'ai');
         break;
@@ -334,7 +343,8 @@ export function createNativeMobileAppView({
             },
             onActuateValve,
             actionRecommendations,
-            telemetryMetrics
+            telemetryMetrics,
+            onSynergyAction
           });
         }, 'overview');
       }

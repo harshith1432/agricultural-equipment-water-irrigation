@@ -23,26 +23,31 @@ export function createIrrigationManagementView({
   onEmergencyStop
 }) {
   const container = document.createElement('div');
-  container.className = "irrigation-management-view w-full space-y-4 pb-28 text-slate-800 select-none";
+  container.className = "irrigation-management-view w-full space-y-4 pb-32 text-slate-800 dark:text-slate-100 select-none overflow-x-hidden";
 
   // Selected duration for manual open countdown (default 45 min for test compatibility)
   let selectedDurationMin = 45;
 
+  // Active pulse animation state
+  let activePulseAnimation = null;
+
   // Track status transitions: 'IDLE' | 'COMMAND_SENT' | 'ACKNOWLEDGED' | 'ON' | 'OFF' | 'FAULT'
   const valveStatusPills = new Map();
 
-  // Initialize controller with default 6 farm valves if empty
-  if (irrigationControllerAdapter.getAllValves().length === 0) {
-    const defaultValves = [
-      { id: 'valve-1', gateIdentifier: 'G1', name: 'Zone 1 - Tuber Sprinklers', plotId: 'plot-1', nominalFlowRateLph: 450 },
-      { id: 'valve-2', gateIdentifier: 'G2', name: 'Zone 2 - Heirloom Tomato Drip', plotId: 'plot-2', nominalFlowRateLph: 420 },
-      { id: 'valve-3', gateIdentifier: 'G3', name: 'Zone 3 - Sweet Bell Pepper Micro-Jets', plotId: 'plot-3', nominalFlowRateLph: 380 },
-      { id: 'valve-4', gateIdentifier: 'G4', name: 'Zone 4 - Sweet Corn Furrow Drip', plotId: 'plot-4', nominalFlowRateLph: 520 },
-      { id: 'valve-5', gateIdentifier: 'G5', name: 'Zone 5 - Durum Wheat Drip Line', plotId: 'plot-5', nominalFlowRateLph: 600 },
-      { id: 'valve-6', gateIdentifier: 'G6', name: 'Zone 6 - Pima Cotton Deep Root Line', plotId: 'plot-6', nominalFlowRateLph: 480 }
-    ];
-    defaultValves.forEach(v => irrigationControllerAdapter.registerValve(v));
-  }
+  // Initialize controller with default 6 farm valves if missing
+  const defaultValves = [
+    { id: 'valve-1', gateIdentifier: 'G1', name: 'Zone 1 - Tuber Sprinklers', plotId: 'plot-1', nominalFlowRateLph: 450 },
+    { id: 'valve-2', gateIdentifier: 'G2', name: 'Zone 2 - Heirloom Tomato Drip', plotId: 'plot-2', nominalFlowRateLph: 420 },
+    { id: 'valve-3', gateIdentifier: 'G3', name: 'Zone 3 - Sweet Bell Pepper Micro-Jets', plotId: 'plot-3', nominalFlowRateLph: 380 },
+    { id: 'valve-4', gateIdentifier: 'G4', name: 'Zone 4 - Sweet Corn Furrow Drip', plotId: 'plot-4', nominalFlowRateLph: 520 },
+    { id: 'valve-5', gateIdentifier: 'G5', name: 'Zone 5 - Durum Wheat Drip Line', plotId: 'plot-5', nominalFlowRateLph: 600 },
+    { id: 'valve-6', gateIdentifier: 'G6', name: 'Zone 6 - Pima Cotton Deep Root Line', plotId: 'plot-6', nominalFlowRateLph: 480 }
+  ];
+  defaultValves.forEach(v => {
+    if (!irrigationControllerAdapter.getValve || !irrigationControllerAdapter.getValve(v.id)) {
+      irrigationControllerAdapter.registerValve(v);
+    }
+  });
 
   // Pre-seed a schedule if empty
   const allValves = irrigationControllerAdapter.getAllValves ? irrigationControllerAdapter.getAllValves() : [];
@@ -132,26 +137,65 @@ export function createIrrigationManagementView({
         </div>
       </div>
 
+      <!-- Active ±12V Solenoid Latch Pulse Banner -->
+      ${activePulseAnimation ? `
+        <div class="p-3.5 rounded-2xl border flex items-center justify-between shadow-sm animate-fadeIn ${
+          activePulseAnimation.action === 'OPEN'
+            ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-400 text-[#0E5431] dark:text-emerald-300'
+            : 'bg-amber-50 dark:bg-amber-950/60 border-amber-400 text-amber-900 dark:text-amber-200'
+        }">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs font-mono shadow-sm ${
+              activePulseAnimation.action === 'OPEN' ? 'bg-[#0E5431] text-white animate-pulse' : 'bg-amber-600 text-white animate-pulse'
+            }">
+              ${activePulseAnimation.voltage}
+            </div>
+            <div>
+              <div class="text-xs font-bold font-mono">
+                ${activePulseAnimation.action === 'OPEN' ? `+12V Pulse (50ms) Actuated Gate ${activePulseAnimation.gateId} to OPEN` : `-12V Reverse Pulse (50ms) De-energized Gate ${activePulseAnimation.gateId} to CLOSED`}
+              </div>
+              <p class="text-[10px] opacity-80">Bi-stable latching coil engaged. Zero holding current draw.</p>
+            </div>
+          </div>
+          <span class="w-2.5 h-2.5 rounded-full ${activePulseAnimation.action === 'OPEN' ? 'bg-emerald-500 animate-ping' : 'bg-amber-500 animate-ping'}"></span>
+        </div>
+      ` : ''}
+
       <!-- 2. Manual Timer Duration Selector (Required for automated tests) -->
-      <div class="bg-white dark:bg-slate-900 rounded-2xl p-3 shadow-sm border border-emerald-900/5 dark:border-slate-800 flex items-center justify-between gap-2">
-        <span class="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-          ${icon('clock', 'w-4 h-4 text-[#0E5431]')}
-          <span>Actuation Pulse Duration:</span>
-        </span>
-        <div class="flex items-center gap-1.5">
-          ${[15, 30, 45, 60].map(dur => `
-            <button 
-              type="button" 
-              data-duration="${dur}"
-              class="timer-btn px-2.5 py-1 rounded-xl text-xs font-semibold transition ${
-                selectedDurationMin === dur 
-                  ? 'bg-[#0E5431] text-white shadow-sm' 
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
-              }"
-            >
-              ${dur}m
-            </button>
-          `).join('')}
+      <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 shadow-sm border border-emerald-900/5 dark:border-slate-800 space-y-2">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <span class="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+            ${icon('clock', 'w-4 h-4 text-[#0E5431] dark:text-emerald-400')}
+            <span>Actuation Pulse Duration:</span>
+          </span>
+          <div class="flex items-center gap-1.5 flex-wrap">
+            ${[15, 30, 45, 60].map(dur => `
+              <button 
+                type="button" 
+                data-duration="${dur}"
+                class="timer-btn px-2.5 py-1 rounded-xl text-xs font-semibold transition ${
+                  selectedDurationMin === dur 
+                    ? 'bg-[#0E5431] text-white shadow-sm' 
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
+                }"
+              >
+                ${dur}m
+              </button>
+            `).join('')}
+
+            <div class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-xl px-2.5 py-1 border border-slate-200 dark:border-slate-700">
+              <input 
+                type="number" 
+                id="custom-duration-input" 
+                min="1" 
+                max="360" 
+                value="${selectedDurationMin}" 
+                class="w-12 bg-transparent text-xs font-mono font-bold text-center text-slate-800 dark:text-white focus:outline-none"
+                title="Custom Duration (Minutes)"
+              />
+              <span class="text-[10px] text-slate-400 font-mono">min</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -192,9 +236,9 @@ export function createIrrigationManagementView({
                     : 'bg-slate-50/60 dark:bg-slate-850 border-slate-200 dark:border-slate-700/60'
                 }"
               >
-                <div class="flex items-center justify-between gap-2.5">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                   <!-- Left: Valve Info -->
-                  <div class="flex items-center gap-2.5 min-w-0">
+                  <div class="flex items-center gap-2.5 min-w-0 flex-1">
                     <div class="w-9 h-9 rounded-xl flex items-center justify-center font-mono font-bold text-xs shrink-0 ${
                       isOpen 
                         ? 'bg-[#0E5431] text-white shadow-sm' 
@@ -203,7 +247,7 @@ export function createIrrigationManagementView({
                       ${valve.gateIdentifier || 'G'}
                     </div>
 
-                    <div class="flex flex-col min-w-0">
+                    <div class="flex flex-col min-w-0 flex-1">
                       <div class="flex items-center gap-1.5 flex-wrap">
                         <span class="text-xs font-bold text-slate-900 dark:text-white truncate">${valve.name}</span>
                         <!-- Status Pill -->
@@ -218,7 +262,7 @@ export function createIrrigationManagementView({
                   </div>
 
                   <!-- Right: Manual Toggle & Actions -->
-                  <div class="flex items-center gap-1.5 shrink-0">
+                  <div class="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
                     <!-- Tactile Actuate Button (Preserves .valve-actuate-btn for CDP automated testing) -->
                     <button 
                       type="button"
@@ -376,6 +420,18 @@ export function createIrrigationManagementView({
   }
 
   function attachEvents() {
+    // Custom Duration Input
+    const customDurationInput = container.querySelector('#custom-duration-input');
+    if (customDurationInput) {
+      customDurationInput.addEventListener('change', (e) => {
+        const val = parseInt(e.target.value, 10);
+        if (!isNaN(val) && val > 0) {
+          selectedDurationMin = Math.min(360, Math.max(1, val));
+          render();
+        }
+      });
+    }
+
     // Duration Buttons
     container.querySelectorAll('.timer-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -387,7 +443,7 @@ export function createIrrigationManagementView({
       });
     });
 
-    // Tactile ON/OFF Toggle
+    // Tactile ON/OFF Toggle with ±12V pulse animations
     container.querySelectorAll('.valve-actuate-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
         const valveId = btn.getAttribute('data-valve-id');
@@ -395,6 +451,13 @@ export function createIrrigationManagementView({
         const action = btn.getAttribute('data-action');
 
         if (!valveId) return;
+
+        // Trigger visible ±12V pulse animation
+        activePulseAnimation = {
+          gateId: gateId || 'G',
+          action,
+          voltage: action === 'OPEN' ? '+12V' : '-12V'
+        };
 
         // Sequence: Command Sent -> Acknowledged -> Valve ON/OFF
         valveStatusPills.set(valveId, 'COMMAND_SENT');
@@ -424,12 +487,18 @@ export function createIrrigationManagementView({
           }
           render();
         }, 700);
+
+        setTimeout(() => {
+          activePulseAnimation = null;
+          render();
+        }, 4000);
       });
     });
 
     // Emergency Killswitch
     container.querySelector('#irrigation-emergency-kill-btn')?.addEventListener('click', () => {
-      if (confirm(t('valve_killswitch_confirm'))) {
+      const confirmed = typeof confirm !== 'undefined' ? confirm(t('valve_killswitch_confirm')) : true;
+      if (confirmed) {
         irrigationControllerAdapter.emergencyAllStop('MANUAL_USER_KILLSWITCH');
         if (onEmergencyStop) onEmergencyStop();
         render();
@@ -440,7 +509,8 @@ export function createIrrigationManagementView({
     container.querySelectorAll('[data-delete-valve-id]').forEach(btn => {
       btn.addEventListener('click', () => {
         const id = btn.getAttribute('data-delete-valve-id');
-        if (id && confirm(`Delete valve ${id}?`)) {
+        const confirmed = typeof confirm !== 'undefined' ? confirm(`Delete valve ${id}?`) : true;
+        if (id && confirmed) {
           irrigationControllerAdapter.unregisterValve(id);
           render();
         }

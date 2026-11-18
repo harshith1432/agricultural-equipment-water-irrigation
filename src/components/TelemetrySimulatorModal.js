@@ -70,6 +70,57 @@ export function createTelemetrySimulatorModal({ onClose }) {
           </div>
         </div>
 
+        <!-- Interactive Telemetry Calibration Sliders -->
+        <div class="bg-slate-900/90 rounded-xl p-4 border border-slate-750 mb-4 space-y-3">
+          <h4 class="text-xs font-bold text-white">Manual Telemetry Modulation Sliders:</h4>
+
+          <!-- Pressure Slider -->
+          <div>
+            <div class="flex items-center justify-between text-xs mb-1">
+              <span class="text-slate-400">Mainline Pressure (Piezo-Transducer):</span>
+              <span id="slider-pressure-val" class="font-mono font-bold ${mqttSimulator.mainlinePressureBar > 3.0 ? 'text-rose-400 animate-pulse' : 'text-emerald-400'}">
+                ${mqttSimulator.mainlinePressureBar || 2.42} Bar
+              </span>
+            </div>
+            <input 
+              type="range" 
+              id="sim-pressure-slider" 
+              min="1.0" 
+              max="4.5" 
+              step="0.05" 
+              value="${mqttSimulator.mainlinePressureBar || 2.42}"
+              class="w-full accent-emerald-500 cursor-pointer"
+            />
+            <div class="flex justify-between text-[9px] font-mono text-slate-500 mt-0.5">
+              <span>1.0 Bar (Low)</span>
+              <span>2.4 Bar (Nominal)</span>
+              <span class="text-rose-400">&gt;3.0 Bar (Surge Risk)</span>
+            </div>
+          </div>
+
+          <!-- Soil Moisture VWC Slider -->
+          <div>
+            <div class="flex items-center justify-between text-xs mb-1">
+              <span class="text-slate-400">Global Root-Zone VWC %:</span>
+              <span id="slider-vwc-val" class="font-mono font-bold text-cyan-400">25.0%</span>
+            </div>
+            <input 
+              type="range" 
+              id="sim-vwc-slider" 
+              min="10.0" 
+              max="45.0" 
+              step="0.5" 
+              value="25.0"
+              class="w-full accent-cyan-500 cursor-pointer"
+            />
+            <div class="flex justify-between text-[9px] font-mono text-slate-500 mt-0.5">
+              <span>10% (Severe Deficit)</span>
+              <span>25% (Optimal)</span>
+              <span>45% (Saturated)</span>
+            </div>
+          </div>
+        </div>
+
         <!-- Database Reset Option -->
         <div class="bg-slate-900/90 rounded-xl p-4 border border-slate-750 flex items-center justify-between">
           <div>
@@ -121,6 +172,36 @@ export function createTelemetrySimulatorModal({ onClose }) {
         render();
       });
     });
+
+    // Slider Listeners
+    const pressureSlider = overlay.querySelector('#sim-pressure-slider');
+    const pressureDisplay = overlay.querySelector('#slider-pressure-val');
+    if (pressureSlider && pressureDisplay) {
+      pressureSlider.addEventListener('input', (e) => {
+        const p = parseFloat(e.target.value);
+        mqttSimulator.setMainlinePressure(p);
+        pressureDisplay.textContent = `${p.toFixed(2)} Bar`;
+        if (p > 3.0) {
+          pressureDisplay.className = "font-mono font-bold text-rose-400 animate-pulse";
+        } else {
+          pressureDisplay.className = "font-mono font-bold text-emerald-400";
+        }
+      });
+    }
+
+    const vwcSlider = overlay.querySelector('#sim-vwc-slider');
+    const vwcDisplay = overlay.querySelector('#slider-vwc-val');
+    if (vwcSlider && vwcDisplay) {
+      vwcSlider.addEventListener('input', (e) => {
+        const v = parseFloat(e.target.value);
+        vwcDisplay.textContent = `${v.toFixed(1)}%`;
+        const plots = mockFirestore.getChannelSnapshot('plots') || [];
+        plots.forEach(plot => {
+          const updatedSensors = (plot.soilSensors || []).map(s => ({ ...s, vwc: v }));
+          mockFirestore.updatePlot(plot.id, { soilSensors: updatedSensors });
+        });
+      });
+    }
 
     overlay.querySelector('#reset-db-btn').addEventListener('click', () => {
       mockFirestore.resetToDefault();

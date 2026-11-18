@@ -26,6 +26,7 @@ export function createAppNavigationHeader({
   onOpenSimModal,
   onOpenCalibration,
   onOpenEnterpriseAdmin,
+  onOpenCropZoneManager,
   onNavigate,
   onThemeChange,
   currentTheme = 'creamy-agri',
@@ -133,22 +134,36 @@ export function createAppNavigationHeader({
 
             <!-- Zone Dropdown Menu -->
             <div id="header-zone-dropdown" class="hidden absolute left-0 mt-2 w-64 rounded-2xl bg-[#092B19] border border-emerald-600/40 shadow-2xl p-1.5 z-50 text-xs">
-              <div class="px-2.5 py-1 text-[10px] uppercase font-mono text-emerald-400/80 border-b border-white/10 mb-1">
-                Field Zones (6-Zone Network)
+              <div class="px-2.5 py-1 text-[10px] uppercase font-mono text-emerald-400/80 border-b border-white/10 mb-1 flex items-center justify-between">
+                <span>Field Zones (${plots.length} Active)</span>
+                <span class="text-[9px] text-emerald-300/70 font-sans">Live DB</span>
               </div>
-              ${plots.map(p => `
+              <div class="max-h-56 overflow-y-auto space-y-0.5 no-scrollbar">
+                ${plots.map(p => `
+                  <button 
+                    type="button" 
+                    data-plot-id="${p.id}"
+                    class="zone-select-option w-full text-left px-2.5 py-2 rounded-xl flex items-center justify-between text-white hover:bg-white/10 transition ${p.id === currentPlot.id ? 'bg-white/15 font-bold text-emerald-300' : ''}"
+                  >
+                    <div class="flex flex-col min-w-0">
+                      <span class="font-medium truncate">Zone ${p.plotNumber}: ${p.crop}</span>
+                      <span class="text-[10px] text-emerald-300/70 font-mono truncate">${p.name || ''}</span>
+                    </div>
+                    ${p.id === currentPlot.id ? icon('check', 'w-3.5 h-3.5 text-emerald-300 flex-shrink-0') : ''}
+                  </button>
+                `).join('')}
+              </div>
+              <!-- Prominent Manage Zones & Crops Button -->
+              <div class="pt-1 mt-1 border-t border-white/10">
                 <button 
                   type="button" 
-                  data-plot-id="${p.id}"
-                  class="zone-select-option w-full text-left px-2.5 py-2 rounded-xl flex items-center justify-between text-white hover:bg-white/10 transition ${p.id === currentPlot.id ? 'bg-white/15 font-bold text-emerald-300' : ''}"
+                  id="header-manage-zones-btn"
+                  class="w-full text-left px-2.5 py-2 rounded-xl flex items-center gap-2 text-emerald-300 hover:bg-emerald-500/20 font-semibold transition active:scale-98 cursor-pointer"
                 >
-                  <div class="flex flex-col min-w-0">
-                    <span class="font-medium truncate">Zone ${p.plotNumber}: ${p.crop}</span>
-                    <span class="text-[10px] text-emerald-300/70 font-mono truncate">${p.name || ''}</span>
-                  </div>
-                  ${p.id === currentPlot.id ? icon('check', 'w-3.5 h-3.5 text-emerald-300 flex-shrink-0') : ''}
+                  ${icon('sprout', 'w-3.5 h-3.5 text-emerald-300 flex-shrink-0')}
+                  <span class="truncate">${t('manage_zones_and_crops', 'Manage Zones & Crops')}</span>
                 </button>
-              `).join('')}
+              </div>
             </div>
           </div>
 
@@ -277,9 +292,30 @@ export function createAppNavigationHeader({
 
           <!-- Section 4: Hardware Diagnostics & Tools List -->
           <div class="space-y-1.5 pt-1 border-t border-emerald-700/30">
-            <span class="text-[10px] font-mono uppercase tracking-wider text-emerald-400/80">Diagnostics & Controls</span>
+            <span class="text-[10px] font-mono uppercase tracking-wider text-emerald-400/80">Farm Management & Diagnostics</span>
             
             <div class="space-y-1">
+              <!-- Crops & Field Zones Manager -->
+              <button 
+                type="button" 
+                id="menu-btn-crop-zone-manager"
+                class="w-full px-3 py-2.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/40 text-left flex items-center justify-between text-xs transition"
+              >
+                <div class="flex items-center gap-2.5">
+                  <div class="w-7 h-7 rounded-lg bg-emerald-400/30 flex items-center justify-center text-emerald-200">
+                    ${icon('sprout', 'w-3.5 h-3.5')}
+                  </div>
+                  <div>
+                    <div class="font-bold text-white flex items-center gap-1.5">
+                      <span>${t('menu_crop_zone_manager', 'Crops & Field Zones Manager')}</span>
+                      <span class="px-1.5 py-0.2 rounded text-[8px] font-mono bg-emerald-400 text-[#092B19] font-black">DB</span>
+                    </div>
+                    <div class="text-[10px] text-emerald-200/80">${t('menu_crop_zone_manager_sub', 'Live database plots & crop catalog')}</div>
+                  </div>
+                </div>
+                ${icon('chevronRight', 'w-3.5 h-3.5 text-emerald-300')}
+              </button>
+
               <!-- Sensor Calibration Wizard -->
               <button 
                 type="button" 
@@ -492,6 +528,12 @@ export function createAppNavigationHeader({
       });
     });
 
+    // Manage Zones Button in Dropdown
+    header.querySelector('#header-manage-zones-btn')?.addEventListener('click', () => {
+      zoneDropdown?.classList.add('hidden');
+      if (typeof onOpenCropZoneManager === 'function') onOpenCropZoneManager();
+    });
+
     // Close dropdown on document click
     document.addEventListener('click', (e) => {
       if (!header.querySelector('#zone-picker-wrapper')?.contains(e.target)) {
@@ -510,6 +552,12 @@ export function createAppNavigationHeader({
     });
 
     // Diagnostics buttons inside 3-Dot drawer
+    header.querySelector('#menu-btn-crop-zone-manager')?.addEventListener('click', () => {
+      isMoreMenuOpen = false;
+      moreMenuModal?.classList.add('hidden');
+      if (typeof onOpenCropZoneManager === 'function') onOpenCropZoneManager();
+    });
+
     header.querySelector('#menu-btn-calibration')?.addEventListener('click', () => {
       isMoreMenuOpen = false;
       moreMenuModal?.classList.add('hidden');

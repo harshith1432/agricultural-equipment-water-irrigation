@@ -49,6 +49,17 @@ export class MqttTelemetrySimulator {
     this.emit('weatherModeChange', mode);
   }
 
+  setMainlinePressure(pressureBar) {
+    this.mainlinePressureBar = Number(Number(pressureBar).toFixed(2));
+    this.emit('telemetryTick', {
+      mainlinePressureBar: this.mainlinePressureBar,
+      activeFlowLph: 0,
+      consumedLitersToday: Number(this.consumedLitersToday.toFixed(1)),
+      weatherMode: this.weatherMode,
+      timestamp: new Date()
+    });
+  }
+
   tick(plots, onPlotUpdate) {
     if (!plots || !Array.isArray(plots)) return;
 

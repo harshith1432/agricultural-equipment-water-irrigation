@@ -75,71 +75,24 @@ export function createEnvironmentMonitorView() {
     const alerts = currentReading?.activeAlerts || [];
 
     container.innerHTML = `
-      <!-- 1. Connection Mode Switcher Pill (3-Way: USB-C | BLE | Wi-Fi Cloud) -->
-      <div class="bg-white dark:bg-slate-900 rounded-3xl p-3 shadow-sm border border-emerald-900/5 dark:border-slate-800 space-y-2.5">
-        <div class="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
-          <span class="flex items-center gap-1.5">
-            ${icon('thermometer', 'w-4 h-4 text-[#0E5431]')}
-            <span>Environment Sensor Mode:</span>
+      <!-- 1. Sleek Compact Auto-Detected Status Bar (No huge 3-button switcher) -->
+      <div class="bg-white dark:bg-slate-900 rounded-3xl p-3.5 shadow-sm border border-emerald-900/5 dark:border-slate-800 flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2 min-w-0">
+          <div class="w-8 h-8 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-[#0E5431] dark:text-emerald-300 flex items-center justify-center shrink-0">
+            ${icon('thermometer', 'w-4 h-4')}
+          </div>
+          <div class="min-w-0">
+            <h3 class="text-xs font-bold text-slate-800 dark:text-white truncate">Climate & Weather Sensor</h3>
+            <p class="text-[10px] text-slate-500 font-mono truncate">Dual-Source Auto-Sync</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-1.5 shrink-0">
+          <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-[#0E5431] border border-emerald-300 flex items-center gap-1 shadow-sm">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>Live Active</span>
           </span>
-          <div class="flex items-center gap-1.5">
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-[#0E5431] border border-emerald-300">
-              ${t('status_connected')}
-            </span>
-          </div>
         </div>
-
-        <div class="grid grid-cols-3 gap-1.5 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-2xl">
-          <button 
-            type="button" 
-            data-mode="${CONNECTION_MODES.USB_TYPE_C}"
-            class="mode-switch-btn py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition ${
-              connectionMode === CONNECTION_MODES.USB_TYPE_C 
-                ? 'bg-[#0E5431] text-white shadow-sm' 
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-            }"
-          >
-            ${icon('usb', 'w-3.5 h-3.5')}
-            <span>${t('mode_usb')}</span>
-          </button>
-
-          <button 
-            type="button" 
-            data-mode="${CONNECTION_MODES.BLUETOOTH_BLE}"
-            class="mode-switch-btn py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition ${
-              connectionMode === CONNECTION_MODES.BLUETOOTH_BLE 
-                ? 'bg-[#0E5431] text-white shadow-sm' 
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-            }"
-          >
-            ${icon('bluetooth', 'w-3.5 h-3.5')}
-            <span>${t('mode_ble')}</span>
-          </button>
-
-          <button 
-            type="button" 
-            data-mode="${CONNECTION_MODES.WIFI_CLOUD}"
-            class="mode-switch-btn py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition ${
-              connectionMode === CONNECTION_MODES.WIFI_CLOUD 
-                ? 'bg-[#0E5431] text-white shadow-sm' 
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-            }"
-          >
-            ${icon('wifi', 'w-3.5 h-3.5')}
-            <span>${t('mode_wifi')}</span>
-          </button>
-        </div>
-
-        <!-- Wi-Fi Cloud Live Badge -->
-        ${connectionMode === CONNECTION_MODES.WIFI_CLOUD ? `
-          <div class="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-700/50 flex items-center justify-between text-xs text-[#0E5431] dark:text-emerald-300">
-            <span class="font-bold flex items-center gap-1.5">
-              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-              <span>${t('wifi_synced_badge')}</span>
-            </span>
-            <span class="text-[10px] font-mono opacity-80">Auto-polling 4s</span>
-          </div>
-        ` : ''}
       </div>
 
       <!-- 2. Dual-Source Cards -->

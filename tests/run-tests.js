@@ -32,6 +32,8 @@ import { registerAuthEnterpriseTests } from './auth-enterprise.test.js';
 import { registerHardwareAdapterTests } from './hardware-adapters.test.js';
 import { registerMobileLifecycleTests } from './mobile-lifecycle-ui.test.js';
 import { registerDatabaseStorageTests } from './database-storage.test.js';
+import { registerCropZoneManagerTests } from './crop-zone-manager.test.js';
+import { registerUICompleteOptionsAuditTests } from './ui-complete-options-audit.test.js';
 
 async function main() {
   console.log('\x1b[35mStarting AgriSpectra Flow & Field Automated Test Suite...\x1b[0m');
@@ -45,6 +47,8 @@ async function main() {
   registerHardwareAdapterTests();
   registerMobileLifecycleTests();
   registerDatabaseStorageTests();
+  registerCropZoneManagerTests();
+  registerUICompleteOptionsAuditTests();
 
   // Execute runner
   const success = await runner.run();

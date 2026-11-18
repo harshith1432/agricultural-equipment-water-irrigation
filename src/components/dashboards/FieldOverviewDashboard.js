@@ -25,11 +25,13 @@ export function createFieldOverviewDashboard({
   onSelectPlot,
   onNavigateTab,
   onActuateValve,
+  onSynergyAction,
+  onOpenCropZoneManager,
   actionRecommendations = [],
   telemetryMetrics = {}
 }) {
   const container = document.createElement('div');
-  container.className = "field-overview-dashboard w-full space-y-4 pb-28 text-slate-800 dark:text-slate-100 select-none overflow-x-hidden";
+  container.className = "field-overview-dashboard w-full space-y-4 pb-32 text-slate-800 dark:text-slate-100 select-none overflow-x-hidden";
 
   let widgetSettings = getDashboardWidgetSettings();
 
@@ -255,7 +257,18 @@ export function createFieldOverviewDashboard({
             <h3 class="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Field Zones & Irrigation States
             </h3>
-            <span class="text-[10px] text-slate-400 font-mono">${openValvesCount} Gates Active</span>
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] text-slate-400 font-mono">${openValvesCount} Gates Active</span>
+              <button 
+                type="button" 
+                id="btn-overview-manage-zones"
+                class="px-2.5 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 text-[#0E5431] dark:text-emerald-300 text-[11px] font-bold transition flex items-center gap-1 border border-emerald-600/20 active:scale-95 cursor-pointer"
+                title="Manage Zones & Crops"
+              >
+                ${icon('plus', 'w-3 h-3')}
+                <span>${t('quick_add_zone', '+ Add Zone')}</span>
+              </button>
+            </div>
           </div>
 
           <div class="space-y-2.5">
@@ -322,6 +335,18 @@ export function createFieldOverviewDashboard({
                 </div>
               `;
             }).join('')}
+
+            <!-- Quick Add Zone Card -->
+            <button 
+              type="button" 
+              id="card-overview-add-zone"
+              class="w-full bg-emerald-50/60 dark:bg-slate-900/50 hover:bg-emerald-50 dark:hover:bg-slate-800 rounded-3xl p-3.5 border-2 border-dashed border-emerald-600/30 dark:border-emerald-500/20 text-[#0E5431] dark:text-emerald-300 transition flex items-center justify-center gap-2 font-bold text-xs active:scale-98 cursor-pointer shadow-xs"
+            >
+              <div class="w-6 h-6 rounded-full bg-emerald-700 text-white flex items-center justify-center">
+                ${icon('plus', 'w-3.5 h-3.5')}
+              </div>
+              <span>${t('add_new_zone', '+ Add New Zone to Database')}</span>
+            </button>
           </div>
         </div>
       ` : ''}
@@ -342,8 +367,12 @@ export function createFieldOverviewDashboard({
     if (widgetSettings.synergy_recommendations) {
       const synHost = container.querySelector('#synergy-recommendations-host');
       if (synHost && actionRecommendations) {
-        const synergyCard = createClosedLoopSynergySection(actionRecommendations, (action, recId) => {
-          if (onActuateValve) onActuateValve({ action, recId });
+        const synergyCard = createClosedLoopSynergySection(actionRecommendations, (recId, action) => {
+          if (onSynergyAction) {
+            onSynergyAction(recId, action);
+          } else if (onActuateValve) {
+            onActuateValve({ recId, action });
+          }
         });
         synHost.appendChild(synergyCard);
       }
@@ -380,6 +409,15 @@ export function createFieldOverviewDashboard({
       document.body.appendChild(modal);
     });
 
+    // Manage Zones / Add Zone Buttons
+    container.querySelector('#btn-overview-manage-zones')?.addEventListener('click', () => {
+      if (typeof onOpenCropZoneManager === 'function') onOpenCropZoneManager('zones');
+    });
+
+    container.querySelector('#card-overview-add-zone')?.addEventListener('click', () => {
+      if (typeof onOpenCropZoneManager === 'function') onOpenCropZoneManager('zones');
+    });
+
     // Quick Category Module Buttons
     container.querySelectorAll('.cat-module-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -402,14 +440,19 @@ export function createFieldOverviewDashboard({
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const vId = btn.getAttribute('data-valve-id');
+        const gId = btn.getAttribute('data-gate-id');
         const act = btn.getAttribute('data-action');
         if (vId) {
-          if (act === 'OPEN') {
-            await irrigationControllerAdapter.openValve(vId, { durationMinutes: 30 });
-          } else {
-            await irrigationControllerAdapter.closeValve(vId);
+          try {
+            if (act === 'OPEN') {
+              await irrigationControllerAdapter.openValve(vId, { durationMinutes: 30 });
+            } else {
+              await irrigationControllerAdapter.closeValve(vId);
+            }
+          } catch (err) {
+            // Safe fallback if valve adapter is simulated or not pre-registered
           }
-          if (onActuateValve) onActuateValve({ valveId: vId, action: act, duration: 30 });
+          if (onActuateValve) onActuateValve({ valveId: vId, gateId: gId, action: act, duration: 30 });
           render();
         }
       });

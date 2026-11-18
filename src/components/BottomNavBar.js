@@ -12,11 +12,12 @@ import { icon } from '../utils/icons.js';
 import { t, onLocaleChange } from '../utils/i18n.js';
 
 export const MOBILE_TABS = [
-  { id: 'dashboard', alias: 'overview', icon: 'home', labelKey: 'nav_home', defaultLabel: 'Dashboard' },
-  { id: 'irrigation', alias: 'irrigation', icon: 'droplet', labelKey: 'nav_irrigation', defaultLabel: 'Irrigation' },
+  { id: 'dashboard', alias: 'overview', icon: 'home', labelKey: 'nav_home', defaultLabel: 'Home' },
+  { id: 'irrigation', alias: 'irrigation', icon: 'droplet', labelKey: 'nav_irrigation', defaultLabel: 'Drip' },
   { id: 'spectroscopy', alias: 'spectroscopy', icon: 'spectroscopy', labelKey: 'nav_spectroscopy', defaultLabel: 'Spectro' },
-  { id: 'synergy', alias: 'ai', icon: 'synergy', labelKey: 'nav_ai', defaultLabel: 'Synergy' },
-  { id: 'usage', alias: 'usage', icon: 'usage', labelKey: 'nav_usage', defaultLabel: 'Usage' },
+  { id: 'soil', alias: 'soil', icon: 'soil', labelKey: 'nav_soil', defaultLabel: 'Soil' },
+  { id: 'environment', alias: 'weather', icon: 'thermometer', labelKey: 'nav_environment', defaultLabel: 'Weather' },
+  { id: 'synergy', alias: 'ai', icon: 'synergy', labelKey: 'nav_ai', defaultLabel: 'AI' },
   { id: 'settings', alias: 'settings', icon: 'settings', labelKey: 'nav_settings', defaultLabel: 'Settings' }
 ];
 
@@ -44,19 +45,20 @@ export function createBottomNavBar({
   function getLabel(tab) {
     try {
       const translated = t(tab.labelKey);
-      if (translated && !translated.startsWith('nav_')) return translated;
+      if (translated && !translated.startsWith('nav_') && translated.length <= 8) return translated;
     } catch (e) {}
     return tab.defaultLabel;
   }
 
   function render() {
     container.innerHTML = `
-      <div class="pointer-events-auto max-w-lg w-full mx-auto bg-white/95 dark:bg-[#07190F]/95 backdrop-blur-2xl border border-emerald-900/10 dark:border-emerald-800/40 rounded-3xl shadow-[0_12px_36px_rgba(7,22,12,0.22)] px-1 py-1 flex items-center justify-between gap-0.5 overflow-hidden">
+      <div class="pointer-events-auto max-w-lg w-full mx-auto bg-white/95 dark:bg-[#07190F]/95 backdrop-blur-2xl border border-emerald-900/10 dark:border-emerald-800/40 rounded-3xl shadow-[0_12px_36px_rgba(7,22,12,0.22)] px-1.5 py-1 flex items-center justify-between gap-1 overflow-hidden">
         ${MOBILE_TABS.map(tab => {
           const isActive = currentTab === tab.id || 
-            (tab.id === 'dashboard' && currentTab === 'overview') || 
-            (tab.id === 'synergy' && currentTab === 'ai') ||
-            (tab.id === 'environment' && currentTab === 'weather');
+            (tab.id === 'dashboard' && (currentTab === 'overview' || currentTab === 'dashboard')) || 
+            (tab.id === 'synergy' && (currentTab === 'ai' || currentTab === 'synergy')) ||
+            (tab.id === 'soil' && currentTab === 'soil') ||
+            (tab.id === 'environment' && (currentTab === 'weather' || currentTab === 'environment'));
           const badgeCount = currentBadges[tab.id] || (tab.id === 'synergy' ? currentBadges['ai'] : 0);
           const label = getLabel(tab);
 
@@ -64,7 +66,7 @@ export function createBottomNavBar({
             <button 
               type="button" 
               data-tab-id="${tab.id}"
-              class="bottom-nav-btn flex-1 min-w-0 max-w-[56px] min-h-[48px] py-1 px-0.5 rounded-2xl flex flex-col items-center justify-center transition-all duration-200 relative group active:scale-95 cursor-pointer ${
+              class="bottom-nav-btn flex-1 min-w-0 min-h-[48px] py-1 px-1 rounded-2xl flex flex-col items-center justify-center transition-all duration-200 relative group active:scale-95 cursor-pointer ${
                 isActive 
                   ? 'bg-emerald-50 dark:bg-emerald-900/40 text-[#0E5431] dark:text-emerald-300 font-bold shadow-sm border border-emerald-500/20' 
                   : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 hover:bg-slate-100/60 dark:hover:bg-slate-800/50'

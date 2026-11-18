@@ -137,6 +137,40 @@ export function createDashboardSettingsModal({ onClose, onSettingsChanged }) {
           </div>
         </div>
 
+        <!-- Live Bento Layout Mini-Preview Grid -->
+        <div class="px-5 pt-3 pb-2 bg-slate-50 dark:bg-slate-950/50 border-b border-slate-200 dark:border-slate-800">
+          <div class="flex items-center justify-between text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+            <span>Bento Layout Preview</span>
+            <span class="text-emerald-600 font-bold">${activeCount} of 8 Active</span>
+          </div>
+          <div class="grid grid-cols-4 gap-1 p-1.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-inner">
+            <div class="col-span-4 h-5 rounded-lg text-[9px] font-bold flex items-center justify-center transition-all ${currentSettings.weather_hero ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 opacity-40'}">
+              Weather Arc Hero
+            </div>
+            <div class="col-span-2 h-6 rounded-lg text-[9px] font-bold flex items-center justify-center transition-all ${currentSettings.pressure_meter ? 'bg-emerald-100 dark:bg-emerald-950/60 text-[#0E5431] dark:text-emerald-300 border border-emerald-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 opacity-40'}">
+              Pressure
+            </div>
+            <div class="col-span-2 h-6 rounded-lg text-[9px] font-bold flex items-center justify-center transition-all ${currentSettings.vitality_gauge ? 'bg-teal-100 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 border border-teal-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 opacity-40'}">
+              Vitality
+            </div>
+            <div class="col-span-4 h-5 rounded-lg text-[9px] font-bold flex items-center justify-center transition-all ${currentSettings.water_ledger ? 'bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border border-blue-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 opacity-40'}">
+              Water Volume Ledger
+            </div>
+            <div class="col-span-4 h-6 rounded-lg text-[9px] font-bold flex items-center justify-center transition-all ${currentSettings.plot_canvas ? 'bg-emerald-50 dark:bg-emerald-950/60 text-[#0E5431] dark:text-emerald-300 border border-emerald-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 opacity-40'}">
+              1-Acre 6-Zone Field Canvas
+            </div>
+            <div class="col-span-4 h-5 rounded-lg text-[9px] font-bold flex items-center justify-center transition-all ${currentSettings.quick_modules ? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 opacity-40'}">
+              Core Quick Hubs
+            </div>
+            <div class="col-span-4 h-5 rounded-lg text-[9px] font-bold flex items-center justify-center transition-all ${currentSettings.synergy_recommendations ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 border border-amber-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 opacity-40'}">
+              Synergy Recommendations
+            </div>
+            <div class="col-span-4 h-5 rounded-lg text-[9px] font-bold flex items-center justify-center transition-all ${currentSettings.zone_valves ? 'bg-emerald-100 dark:bg-emerald-950/60 text-[#0E5431] dark:text-emerald-300 border border-emerald-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 opacity-40'}">
+              Field Zone Valve Actuations
+            </div>
+          </div>
+        </div>
+
         <!-- Scrollable List of Widget Toggles -->
         <div class="p-5 max-h-[60vh] overflow-y-auto space-y-2.5">
           ${WIDGET_DEFINITIONS.map(widget => {

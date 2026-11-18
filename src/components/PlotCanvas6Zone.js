@@ -43,8 +43,8 @@ export function createPlotCanvas6Zone(plots = [], selectedPlotId = "plot-1", onS
       </div>
     </div>
 
-    <!-- 1-Acre Field Grid: 2 rows of 3 plots -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4" id="acre-plots-grid">
+    <!-- 1-Acre Field Grid: 2 columns for responsive balance without squashing -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5" id="acre-plots-grid">
       ${plots.map(plot => {
         const isSelected = plot.id === selectedPlotId;
         const isOpen = plot.valve?.state === 'OPEN';
@@ -60,7 +60,7 @@ export function createPlotCanvas6Zone(plots = [], selectedPlotId = "plot-1", onS
         const timerLeft = formatTimeRemaining(plot.valve?.timerEnd);
 
         return `
-          <div data-plot-id="${plot.id}" class="plot-card relative rounded-xl p-4 transition-all duration-300 cursor-pointer overflow-hidden border ${
+          <div data-plot-id="${plot.id}" class="plot-card relative rounded-2xl p-4 transition-all duration-300 cursor-pointer overflow-hidden border min-w-0 ${
             isSelected 
               ? 'ring-2 ring-emeraldGlow border-emeraldGlow/80 bg-slate-800/90 shadow-lg shadow-emeraldGlow/10' 
               : 'border-slate-750/70 bg-slate-800/50 hover:border-slate-650 hover:bg-slate-800/70'
@@ -80,21 +80,21 @@ export function createPlotCanvas6Zone(plots = [], selectedPlotId = "plot-1", onS
             ` : ''}
 
             <!-- Header of Plot -->
-            <div class="flex items-center justify-between mb-2 relative z-10">
-              <div class="flex items-center gap-2">
-                <span class="w-7 h-7 rounded-lg font-mono font-bold text-xs flex items-center justify-center ${
+            <div class="flex items-center justify-between gap-2 mb-2 relative z-10 min-w-0">
+              <div class="flex items-center gap-2 min-w-0 flex-1">
+                <span class="w-7 h-7 rounded-lg font-mono font-bold text-xs flex items-center justify-center shrink-0 ${
                   isOpen ? 'bg-emeraldGlow text-slate-950' : 'bg-slate-700 text-slate-200'
                 }">
                   ${plot.valve?.id || 'G' + plot.plotNumber}
                 </span>
-                <div>
-                  <h3 class="text-sm font-bold text-white tracking-tight">${plot.crop}</h3>
-                  <span class="text-[10px] font-medium text-slate-400">Zone ${plot.plotNumber} • ${plot.stage}</span>
+                <div class="min-w-0 flex-1">
+                  <h3 class="text-sm font-bold text-white tracking-tight truncate">${plot.crop}</h3>
+                  <span class="text-[10px] font-medium text-slate-400 block truncate">Zone ${plot.plotNumber} • ${plot.stage}</span>
                 </div>
               </div>
 
               <!-- Valve State Indicator Pill -->
-              <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-mono font-bold ${
+              <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-mono font-bold shrink-0 ${
                 isOpen 
                   ? 'bg-emeraldGlow/20 text-emeraldGlow border border-emeraldGlow/40' 
                   : 'bg-slate-750 text-slate-400 border border-slate-700'

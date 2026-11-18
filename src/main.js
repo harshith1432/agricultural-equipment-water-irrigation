@@ -19,6 +19,7 @@ import { drawSpectralCurve, renderDecisionCards } from './components/Spectroscop
 import { createCalibrationModal } from './components/CalibrationWizard.js';
 import { createTelemetrySimulatorModal } from './components/TelemetrySimulatorModal.js';
 import { createEnterpriseAdminModal } from './components/EnterpriseAdminModal.js';
+import { createCropZoneManagerModal } from './components/CropZoneManagerModal.js';
 import { createMobileFrameShowcase } from './components/MobileFrameShowcase.js';
 import { createNativeMobileAppView } from './components/NativeMobileAppView.js';
 import { createSetuLandingView } from './components/SetuLandingView.js';
@@ -40,20 +41,22 @@ class AgriSpectraApp {
     this.appEl = document.getElementById('app');
     this.currentTheme = localStorage.getItem('agrispectra_theme') || 'aero-field';
 
-    // Native mobile app detection (Capacitor Android / iOS)
-    const isNative = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform();
-    if (isNative) {
+    // Robust detection for native Android / iOS Capacitor container & mobile screens
+    const isNative = (typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform()) ||
+      (typeof window !== 'undefined' && (
+        window.location.protocol === 'capacitor:' ||
+        window.location.hostname === 'localhost' ||
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || '') ||
+        window.innerWidth < 1024
+      ));
+
+    this.isNative = Boolean(isNative);
+    if (this.isNative) {
       this.viewMode = 'mobile';
       try { localStorage.setItem('agrispectra_view_mode', 'mobile'); } catch (e) {}
     } else {
       const savedMode = localStorage.getItem('agrispectra_view_mode');
-      // For web browsers, default to the Setu-style landing page
-      if (savedMode && savedMode !== 'aero-showcase' && savedMode !== 'mobile') {
-        this.viewMode = savedMode;
-      } else {
-        this.viewMode = 'website';
-        try { localStorage.setItem('agrispectra_view_mode', 'website'); } catch (e) {}
-      }
+      this.viewMode = (savedMode && savedMode !== 'aero-showcase') ? savedMode : 'mobile';
     }
     this.isSidebarOpen = true;
     this.selectedPlotId = localStorage.getItem('agrispectra_selected_plot') || "plot-1";
@@ -153,10 +156,17 @@ class AgriSpectraApp {
     // 3. Subscribe to Real-Time Firestore NoSQL Collections
     this.unsubscribePlots = firestoreService.subscribePlots((plots) => {
       this.plots = plots;
+
+      // Auto-fallback if active selected plot was deleted
+      if (this.plots.length > 0 && !this.plots.some(p => p.id === this.selectedPlotId)) {
+        this.selectedPlotId = this.plots[0].id;
+        try { localStorage.setItem('agrispectra_selected_plot', this.selectedPlotId); } catch (e) {}
+      }
+
       if (this.currentUser) this.render();
 
       // Ensure MQTT simulator has latest plot references
-      if (!this.mqttState.running) {
+      if (!this.mqttState.running && this.plots.length > 0) {
         mqttSimulator.start(this.plots, (updatedPlot) => {
           firestoreService.updatePlotTelemetry(
             updatedPlot.id,
@@ -166,6 +176,11 @@ class AgriSpectraApp {
         });
         this.mqttState.running = true;
       }
+    });
+
+    this.unsubscribeCropCatalog = firestoreService.subscribeCropCatalog((crops) => {
+      this.cropCatalog = crops;
+      if (this.currentUser) this.render();
     });
 
     this.unsubscribeRecommendations = firestoreService.subscribeActionRecommendations((recs) => {
@@ -211,8 +226,8 @@ class AgriSpectraApp {
 
     this.render();
 
-    // 6. Cold Launch / First-Time Install: Trigger Onboarding Carousel if not completed
-    if (typeof window !== 'undefined' && !hasCompletedOnboarding()) {
+    // 6. Cold Launch: Only show carousel in non-native desktop browsers
+    if (typeof window !== 'undefined' && !hasCompletedOnboarding() && !this.isNative) {
       setTimeout(() => {
         this.showOnboarding();
       }, 250);
@@ -224,11 +239,19 @@ class AgriSpectraApp {
     this.appEl.innerHTML = '';
 
     // =========================================================================
-    // CASE 0: TRUE FULL-SCREEN NATIVE MOBILE APP (Capacitor Android / iOS)
+    // CASE 0: TRUE FULL-SCREEN NATIVE MOBILE APP (Capacitor Android / iOS & Mobile)
     // =========================================================================
-    const isNative = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform();
+    const isNative = (typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform()) ||
+      (typeof window !== 'undefined' && (
+        window.location.protocol === 'capacitor:' ||
+        window.location.hostname === 'localhost' ||
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || '') ||
+        window.innerWidth < 1024
+      ));
 
-    if (isNative || this.viewMode === 'mobile') {
+    this.isNative = Boolean(isNative || this.isNative);
+    if (this.isNative || this.viewMode === 'mobile' || this.viewMode !== 'desktop') {
+      this.viewMode = 'mobile';
       const mobileApp = createNativeMobileAppView({
         plots: this.plots,
         selectedPlotId: this.selectedPlotId,
@@ -246,10 +269,12 @@ class AgriSpectraApp {
         onOpenCalibration: (type) => this.openCalibrationModal(type),
         onEmergencyStop: () => this.handleEmergencyStop(),
         onOpenSimModal: () => this.openTelemetrySimModal(),
+        onOpenCropZoneManager: (tab) => this.openCropZoneManagerModal(tab),
         onOpenEnterpriseAdmin: () => this.openEnterpriseAdminModal(),
         onOpenAuthModal: () => this.openAuthModal(),
         onReplayOnboarding: () => this.showOnboarding(),
         onSignOut: () => this.handleSignOut(),
+        onSynergyAction: (recId, action) => this.handleSynergyAction(recId, action),
         currentUser: this.currentUser || {
           displayName: "Carlos Mendoza",
           email: "grower@agrispectra.io",
@@ -277,14 +302,16 @@ class AgriSpectraApp {
           this.render();
         },
         onOpenSignIn: () => {
-          this.viewMode = 'overview';
-          try { localStorage.setItem('agrispectra_view_mode', 'overview'); } catch (e) {}
+          this.viewMode = 'mobile';
+          try { localStorage.setItem('agrispectra_view_mode', 'mobile'); } catch (e) {}
           this.render();
+          this.openAuthModal();
         },
         onOpenRegister: () => {
-          this.viewMode = 'overview';
-          try { localStorage.setItem('agrispectra_view_mode', 'overview'); } catch (e) {}
+          this.viewMode = 'mobile';
+          try { localStorage.setItem('agrispectra_view_mode', 'mobile'); } catch (e) {}
           this.render();
+          this.openAuthModal();
         }
       });
 
@@ -738,6 +765,29 @@ class AgriSpectraApp {
     const modal = createEnterpriseAdminModal({
       onClose: () => modal.remove(),
       onGlobalEmergencyStop: () => this.handleEmergencyStop()
+    });
+    document.body.appendChild(modal);
+  }
+
+  openCropZoneManagerModal(initialTab = 'zones') {
+    const modal = createCropZoneManagerModal({
+      initialTab,
+      selectedPlotId: this.selectedPlotId,
+      onClose: () => {
+        this.render();
+      },
+      onSelectPlot: (plotId) => {
+        this.selectedPlotId = plotId;
+        try { localStorage.setItem('agrispectra_selected_plot', this.selectedPlotId); } catch (e) {}
+        this.render();
+      },
+      onPlotDeleted: (deletedPlotId, fallbackPlotId) => {
+        if (this.selectedPlotId === deletedPlotId) {
+          this.selectedPlotId = fallbackPlotId;
+          try { localStorage.setItem('agrispectra_selected_plot', this.selectedPlotId); } catch (e) {}
+          this.render();
+        }
+      }
     });
     document.body.appendChild(modal);
   }

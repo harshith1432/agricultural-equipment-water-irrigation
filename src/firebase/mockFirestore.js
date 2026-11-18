@@ -618,6 +618,14 @@ class ReactiveMockFirestore {
     }
   }
 
+  getPlots() {
+    return this.getChannelSnapshot('plots');
+  }
+
+  getCrops() {
+    return this.getChannelSnapshot('crops');
+  }
+
   getChannelSnapshot(channel) {
     if (channel === 'plots') {
       return Object.values(this.data.plots || {});

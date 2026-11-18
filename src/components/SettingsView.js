@@ -28,7 +28,7 @@ export function createSettingsView({
   onOpenCalibration
 }) {
   const container = document.createElement('div');
-  container.className = "settings-view w-full space-y-4 pb-28 text-slate-800 dark:text-slate-100 select-none";
+  container.className = "settings-view w-full space-y-4 pb-32 text-slate-800 dark:text-slate-100 select-none overflow-x-hidden";
 
   // Persistent settings state
   let farmTargets = {
@@ -127,6 +127,72 @@ export function createSettingsView({
           <button type="button" id="dismiss-banner-btn" class="text-emerald-700 font-bold ml-2">✕</button>
         </div>
       ` : ''}
+
+      <!-- 0. Farmer Profile & Operational Scope Editor -->
+      <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 shadow-sm border border-emerald-900/5 dark:border-slate-800 space-y-3">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+          <h3 class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+            ${icon('user', 'w-4 h-4 text-[#0E5431] dark:text-emerald-400')}
+            <span>Farmer Profile & Workstation</span>
+          </h3>
+          <span class="text-[10px] text-emerald-700 font-mono font-bold">Field Identity</span>
+        </div>
+
+        <div class="space-y-3 text-xs">
+          <div>
+            <label class="font-bold text-slate-700 dark:text-slate-300 block mb-1">Full Name</label>
+            <input 
+              type="text" 
+              id="profile-name-input" 
+              value="${user.displayName || 'Carlos Mendoza'}" 
+              class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-medium focus:outline-none focus:ring-1 focus:ring-emerald-500" 
+            />
+          </div>
+
+          <div>
+            <label class="font-bold text-slate-700 dark:text-slate-300 block mb-1">Work Email</label>
+            <input 
+              type="email" 
+              id="profile-email-input" 
+              value="${user.email || 'carlos.mendoza@valleyfarms.com'}" 
+              class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-medium focus:outline-none focus:ring-1 focus:ring-emerald-500" 
+            />
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="font-bold text-slate-700 dark:text-slate-300 block mb-1">Farm / Parcel</label>
+              <input 
+                type="text" 
+                id="profile-farm-input" 
+                value="${user.farmName || 'Sonoma Valley Parcel'}" 
+                class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-medium focus:outline-none focus:ring-1 focus:ring-emerald-500" 
+              />
+            </div>
+
+            <div>
+              <label class="font-bold text-slate-700 dark:text-slate-300 block mb-1">Operational Role</label>
+              <select 
+                id="profile-role-select" 
+                class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              >
+                <option value="Farm Owner" ${user.role === 'Farm Owner' ? 'selected' : ''}>Farm Owner</option>
+                <option value="Agronomist" ${user.role === 'Agronomist' ? 'selected' : ''}>Agronomist</option>
+                <option value="Field Tech" ${user.role === 'Field Tech' ? 'selected' : ''}>Field Tech</option>
+                <option value="Super Admin" ${user.role === 'Super Admin' ? 'selected' : ''}>Super Admin</option>
+              </select>
+            </div>
+          </div>
+
+          <button 
+            type="button" 
+            id="save-profile-btn" 
+            class="w-full py-2.5 rounded-xl bg-[#0E5431] hover:bg-[#083820] text-white text-xs font-bold shadow-sm transition active:scale-98"
+          >
+            Save Profile Changes
+          </button>
+        </div>
+      </div>
 
       <!-- 1. Google Account Link Status -->
       <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 shadow-sm border border-emerald-900/5 dark:border-slate-800 space-y-3">
@@ -279,7 +345,7 @@ export function createSettingsView({
         <select id="settings-language-select" class="w-full min-h-[44px] px-3.5 py-2 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-100 focus:outline-none cursor-pointer">
           ${SUPPORTED_LOCALES.map(loc => `
             <option value="${loc.code}" ${loc.code === activeLocaleCode ? 'selected' : ''}>
-              ${loc.nativeName} (${loc.name})
+              ${loc.native || loc.name} (${loc.name})
             </option>
           `).join('')}
         </select>
@@ -329,6 +395,37 @@ export function createSettingsView({
   }
 
   function attachEvents() {
+    const user = currentUser || authService.getCurrentUser() || {
+      displayName: "Carlos Mendoza",
+      email: "carlos.mendoza@valleyfarms.com",
+      role: "Farm Owner",
+      farmName: "Sonoma Valley Parcel"
+    };
+
+    // Save Profile Changes
+    container.querySelector('#save-profile-btn')?.addEventListener('click', () => {
+      const name = container.querySelector('#profile-name-input')?.value?.trim();
+      const email = container.querySelector('#profile-email-input')?.value?.trim();
+      const farm = container.querySelector('#profile-farm-input')?.value?.trim();
+      const role = container.querySelector('#profile-role-select')?.value;
+
+      if (name) {
+        const updated = {
+          ...user,
+          displayName: name,
+          email: email || user.email,
+          farmName: farm || user.farmName,
+          role: role || user.role
+        };
+        authService.currentUser = updated;
+        try {
+          localStorage.setItem('agrispectra_current_user', JSON.stringify(updated));
+        } catch (e) {}
+        bannerMessage = "Profile updated successfully.";
+        render();
+      }
+    });
+
     // Open Auth Modal
     container.querySelector('#settings-open-auth-btn')?.addEventListener('click', () => {
       if (onOpenAuthModal) onOpenAuthModal();
