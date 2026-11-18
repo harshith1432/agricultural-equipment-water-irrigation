@@ -21,6 +21,7 @@ import { createTelemetrySimulatorModal } from './components/TelemetrySimulatorMo
 import { createEnterpriseAdminModal } from './components/EnterpriseAdminModal.js';
 import { createMobileFrameShowcase } from './components/MobileFrameShowcase.js';
 import { createNativeMobileAppView } from './components/NativeMobileAppView.js';
+import { createSetuLandingView } from './components/SetuLandingView.js';
 import { createCropOverviewScreen } from './components/CropOverviewScreen.js';
 import { createFieldZoneScreen } from './components/FieldZoneScreen.js';
 import { createClosedLoopSynergySection } from './components/ClosedLoopSynergyCard.js';
@@ -39,14 +40,20 @@ class AgriSpectraApp {
     this.appEl = document.getElementById('app');
     this.currentTheme = localStorage.getItem('agrispectra_theme') || 'aero-field';
 
-    // Native mobile app detection (Capacitor Android / iOS or mobile screen)
+    // Native mobile app detection (Capacitor Android / iOS)
     const isNative = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform();
-    const isMobileViewport = typeof window !== 'undefined' && window.innerWidth < 1024;
     if (isNative) {
       this.viewMode = 'mobile';
       try { localStorage.setItem('agrispectra_view_mode', 'mobile'); } catch (e) {}
     } else {
-      this.viewMode = localStorage.getItem('agrispectra_view_mode') || (isMobileViewport ? 'mobile' : 'aero-showcase');
+      const savedMode = localStorage.getItem('agrispectra_view_mode');
+      // For web browsers, default to the Setu-style landing page
+      if (savedMode && savedMode !== 'aero-showcase' && savedMode !== 'mobile') {
+        this.viewMode = savedMode;
+      } else {
+        this.viewMode = 'website';
+        try { localStorage.setItem('agrispectra_view_mode', 'website'); } catch (e) {}
+      }
     }
     this.isSidebarOpen = true;
     this.selectedPlotId = localStorage.getItem('agrispectra_selected_plot') || "plot-1";
@@ -217,12 +224,11 @@ class AgriSpectraApp {
     this.appEl.innerHTML = '';
 
     // =========================================================================
-    // CASE 0: TRUE FULL-SCREEN NATIVE MOBILE APP (Capacitor Android/iOS & Mobile)
+    // CASE 0: TRUE FULL-SCREEN NATIVE MOBILE APP (Capacitor Android / iOS)
     // =========================================================================
     const isNative = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform();
-    const isMobileViewport = typeof window !== 'undefined' && window.innerWidth < 1024;
 
-    if (isNative || this.viewMode === 'mobile' || (isMobileViewport && this.viewMode !== 'desktop')) {
+    if (isNative || this.viewMode === 'mobile') {
       const mobileApp = createNativeMobileAppView({
         plots: this.plots,
         selectedPlotId: this.selectedPlotId,
@@ -256,37 +262,33 @@ class AgriSpectraApp {
     }
 
     // =========================================================================
-    // CASE 0B: DESKTOP TWIN REFERENCE SHOWCASE VIEW (Preview Mode on Wide Screens)
+    // CASE 1: SETU ENTERPRISE WEB PLATFORM (Default Web Landing & Product Showcase)
     // =========================================================================
-    if (this.viewMode === 'aero-showcase') {
-      const showcaseWrapper = document.createElement('div');
-      showcaseWrapper.className = "min-h-screen flex flex-col bg-[#07160c] text-white";
-
-      const showcase = createMobileFrameShowcase({
-        plots: this.plots,
-        selectedPlotId: this.selectedPlotId,
-        latestScanAnalysis: this.latestScanAnalysis,
-        telemetryMetrics: this.telemetryMetrics,
-        actionRecommendations: this.actionRecommendations,
-        onSelectPlot: (plotId) => {
-          this.selectedPlotId = plotId;
+    if (this.viewMode === 'website' || this.viewMode === 'aero-showcase') {
+      const landingView = createSetuLandingView({
+        currentUser: this.currentUser,
+        onLaunchDashboard: (role) => {
+          if (role) {
+            this.activeRoleView = role;
+            if (this.currentUser) this.currentUser.role = role;
+          }
+          this.viewMode = 'overview';
+          try { localStorage.setItem('agrispectra_view_mode', 'overview'); } catch (e) {}
           this.render();
         },
-        onAcquireScan: (plotId) => this.handleAcquireScan(plotId),
-        onActuateValve: (params) => this.handleActuateValve(params),
-        onOpenCalibration: (type) => this.openCalibrationModal(type),
-        onEmergencyStop: () => this.handleEmergencyStop(),
-        onOpenSimModal: () => this.openTelemetrySimModal(),
-        currentUser: this.currentUser || {
-          displayName: "Carlos Mendoza",
-          email: "grower@agrispectra.io",
-          role: "Farm Owner"
+        onOpenSignIn: () => {
+          this.viewMode = 'overview';
+          try { localStorage.setItem('agrispectra_view_mode', 'overview'); } catch (e) {}
+          this.render();
         },
-        initialDisplayMode: 'twin'
+        onOpenRegister: () => {
+          this.viewMode = 'overview';
+          try { localStorage.setItem('agrispectra_view_mode', 'overview'); } catch (e) {}
+          this.render();
+        }
       });
 
-      showcaseWrapper.appendChild(showcase);
-      this.appEl.appendChild(showcaseWrapper);
+      this.appEl.appendChild(landingView);
       return;
     }
 
@@ -424,28 +426,23 @@ class AgriSpectraApp {
     content.className = "w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6 flex-1";
 
     // View-driven rendering with role fallback
-    if (this.viewMode === 'aero-showcase' || this.viewMode === 'twin' || this.viewMode === 'single') {
-      const showcase = createMobileFrameShowcase({
+    if (this.viewMode === 'overview' || this.viewMode === 'dashboard') {
+      const ownerDashboard = createFarmOwnerDashboard({
         plots: this.plots,
-        selectedPlotId: this.selectedPlotId,
-        latestScanAnalysis: this.latestScanAnalysis,
         telemetryMetrics: this.telemetryMetrics,
         actionRecommendations: this.actionRecommendations,
+        onSynergyAction: (recId, action) => this.handleSynergyAction(recId, action),
         onSelectPlot: (plotId) => {
           this.selectedPlotId = plotId;
           this.render();
         },
-        onAcquireScan: (plotId) => this.handleAcquireScan(plotId),
-        onActuateValve: (params) => this.handleActuateValve(params),
-        onOpenCalibration: () => this.openCalibrationModal('FULL'),
-        onEmergencyStop: () => this.handleEmergencyStop(),
-        onOpenSimModal: () => this.openTelemetrySimModal(),
-        onOpenAuthModal: () => {},
-        onOpenEnterpriseAdmin: () => this.openEnterpriseAdminModal(),
-        currentUser: this.currentUser,
-        initialDisplayMode: this.viewMode === 'single' ? 'single' : 'twin'
+        onNavigateToRole: (role) => {
+          this.activeRoleView = role;
+          this.render();
+        },
+        announcements: authService.announcements || []
       });
-      content.appendChild(showcase);
+      content.appendChild(ownerDashboard);
 
     } else if (this.viewMode === 'field') {
       const fieldScreen = createFieldZoneScreen({
@@ -457,7 +454,7 @@ class AgriSpectraApp {
         },
         onActuateValve: (params) => this.handleActuateValve(params),
         onBack: () => {
-          this.viewMode = 'aero-showcase';
+          this.viewMode = 'overview';
           this.render();
         },
         onNavigateTab: (tabId) => {
@@ -479,7 +476,7 @@ class AgriSpectraApp {
         onAcquireScan: (plotId) => this.handleAcquireScan(plotId),
         onOpenCalibration: () => this.openCalibrationModal('FULL'),
         onBack: () => {
-          this.viewMode = 'aero-showcase';
+          this.viewMode = 'overview';
           this.render();
         }
       });

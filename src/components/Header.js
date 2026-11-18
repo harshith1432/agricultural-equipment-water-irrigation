@@ -27,7 +27,7 @@ export const AVAILABLE_ROLES = [
 ];
 
 export const PRIMARY_VIEWS = [
-  { id: 'aero-showcase', label: 'Mobile Twin UI', icon: '📱' },
+  { id: 'website', label: 'Setu Website', icon: '🌐' },
   { id: 'field', label: 'Field Map', icon: '🌾' },
   { id: 'crop', label: 'Crop Health', icon: '📈' },
   { id: 'spectro', label: 'Leaf Scanner', icon: '🔬' },
