@@ -25,6 +25,11 @@ import { createClosedLoopSynergySection } from './components/ClosedLoopSynergyCa
 import { authService } from './firebase/authService.js';
 import { INITIAL_FARM_DATA } from './firebase/mockFirestore.js';
 import { generateSpectralSignature, processSpectralVector } from './hardware/chemometricsEngine.js';
+import { deviceManager } from './hardware/deviceManager.js';
+import { labartSoilSensorUSB } from './hardware/labartSoilSensorUSB.js';
+import { spectrometerUSBAdapter } from './hardware/spectrometerUSBAdapter.js';
+import { tempHumiditySensorUSB } from './hardware/tempHumiditySensorUSB.js';
+import { irrigationControllerAdapter } from './hardware/irrigationControllerAdapter.js';
 import { Capacitor } from '@capacitor/core';
 
 class AgriSpectraApp {
@@ -64,6 +69,9 @@ class AgriSpectraApp {
     this.mqttState = {
       running: false
     };
+
+    // Modular hardware device manager coordinating all 4 adapters
+    this.deviceManager = deviceManager;
 
     // Listen to global switch view events
     window.addEventListener('agrispectra_switch_view', (e) => {
@@ -186,6 +194,8 @@ class AgriSpectraApp {
         latestScanAnalysis: this.latestScanAnalysis,
         telemetryMetrics: this.telemetryMetrics,
         actionRecommendations: this.actionRecommendations,
+        currentTheme: this.currentTheme,
+        onThemeChange: (themeId) => this.setTheme(themeId),
         onSelectPlot: (plotId) => {
           this.selectedPlotId = plotId;
           this.render();
@@ -718,6 +728,14 @@ class AgriSpectraApp {
 // Instantiate on DOM load
 window.addEventListener('DOMContentLoaded', () => {
   window.agriSpectraApp = new AgriSpectraApp();
+  window.deviceManager = deviceManager;
+  window.hardware = {
+    deviceManager,
+    labartSoilSensorUSB,
+    spectrometerUSBAdapter,
+    tempHumiditySensorUSB,
+    irrigationControllerAdapter
+  };
 
   // Handle PWA Service Worker: only for web browser, bypass in native Capacitor container
   const isCapacitor = Boolean(window.Capacitor?.isNativePlatform && window.Capacitor.isNativePlatform());

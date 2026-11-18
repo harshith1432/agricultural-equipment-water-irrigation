@@ -4,10 +4,11 @@
  */
 
 export const SUPPORTED_LANGUAGES = [
-  { code: 'en-US', label: 'English (US/Global)', flag: '🇺🇸' },
-  { code: 'hi-IN', label: 'हिन्दी (Hindi)', flag: '🇮🇳' },
-  { code: 'es-ES', label: 'Español (Spanish)', flag: '🇪🇸' },
-  { code: 'sw-KE', label: 'Kiswahili (Swahili)', flag: '🇰🇪' }
+  { code: 'en-US', label: 'English (US/Global)', flag: '' },
+  { code: 'kn-IN', label: 'ಕನ್ನಡ (Kannada)', flag: '' },
+  { code: 'hi-IN', label: 'हिन्दी (Hindi)', flag: '' },
+  { code: 'es-ES', label: 'Español (Spanish)', flag: '' },
+  { code: 'sw-KE', label: 'Kiswahili (Swahili)', flag: '' }
 ];
 
 export class VoiceReadoutEngine {
@@ -105,7 +106,26 @@ export class VoiceReadoutEngine {
   speakDecision(type, data, lang = this.currentLanguage) {
     let script = "";
 
-    if (lang.startsWith('hi')) {
+    if (lang.startsWith('kn')) {
+      // Kannada translations
+      if (type === 'VITALITY') {
+        script = `ಬೆಳೆಯ ಚೈತನ್ಯ ಅಂಕ ನೂರರಲ್ಲಿ ${data.vitalityScore} ಆಗಿದೆ. ಪತ್ರ ಜಲ ಸೂಚ್ಯಂಕ ಸ್ಥಿರವಾಗಿದೆ.`;
+      } else if (type === 'NITROGEN') {
+        script = data.nitrogenPrescriptionKg > 0
+          ? `ಮುಂದಿನ ನೀರಾವರಿಗೂ ಮುನ್ನ ಪ್ರತಿ ಎಕರೆಗೆ ${data.nitrogenPrescriptionKg} ಕೆಜಿ ಯೂರಿಯಾ ಅಗತ್ಯವಿದೆ.`
+          : `ಸಾರಜನಕ ಮಟ್ಟ ಅತ್ಯುತ್ತಮವಾಗಿದೆ. ಹೆಚ್ಚುವರಿ ಗೊಬ್ಬರ ಅಗತ್ಯವಿಲ್ಲ.`;
+      } else if (type === 'IRRIGATION') {
+        script = `ನೀರಾವರಿ ಎಚ್ಚರಿಕೆ: ${data.irrigationCountdownHours} ಗಂಟೆಗಳ ಒಳಗೆ ನೀರು ಹಾಯಿಸಬೇಕು.`;
+      } else if (type === 'DISEASE') {
+        script = data.diseaseRisk?.detected
+          ? `ರೋಗ ಎಚ್ಚರಿಕೆ: ಶೇಕಡಾ ${data.diseaseRisk.confidence} ನಿಖರತೆಯೊಂದಿಗೆ ರೋಗ ಲಕ್ಷಣ ಕಂಡುಬಂದಿದೆ.`
+          : `ಎಲೆಗಳು ಸ್ವಚ್ಛ ಮತ್ತು ಆರೋಗ್ಯಕರವಾಗಿವೆ. ಯಾವುದೇ ರೋಗವಿಲ್ಲ.`;
+      } else if (type === 'HARVEST') {
+        script = `ಬೆಳೆ ಪರಿಪಕ್ವತೆ ಶೇಕಡಾ ${data.harvest?.maturityPercent} ಆಗಿದೆ. ಕೊಯ್ಲು ${data.harvest?.daysToPeakHarvest} ದಿನಗಳಲ್ಲಿ ಪ್ರಾರಂಭಿಸಬಹುದು.`;
+      } else if (type === 'CLOSED_LOOP') {
+        script = `ಸ್ಮಾರ್ಟ್ ಕ್ರಮ: ವಲಯ ${data.plotNumber} ಗಂಭೀರ ನೀರಿನ ಕೊರತೆಯಲ್ಲಿದೆ. ವಾಲ್ವ್ ${data.gateId} ತೆರೆಯಬೇಕೆ?`;
+      }
+    } else if (lang.startsWith('hi')) {
       // Hindi translations
       if (type === 'VITALITY') {
         script = `फसल स्वास्थ्य स्कोर सौ में से ${data.vitalityScore} है। पत्ती जल सूचकांक सामान्य है।`;

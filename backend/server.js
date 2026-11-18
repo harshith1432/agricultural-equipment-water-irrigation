@@ -14,8 +14,14 @@ import { fileURLToPath } from 'url';
 import healthRoutes from './routes/healthRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import telemetryRoutes from './routes/telemetryRoutes.js';
+import irrigationRoutes from './routes/irrigationRoutes.js';
+import soilRoutes from './routes/soilRoutes.js';
+import spectroRoutes from './routes/spectroRoutes.js';
+import environmentRoutes from './routes/environmentRoutes.js';
+import aiRoutes from './routes/aiRoutes.js';
 import { firestoreClient } from './services/firestoreClient.js';
 import { enterpriseStore } from './services/enterpriseStore.js';
+import { centralStorage } from './services/centralStorage.js';
 
 // Load environment variables (.env in backend or root)
 const __filename = fileURLToPath(import.meta.url);
@@ -104,6 +110,11 @@ app.get('/', (req, res) => {
 app.use('/api', healthRoutes);
 app.use('/api', adminRoutes);
 app.use('/api', telemetryRoutes);
+app.use('/api', irrigationRoutes);
+app.use('/api', soilRoutes);
+app.use('/api', spectroRoutes);
+app.use('/api', environmentRoutes);
+app.use('/api', aiRoutes);
 
 // 404 Handler
 app.use((req, res) => {
@@ -139,12 +150,16 @@ if (isMainModule || process.env.START_SERVER === 'true') {
     console.log(` > Server Listening Port:  http://0.0.0.0:${PORT}`);
     console.log(` > Health Endpoint:        /api/health`);
     console.log(` > Admin Metrics:          /api/admin/metrics`);
-    console.log(` > User Management:        /api/admin/users`);
-    console.log(` > Emergency Killswitch:   /api/admin/emergency-killswitch`);
+    console.log(` > Irrigation Control:     /api/irrigation/valves`);
+    console.log(` > Soil 8-in-1 Telemetry:  /api/soil/scans`);
+    console.log(` > NIR Spectroscopy:       /api/spectroscopy/scans`);
+    console.log(` > Environment & Weather:  /api/environment/latest`);
+    console.log(` > AI Closed-Loop Engine:  /api/ai/recommendations`);
+    console.log(` > Emergency Killswitch:   /api/irrigation/emergency-stop`);
     console.log(` > Audit Trail:            /api/admin/audit-logs`);
     console.log(` > Telemetry Sync:         /api/telemetry/sync`);
     console.log(` > Cloud Firestore DB:     ${firestoreClient.projectId} (${isLiveDb ? `LIVE CLOUD LINK - ${firestoreClient.authProvider}` : 'OFFLINE STORE'})`);
-    console.log(` > Active Parcels:         ${enterpriseStore.plots.length} Zones Managed`);
+    console.log(` > Active Parcels:         ${centralStorage.getValves().length} Zones Managed`);
     console.log(` > Registered Users:       ${enterpriseStore.users.length} Enterprise Operators`);
     console.log("====================================================================");
   });
