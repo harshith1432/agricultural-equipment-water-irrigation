@@ -67,6 +67,50 @@ export function registerAuthEnterpriseTests() {
       expect(stats.totalLitersDistributedToday).toBeGreaterThan(10000);
     });
 
+    it('1-Click Demo Login authenticates as Farm Owner with executive credentials', async () => {
+      const res = await authService.loginAsDemoRole('Farm Owner');
+      expect(Boolean(res)).toBe(true);
+      expect(res.role).toBe('Farm Owner');
+      expect(res.displayName).toBe('Carlos Mendoza');
+      expect(authService.getCurrentUser()?.role).toBe('Farm Owner');
+    });
+
+    it('1-Click Demo Login authenticates as Agronomist with plant science scope', async () => {
+      const res = await authService.loginAsDemoRole('Agronomist');
+      expect(Boolean(res)).toBe(true);
+      expect(res.role).toBe('Agronomist');
+      expect(res.displayName).toBe('Dave Miller');
+      expect(authService.getCurrentUser()?.role).toBe('Agronomist');
+    });
+
+    it('1-Click Demo Login authenticates as Field Operator with hydraulic scope', async () => {
+      const res = await authService.loginAsDemoRole('Field Operator');
+      expect(Boolean(res)).toBe(true);
+      expect(res.role).toBe('Field Operator');
+      expect(res.displayName).toBe('Mateo Silva');
+      expect(authService.getCurrentUser()?.role).toBe('Field Operator');
+    });
+
+    it('1-Click Demo Login authenticates as SuperAdmin with enterprise governance scope', async () => {
+      const res = await authService.loginAsDemoRole('SuperAdmin');
+      expect(Boolean(res)).toBe(true);
+      expect(res.role).toBe('SuperAdmin');
+      expect(res.displayName).toBe('Elena Rostova');
+      expect(authService.getCurrentUser()?.role).toBe('SuperAdmin');
+    });
+
+    it('Dynamically switches active user role and notifies listeners', async () => {
+      let notifiedRole = null;
+      const unsub = authService.onAuthStateChanged((user) => {
+        if (user) notifiedRole = user.role;
+      });
+
+      await authService.switchRole('Agronomist');
+      expect(authService.getCurrentUser()?.role).toBe('Agronomist');
+      expect(notifiedRole).toBe('Agronomist');
+      unsub();
+    });
+
     it('Sign-Out terminates active session cleanly', async () => {
       await authService.signOut();
       expect(authService.getCurrentUser()).toBe(null);

@@ -558,6 +558,67 @@ class AuthService {
     return { success: true, message: "Signed out successfully." };
   }
 
+  /**
+   * 1-Click Instant Demo Login as any Enterprise Role
+   * @param {string} roleName - 'Farm Owner' | 'Agronomist' | 'Field Operator' | 'SuperAdmin'
+   */
+  async loginAsDemoRole(roleName = 'Farm Owner') {
+    const clean = (roleName || '').toLowerCase().replace(/[\s_-]+/g, '');
+
+    const DEMO_PERSONAS = {
+      farmowner: {
+        displayName: "Carlos Mendoza",
+        email: "carlos.mendoza@valleyfarms.com",
+        role: "Farm Owner",
+        farmName: "Sonoma Valley Drip Vineyard"
+      },
+      agronomist: {
+        displayName: "Dave Miller",
+        email: "dave.miller@agrispectra.io",
+        role: "Agronomist",
+        farmName: "Central Valley Alpha Block"
+      },
+      fieldoperator: {
+        displayName: "Mateo Silva",
+        email: "mateo.field@solenoidflow.org",
+        role: "Field Operator",
+        farmName: "Sonoma Valley Drip Vineyard"
+      },
+      superadmin: {
+        displayName: "Elena Rostova",
+        email: "elena.rostova@solenoidflow.org",
+        role: "SuperAdmin",
+        farmName: "Global Agronomic Operations"
+      }
+    };
+
+    const target = DEMO_PERSONAS[clean] || 
+      Object.values(DEMO_PERSONAS).find(p => p.role.toLowerCase().replace(/[\s_-]+/g, '').includes(clean)) ||
+      DEMO_PERSONAS.farmowner;
+
+    const result = this._activateOfflineFallback(
+      target.displayName,
+      target.email,
+      target.role,
+      target.farmName
+    );
+    return result;
+  }
+
+  /**
+   * Switch the current user's active role dynamically
+   */
+  async switchRole(newRole) {
+    if (!this.currentUser) return null;
+    this.currentUser.role = newRole;
+    if (this.currentUserProfile) {
+      this.currentUserProfile.role = newRole;
+    }
+    this._saveCachedSession(this.currentUser);
+    this._notifyListeners();
+    return this.getCurrentUser();
+  }
+
   // =========================================================================
   // Enterprise Multi-Tenant Governance Methods
   // =========================================================================
@@ -723,10 +784,31 @@ class AuthService {
   }
 
   /**
+   * Cryptographically secure UID generator for offline/demo sessions
+   * Resolves CodeQL js/insecure-randomness security alert
+   */
+  _generateSecureUid(prefix = 'usr') {
+    if (typeof crypto !== 'undefined') {
+      if (typeof crypto.randomUUID === 'function') {
+        return `${prefix}-${crypto.randomUUID().replace(/-/g, '').substring(0, 12)}`;
+      }
+      if (typeof crypto.getRandomValues === 'function') {
+        const arr = new Uint8Array(8);
+        crypto.getRandomValues(arr);
+        return `${prefix}-${Array.from(arr, b => b.toString(16).padStart(2, '0')).join('')}`;
+      }
+    }
+    // Fallback using high-resolution monotonic timer for edge environments
+    const timePart = Date.now().toString(36);
+    const perfPart = (typeof performance !== 'undefined' ? performance.now() : 0).toString(36).replace('.', '');
+    return `${prefix}-${timePart}-${perfPart}`;
+  }
+
+  /**
    * Automated Offline Session Fallback
    */
   _activateOfflineFallback(name = "Carlos Mendoza", email = "carlos.mendoza@valleyfarms.com", role = "Farm Owner", farmName = "Sonoma Valley Drip Vineyard") {
-    const offlineUid = "usr-" + (Math.random().toString(36).substring(2, 9));
+    const offlineUid = this._generateSecureUid('usr');
     const offlineUser = {
       uid: offlineUid,
       email: email,

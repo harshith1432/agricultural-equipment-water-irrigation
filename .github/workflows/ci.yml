@@ -86,7 +86,7 @@ jobs:
       - name: Build Production Vite Web Bundle
         run: npm run build
         env:
-          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY || 'AIzaSyBm_aZ_92IJwSuX4YHgWh6eca4ygQSH8eE' }}
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY || '' }}
           VITE_FIREBASE_AUTH_DOMAIN: "water-irrigation-system-8aeeb.firebaseapp.com"
           VITE_FIREBASE_PROJECT_ID: "water-irrigation-system-8aeeb"
           VITE_FIREBASE_STORAGE_BUCKET: "water-irrigation-system-8aeeb.firebasestorage.app"
@@ -116,6 +116,9 @@ jobs:
 
       - name: Install Application Dependencies
         run: npm ci
+
+      - name: Run Continuous Security & Code Quality Monitor (AST / Secrets / CodeQL)
+        run: npm run monitor:security
 
       - name: Run Red/Blue Team Security & Access Control Audit
         run: npm run security:audit

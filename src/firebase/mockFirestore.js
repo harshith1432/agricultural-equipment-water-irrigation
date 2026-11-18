@@ -4,7 +4,7 @@
  * Ensures instantaneous out-of-the-box operation and offline resilience.
  */
 
-const STORAGE_KEY = "AGRISPECTRA_FIRESTORE_DATA_V1";
+const STORAGE_KEY = "AGRISPECTRA_FIRESTORE_DATA_V2";
 
 export const INITIAL_FARM_DATA = {
   farmId: "farm-valley-1",
@@ -19,22 +19,37 @@ export const INITIAL_FARM_DATA = {
   plots: {
     "plot-1": {
       id: "plot-1",
-      name: "Zone 1 - Bell Peppers Block",
+      name: "Zone 1 - Potato Field Zone",
       plotNumber: 1,
-      crop: "Bell Peppers",
-      stage: "Fruit Formation",
+      crop: "Potato Crop",
+      stage: "Tuber Bulking & Maturity",
       targetVwcMin: 22.0,
       targetVwcMax: 35.0,
+      plantAgeDays: 63,
+      totalCycleDays: 83,
+      daysToHarvest: 20,
+      areaHa: 1.4,
+      projectedYieldTons: 7.0,
+      currentHeightCm: 74,
+      growthRateData: [
+        { day: 0, heightCm: 0, label: "Day 0" },
+        { day: 15, heightCm: 30, label: "Day 15" },
+        { day: 30, heightCm: 45, label: "Day 30" },
+        { day: 45, heightCm: 60, label: "Day 45" },
+        { day: 60, heightCm: 72, label: "Day 60" },
+        { day: 75, heightCm: 82, label: "Day 75" },
+        { day: 90, heightCm: 88, label: "Day 90" }
+      ],
       valve: {
         id: "G1",
         state: "CLOSED", // OPEN | CLOSED | FAULT
-        flowRate: 450.0, // Liters per hour
+        flowRate: 480.0, // Liters per hour
         timerEnd: null
       },
       soilSensors: [
-        { probeId: "S1_10cm", depthCm: 10, vwc: 26.4, temperature: 23.2, salinityEc: 1.20, lastUpdated: new Date().toISOString() },
-        { probeId: "S1_30cm", depthCm: 30, vwc: 29.1, temperature: 21.8, salinityEc: 1.10, lastUpdated: new Date().toISOString() },
-        { probeId: "S1_50cm", depthCm: 50, vwc: 31.5, temperature: 20.4, salinityEc: 0.95, lastUpdated: new Date().toISOString() }
+        { probeId: "S1_10cm", depthCm: 10, vwc: 24.8, temperature: 22.8, salinityEc: 1.15, lastUpdated: new Date().toISOString() },
+        { probeId: "S1_30cm", depthCm: 30, vwc: 28.2, temperature: 21.4, salinityEc: 1.05, lastUpdated: new Date().toISOString() },
+        { probeId: "S1_50cm", depthCm: 50, vwc: 31.0, temperature: 20.1, salinityEc: 0.90, lastUpdated: new Date().toISOString() }
       ],
       createdAt: new Date(Date.now() - 720 * 3600000).toISOString(),
       updatedAt: new Date().toISOString()
@@ -47,6 +62,21 @@ export const INITIAL_FARM_DATA = {
       stage: "Fruit Sizing & Ripening",
       targetVwcMin: 20.0,
       targetVwcMax: 32.0,
+      plantAgeDays: 54,
+      totalCycleDays: 90,
+      daysToHarvest: 36,
+      areaHa: 1.2,
+      projectedYieldTons: 9.5,
+      currentHeightCm: 68,
+      growthRateData: [
+        { day: 0, heightCm: 0, label: "Day 0" },
+        { day: 15, heightCm: 22, label: "Day 15" },
+        { day: 30, heightCm: 42, label: "Day 30" },
+        { day: 45, heightCm: 58, label: "Day 45" },
+        { day: 60, heightCm: 70, label: "Day 60" },
+        { day: 75, heightCm: 85, label: "Day 75" },
+        { day: 90, heightCm: 92, label: "Day 90" }
+      ],
       valve: {
         id: "G2",
         state: "CLOSED",
@@ -69,6 +99,21 @@ export const INITIAL_FARM_DATA = {
       stage: "Tasseling & Silking",
       targetVwcMin: 24.0,
       targetVwcMax: 38.0,
+      plantAgeDays: 48,
+      totalCycleDays: 75,
+      daysToHarvest: 27,
+      areaHa: 1.6,
+      projectedYieldTons: 12.0,
+      currentHeightCm: 145,
+      growthRateData: [
+        { day: 0, heightCm: 0, label: "Day 0" },
+        { day: 15, heightCm: 35, label: "Day 15" },
+        { day: 30, heightCm: 80, label: "Day 30" },
+        { day: 45, heightCm: 130, label: "Day 45" },
+        { day: 60, heightCm: 170, label: "Day 60" },
+        { day: 75, heightCm: 195, label: "Day 75" },
+        { day: 90, heightCm: 210, label: "Day 90" }
+      ],
       valve: {
         id: "G3",
         state: "CLOSED",
@@ -91,6 +136,21 @@ export const INITIAL_FARM_DATA = {
       stage: "Vegetative / Foliar Bloom",
       targetVwcMin: 18.0,
       targetVwcMax: 30.0,
+      plantAgeDays: 38,
+      totalCycleDays: 65,
+      daysToHarvest: 27,
+      areaHa: 0.8,
+      projectedYieldTons: 4.8,
+      currentHeightCm: 22,
+      growthRateData: [
+        { day: 0, heightCm: 0, label: "Day 0" },
+        { day: 15, heightCm: 10, label: "Day 15" },
+        { day: 30, heightCm: 18, label: "Day 30" },
+        { day: 45, heightCm: 24, label: "Day 45" },
+        { day: 60, heightCm: 28, label: "Day 60" },
+        { day: 75, heightCm: 30, label: "Day 75" },
+        { day: 90, heightCm: 30, label: "Day 90" }
+      ],
       valve: {
         id: "G4",
         state: "CLOSED",
@@ -113,6 +173,21 @@ export const INITIAL_FARM_DATA = {
       stage: "Head Expansion",
       targetVwcMin: 25.0,
       targetVwcMax: 40.0,
+      plantAgeDays: 28,
+      totalCycleDays: 45,
+      daysToHarvest: 17,
+      areaHa: 0.9,
+      projectedYieldTons: 3.2,
+      currentHeightCm: 26,
+      growthRateData: [
+        { day: 0, heightCm: 0, label: "Day 0" },
+        { day: 15, heightCm: 12, label: "Day 15" },
+        { day: 30, heightCm: 25, label: "Day 30" },
+        { day: 45, heightCm: 32, label: "Day 45" },
+        { day: 60, heightCm: 34, label: "Day 60" },
+        { day: 75, heightCm: 35, label: "Day 75" },
+        { day: 90, heightCm: 35, label: "Day 90" }
+      ],
       valve: {
         id: "G5",
         state: "CLOSED",
@@ -135,6 +210,21 @@ export const INITIAL_FARM_DATA = {
       stage: "Active Root Establishment",
       targetVwcMin: 20.0,
       targetVwcMax: 32.0,
+      plantAgeDays: 110,
+      totalCycleDays: 180,
+      daysToHarvest: 70,
+      areaHa: 2.1,
+      projectedYieldTons: 15.0,
+      currentHeightCm: 115,
+      growthRateData: [
+        { day: 0, heightCm: 0, label: "Day 0" },
+        { day: 15, heightCm: 25, label: "Day 15" },
+        { day: 30, heightCm: 48, label: "Day 30" },
+        { day: 45, heightCm: 65, label: "Day 45" },
+        { day: 60, heightCm: 80, label: "Day 60" },
+        { day: 75, heightCm: 95, label: "Day 75" },
+        { day: 90, heightCm: 110, label: "Day 90" }
+      ],
       valve: {
         id: "G6",
         state: "CLOSED",
@@ -235,6 +325,22 @@ export const INITIAL_FARM_DATA = {
     }
   ],
   actionRecommendations: [
+    {
+      id: "rec-plot1-optimal-01",
+      plotId: "plot-1",
+      plotNumber: 1,
+      crop: "Potato Crop",
+      gateId: "G1",
+      status: "PENDING",
+      generatedAt: new Date(Date.now() - 5 * 60000).toISOString(),
+      title: "Potato Field Zone Optimal Hydration",
+      details: "Irrigation is recommended to ensure optimal growth during tuber bulking stage. 1.4 ha parcel target delivery.",
+      triggerReason: "Irrigation is recommended to ensure optimal growth",
+      suggestedAction: "OPEN",
+      suggestedDurationMinutes: 20.0,
+      nitrogenPrescriptionKg: 10.0,
+      leafScanId: "scan-plot1-pot-01"
+    },
     {
       id: "rec-plot2-urgent-01",
       plotId: "plot-2",

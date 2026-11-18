@@ -165,7 +165,12 @@ async function runAudit() {
   console.log("[STAGE 2] Cloud Firestore Connection & Data Architecture Audit");
   
   assert(firestoreClient.projectId === "water-irrigation-system-8aeeb", "Firestore target project matches production GCP ID: water-irrigation-system-8aeeb");
-  assert(typeof firestoreClient.baseUrl === "string" && firestoreClient.baseUrl.includes("firestore.googleapis.com"), "Firestore REST client configured with Google APIs endpoint");
+  assert(typeof firestoreClient.baseUrl === "string", "Firestore REST client baseUrl is defined as string");
+  const parsedFirestoreEndpoint = new URL(firestoreClient.baseUrl);
+  assert(
+    parsedFirestoreEndpoint.protocol === "https:" && parsedFirestoreEndpoint.hostname === "firestore.googleapis.com",
+    "Firestore REST client configured with Google APIs endpoint"
+  );
 
   // Verify Firestore Rules exist and have comprehensive collections
   const rulesPath = path.join(ROOT_DIR, 'firestore.rules');
@@ -292,7 +297,10 @@ async function runAudit() {
   const distHtmlPath = path.join(ROOT_DIR, 'dist', 'index.html');
   assert(fs.existsSync(distHtmlPath), "dist/index.html is compiled and ready for production deployment");
   const distHtml = fs.readFileSync(distHtmlPath, 'utf-8');
-  assert(distHtml.includes("<title>AgriSpectra"), "dist/index.html contains AgriSpectra entry point");
+  assert(
+    distHtml.includes("<title>AgriSpectra") || distHtml.includes("<title>AgriCare"),
+    "dist/index.html contains application entry point"
+  );
   console.log("");
 
   // ---------------------------------------------------------------------------

@@ -12,7 +12,7 @@ import {
 import { getAuth } from 'firebase/auth';
 
 export const firebaseConfig = {
-  apiKey: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FIREBASE_API_KEY) || "AIzaSyBm_aZ_92IJwSuX4YHgWh6eca4ygQSH8eE",
+  apiKey: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FIREBASE_API_KEY) || "",
   authDomain: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FIREBASE_AUTH_DOMAIN) || "water-irrigation-system-8aeeb.firebaseapp.com",
   projectId: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FIREBASE_PROJECT_ID) || "water-irrigation-system-8aeeb",
   storageBucket: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FIREBASE_STORAGE_BUCKET) || "water-irrigation-system-8aeeb.firebasestorage.app",

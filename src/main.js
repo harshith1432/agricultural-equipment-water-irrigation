@@ -1,32 +1,36 @@
 /**
  * AgriSpectra Flow & Field - Main Application Entrypoint
- * Coordinates Leaf Spectroscopy, 6-Zone Hydraulic Solenoids, Firestore NoSQL, and Hardware Simulation.
+ * Coordinates Role-Based Precision Agronomy Dashboards, Leaf Spectroscopy,
+ * 6-Zone Hydraulic Solenoids, Firestore NoSQL, and Login-Based Access Control.
  */
 import { firestoreService } from './firebase/firestoreService.js';
 import { leafClipDevice } from './hardware/webBluetoothLeafClip.js';
 import { mqttSimulator } from './hardware/mqttTelemetrySimulator.js';
+import { createSidebar } from './components/Sidebar.js';
 import { createHeader } from './components/Header.js';
-import { createFieldOverviewBento } from './components/FieldOverviewBento.js';
-import { createPlotCanvas6Zone } from './components/PlotCanvas6Zone.js';
-import { createValveControlCenter } from './components/ValveControlCenter.js';
-import {
-  createSpectroscopyStudio,
-  renderDecisionCards,
-  drawSpectralCurve
-} from './components/SpectroscopyStudio.js';
-import { createClosedLoopSynergySection } from './components/ClosedLoopSynergyCard.js';
+import { createAuthPortal } from './components/AuthPortal.js';
+import { createFarmOwnerDashboard } from './components/dashboards/FarmOwnerDashboard.js';
+import { createAgronomistDashboard } from './components/dashboards/AgronomistDashboard.js';
+import { createFieldOperatorDashboard } from './components/dashboards/FieldOperatorDashboard.js';
+import { createSuperAdminDashboard } from './components/dashboards/SuperAdminDashboard.js';
+import { drawSpectralCurve, renderDecisionCards } from './components/SpectroscopyStudio.js';
 import { createCalibrationModal } from './components/CalibrationWizard.js';
 import { createTelemetrySimulatorModal } from './components/TelemetrySimulatorModal.js';
-import { createAuthModal } from './components/AuthModal.js';
 import { createEnterpriseAdminModal } from './components/EnterpriseAdminModal.js';
+import { createMobileFrameShowcase } from './components/MobileFrameShowcase.js';
+import { createCropOverviewScreen } from './components/CropOverviewScreen.js';
+import { createFieldZoneScreen } from './components/FieldZoneScreen.js';
+import { createClosedLoopSynergySection } from './components/ClosedLoopSynergyCard.js';
 import { authService } from './firebase/authService.js';
 import { generateSpectralSignature, processSpectralVector } from './hardware/chemometricsEngine.js';
 
 class AgriSpectraApp {
   constructor() {
     this.appEl = document.getElementById('app');
-    this.currentTheme = localStorage.getItem('agrispectra_theme') || 'creamy-agri';
-    this.selectedPlotId = "plot-2"; // Start focused on Plot 2 to highlight water stress scenario
+    this.currentTheme = localStorage.getItem('agrispectra_theme') || 'aero-field';
+    this.viewMode = localStorage.getItem('agrispectra_view_mode') || 'aero-showcase';
+    this.isSidebarOpen = true;
+    this.selectedPlotId = "plot-1"; // Start focused on Plot 1 (Potato Field Zone) matching reference design
 
     // Reactive State
     this.plots = [];
@@ -49,18 +53,35 @@ class AgriSpectraApp {
       running: false
     };
 
-    this.currentUser = authService.getCurrentUser();
+    // Listen to global switch view events
+    window.addEventListener('agrispectra_switch_view', (e) => {
+      if (e.detail?.mode) {
+        this.viewMode = e.detail.mode === 'web' ? 'desktop' : e.detail.mode;
+        localStorage.setItem('agrispectra_view_mode', this.viewMode);
+        this.render();
+      }
+    });
+
+    // User authentication state - Defaults to active grower session
+    this.currentUser = authService.getCurrentUser() || {
+      uid: "usr-demo-01",
+      displayName: "Carlos Mendoza",
+      email: "carlos.mendoza@valleyfarms.com",
+      role: "Farm Owner",
+      farmName: "Sonoma Valley Parcel"
+    };
+    this.activeRoleView = this.currentUser ? (this.currentUser.role || 'Farm Owner') : 'Farm Owner';
 
     this.init();
   }
 
   async init() {
-    console.log("[AgriSpectra] Initializing unified precision agriculture platform...");
+    console.log("[AgriSpectra] Initializing role-based precision agriculture platform...");
 
-    // Apply the active agricultural visual theme (Creamy Light & Foliage Green default)
+    // Apply the active theme
     this.applyTheme(this.currentTheme);
 
-    // 1. Connect Simulated BLE device by default so user has immediate out-of-the-box experience
+    // 1. Connect Simulated BLE device by default
     await leafClipDevice.connect({ forceSimulation: false });
     this.bleState.connected = leafClipDevice.isConnected;
     this.bleState.simulated = leafClipDevice.isSimulated;
@@ -77,7 +98,7 @@ class AgriSpectraApp {
     // 3. Subscribe to Real-Time Firestore NoSQL Collections
     this.unsubscribePlots = firestoreService.subscribePlots((plots) => {
       this.plots = plots;
-      this.render();
+      if (this.currentUser) this.render();
 
       // Ensure MQTT simulator has latest plot references
       if (!this.mqttState.running) {
@@ -94,12 +115,12 @@ class AgriSpectraApp {
 
     this.unsubscribeRecommendations = firestoreService.subscribeActionRecommendations((recs) => {
       this.actionRecommendations = recs;
-      this.render();
+      if (this.currentUser) this.render();
     });
 
     this.unsubscribeLogs = firestoreService.subscribeIrrigationLogs((logs) => {
       this.irrigationLogs = logs;
-      this.render();
+      if (this.currentUser) this.render();
     });
 
     // 4. Listen to hardware telemetry ticks
@@ -110,23 +131,26 @@ class AgriSpectraApp {
         consumedLitersToday: data.consumedLitersToday,
         weatherMode: data.weatherMode
       };
-      this.updateBentoAndCanvasMetrics();
+      this.updateDynamicMetrics();
     });
 
     mqttSimulator.on('statusChange', ({ running }) => {
       this.mqttState.running = running;
-      this.render();
+      if (this.currentUser) this.render();
     });
 
     leafClipDevice.on('connectionChange', ({ status, simulated }) => {
       this.bleState.connected = status === 'CONNECTED';
       this.bleState.simulated = simulated;
-      this.render();
+      if (this.currentUser) this.render();
     });
 
-    // 5. Auth state listener for enterprise and user profile
+    // 5. Auth state listener: synchronizes UI when user logs in or out
     this.unsubscribeAuth = authService.onAuthStateChanged((user) => {
       this.currentUser = user;
+      if (user) {
+        this.activeRoleView = user.role || 'Farm Owner';
+      }
       this.render();
     });
 
@@ -137,11 +161,129 @@ class AgriSpectraApp {
     if (!this.appEl) return;
     this.appEl.innerHTML = '';
 
-    // Main layout container
-    const mainWrapper = document.createElement('div');
-    mainWrapper.className = "flex-1 flex flex-col min-h-screen transition-colors duration-300";
+    // =========================================================================
+    // CASE 0: AERO-FIELD MOBILE REFERENCE SHOWCASE VIEW (Flagship Design)
+    // =========================================================================
+    if (this.viewMode === 'aero-showcase') {
+      const showcaseWrapper = document.createElement('div');
+      showcaseWrapper.className = "min-h-screen flex flex-col bg-[#07160c] text-white";
 
-    // 1. Header
+      const showcase = createMobileFrameShowcase({
+        plots: this.plots,
+        selectedPlotId: this.selectedPlotId,
+        latestScanAnalysis: this.latestScanAnalysis,
+        telemetryMetrics: this.telemetryMetrics,
+        actionRecommendations: this.actionRecommendations,
+        onSelectPlot: (plotId) => {
+          this.selectedPlotId = plotId;
+          this.render();
+        },
+        onAcquireScan: (plotId) => this.handleAcquireScan(plotId),
+        onActuateValve: (params) => this.handleActuateValve(params),
+        onOpenCalibration: (type) => this.openCalibrationModal(type),
+        onEmergencyStop: () => this.handleEmergencyStop(),
+        onOpenSimModal: () => this.openTelemetrySimModal(),
+        currentUser: this.currentUser || {
+          displayName: "Carlos Mendoza",
+          email: "grower@agrispectra.io",
+          role: "Farm Owner"
+        },
+        initialDisplayMode: 'twin'
+      });
+
+      showcaseWrapper.appendChild(showcase);
+      this.appEl.appendChild(showcaseWrapper);
+      return;
+    }
+
+    // =========================================================================
+    // CASE 1: UN-AUTHENTICATED VISITOR -> Show Login / Access Portal Gateway
+    // =========================================================================
+    if (!this.currentUser) {
+      const portalWrapper = document.createElement('div');
+      portalWrapper.className = "flex-1 flex flex-col min-h-screen bg-[#FBF9F4] dark:bg-slate-900 transition-colors duration-300";
+
+      // Minimal top bar with theme toggle
+      const topBar = document.createElement('div');
+      topBar.className = "w-full px-6 py-4 flex items-center justify-between border-b border-stone-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md";
+      topBar.innerHTML = `
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-800 flex items-center justify-center text-white text-xs font-bold shadow-sm">
+            🌾
+          </div>
+          <span class="text-sm font-extrabold tracking-tight text-stone-900 dark:text-white font-sans">AGRISPECTRA FLOW & FIELD</span>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <select id="header-theme-select" class="min-h-[38px] px-3 py-1.5 rounded-xl bg-stone-100 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 text-xs font-bold text-stone-700 dark:text-slate-300 focus:outline-none cursor-pointer">
+            <option value="creamy-agri" ${this.currentTheme === 'creamy-agri' ? 'selected' : ''}>🌾 Cream & Green</option>
+            <option value="lush-emerald" ${this.currentTheme === 'lush-emerald' ? 'selected' : ''}>🌿 Lush Emerald</option>
+            <option value="sunlight" ${this.currentTheme === 'sunlight' ? 'selected' : ''}>☀️ Sunlight</option>
+            <option value="dark-soil" ${this.currentTheme === 'dark-soil' ? 'selected' : ''}>🌙 Dark Soil</option>
+          </select>
+        </div>
+      `;
+      portalWrapper.appendChild(topBar);
+
+      topBar.querySelector('#header-theme-select')?.addEventListener('change', (e) => {
+        this.setTheme(e.target.value);
+      });
+
+      // The full AuthPortal component
+      const authPortal = createAuthPortal({
+        onAuthSuccess: (user) => {
+          this.currentUser = user;
+          this.activeRoleView = user.role || 'Farm Owner';
+          this.render();
+        }
+      });
+      portalWrapper.appendChild(authPortal);
+
+      // Simple footer
+      const portalFooter = document.createElement('footer');
+      portalFooter.className = "py-6 text-center text-xs text-stone-500 dark:text-slate-500 border-t border-stone-200 dark:border-slate-800 font-mono";
+      portalFooter.innerHTML = `
+        <span>AgriSpectra Flow & Field • Precision Agronomy & ±12V Hydraulic Infrastructure • Multi-Tenant Enterprise</span>
+      `;
+      portalWrapper.appendChild(portalFooter);
+
+      this.appEl.appendChild(portalWrapper);
+      return;
+    }
+
+    // =========================================================================
+    // CASE 2: AUTHENTICATED USER -> Show Role-Tailored Specialized Dashboard
+    // =========================================================================
+    const layoutWrapper = document.createElement('div');
+    layoutWrapper.className = "flex-1 flex min-h-screen bg-[#F8F5EE] dark:bg-slate-900 transition-colors duration-200";
+
+    // 1. Role-Adaptive Sidebar Navigation
+    const sidebar = createSidebar({
+      activeView: 'dashboard',
+      currentRole: this.activeRoleView,
+      onNavigate: (viewId) => {
+        // Handle in-dashboard navigation anchors
+        if (viewId === 'calibration') {
+          this.openCalibrationModal('FULL');
+        } else if (viewId === 'telemetry-sim') {
+          this.openTelemetrySimModal();
+        } else if (viewId === 'audit-reports') {
+          const exportBtn = document.getElementById('btn-export-audit');
+          if (exportBtn) exportBtn.click();
+        }
+      },
+      onLogout: () => this.handleSignOut()
+    });
+    if (!this.isSidebarOpen) {
+      sidebar.classList.add('hidden');
+    }
+    layoutWrapper.appendChild(sidebar);
+
+    // 2. Right Content Column
+    const rightCol = document.createElement('div');
+    rightCol.className = "flex-1 flex flex-col min-w-0";
+
+    // Top Header Bar
     const header = createHeader({
       onEmergencyStop: () => this.handleEmergencyStop(),
       onOpenCalibration: (type) => this.openCalibrationModal(type),
@@ -151,74 +293,210 @@ class AgriSpectraApp {
       bleState: this.bleState,
       mqttState: this.mqttState,
       currentUser: this.currentUser,
-      onOpenAuthModal: (mode) => this.openAuthModal(mode),
-      onOpenEnterpriseAdmin: () => this.openEnterpriseAdminModal(),
-      onSignOut: () => this.handleSignOut()
-    });
-    mainWrapper.appendChild(header);
-
-    // 2. Main Content Container
-    const content = document.createElement('main');
-    content.className = "max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6 flex-1";
-
-    // Bento KPI Grid
-    const bentoSection = createFieldOverviewBento(this.plots, this.telemetryMetrics);
-    bentoSection.id = "overview-bento-section";
-    content.appendChild(bentoSection);
-
-    // Closed-Loop Leaf-to-Valve Synergy Section (High Priority Alert if stress detected)
-    const synergySection = createClosedLoopSynergySection(
-      this.actionRecommendations,
-      (recId, action) => this.handleSynergyAction(recId, action)
-    );
-    content.appendChild(synergySection);
-
-    // 1-Acre 6-Zone Field Visual Canvas
-    const canvasSection = createPlotCanvas6Zone(
-      this.plots,
-      this.selectedPlotId,
-      (plotId) => {
-        this.selectedPlotId = plotId;
+      activeRoleView: this.activeRoleView,
+      activeView: this.viewMode,
+      onSelectView: (targetView) => {
+        this.viewMode = targetView;
+        localStorage.setItem('agrispectra_view_mode', targetView);
         this.render();
+      },
+      onSelectRoleView: (targetRole) => {
+        this.activeRoleView = targetRole;
+        const normR = targetRole.toLowerCase().replace(/[\s_-]+/g, '');
+        if (normR.includes('agronomist') || normR.includes('science')) {
+          this.viewMode = 'spectro';
+        } else if (normR.includes('operator') || normR.includes('field')) {
+          this.viewMode = 'valves';
+        } else if (normR.includes('superadmin') || normR.includes('governance')) {
+          this.viewMode = 'governance';
+        } else {
+          this.viewMode = 'overview';
+        }
+        this.render();
+      },
+      onOpenAuthModal: () => {},
+      onOpenEnterpriseAdmin: () => this.openEnterpriseAdminModal(),
+      onSignOut: () => this.handleSignOut(),
+      onToggleSidebar: () => {
+        this.isSidebarOpen = !this.isSidebarOpen;
+        const sb = document.getElementById('app-sidebar');
+        if (sb) sb.classList.toggle('hidden');
       }
-    );
-    canvasSection.id = "plot-canvas-section";
-    content.appendChild(canvasSection);
-
-    // Module A: Leaf Spectroscopy & Edge Chemometrics Studio
-    const spectroscopyStudio = createSpectroscopyStudio({
-      plots: this.plots,
-      selectedPlotId: this.selectedPlotId,
-      onAcquireScan: (plotId) => this.handleAcquireScan(plotId),
-      onOpenCalibration: () => this.openCalibrationModal('FULL')
     });
-    spectroscopyStudio.id = "spectroscopy-studio-section";
-    content.appendChild(spectroscopyStudio);
+    rightCol.appendChild(header);
 
-    // Module B: 6-Zone Solenoid Hydraulic Actuation Hub
-    const valveCenter = createValveControlCenter(
-      this.plots,
-      (params) => this.handleActuateValve(params)
-    );
-    valveCenter.id = "valve-control-section";
-    content.appendChild(valveCenter);
+    // Main Content Area
+    const content = document.createElement('main');
+    content.className = "w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6 flex-1";
+
+    // View-driven rendering with role fallback
+    if (this.viewMode === 'aero-showcase' || this.viewMode === 'twin' || this.viewMode === 'single') {
+      const showcase = createMobileFrameShowcase({
+        plots: this.plots,
+        selectedPlotId: this.selectedPlotId,
+        latestScanAnalysis: this.latestScanAnalysis,
+        telemetryMetrics: this.telemetryMetrics,
+        actionRecommendations: this.actionRecommendations,
+        onSelectPlot: (plotId) => {
+          this.selectedPlotId = plotId;
+          this.render();
+        },
+        onAcquireScan: (plotId) => this.handleAcquireScan(plotId),
+        onActuateValve: (params) => this.handleActuateValve(params),
+        onOpenCalibration: () => this.openCalibrationModal('FULL'),
+        onEmergencyStop: () => this.handleEmergencyStop(),
+        onOpenSimModal: () => this.openTelemetrySimModal(),
+        onOpenAuthModal: () => {},
+        onOpenEnterpriseAdmin: () => this.openEnterpriseAdminModal(),
+        currentUser: this.currentUser,
+        initialDisplayMode: this.viewMode === 'single' ? 'single' : 'twin'
+      });
+      content.appendChild(showcase);
+
+    } else if (this.viewMode === 'field') {
+      const fieldScreen = createFieldZoneScreen({
+        plots: this.plots,
+        selectedPlotId: this.selectedPlotId,
+        onSelectPlot: (plotId) => {
+          this.selectedPlotId = plotId;
+          this.render();
+        },
+        onActuateValve: (params) => this.handleActuateValve(params),
+        onBack: () => {
+          this.viewMode = 'aero-showcase';
+          this.render();
+        },
+        onNavigateTab: (tabId) => {
+          this.viewMode = tabId;
+          this.render();
+        }
+      });
+      content.appendChild(fieldScreen);
+
+    } else if (this.viewMode === 'crop') {
+      const cropScreen = createCropOverviewScreen({
+        plots: this.plots,
+        selectedPlotId: this.selectedPlotId,
+        latestScanAnalysis: this.latestScanAnalysis,
+        onSelectPlot: (plotId) => {
+          this.selectedPlotId = plotId;
+          this.render();
+        },
+        onAcquireScan: (plotId) => this.handleAcquireScan(plotId),
+        onOpenCalibration: () => this.openCalibrationModal('FULL'),
+        onBack: () => {
+          this.viewMode = 'aero-showcase';
+          this.render();
+        }
+      });
+      content.appendChild(cropScreen);
+
+    } else if (this.viewMode === 'spectro') {
+      const agronomistDashboard = createAgronomistDashboard({
+        plots: this.plots,
+        selectedPlotId: this.selectedPlotId,
+        latestScanAnalysis: this.latestScanAnalysis,
+        bleState: this.bleState,
+        onAcquireScan: (plotId) => this.handleAcquireScan(plotId),
+        onOpenCalibration: (type) => this.openCalibrationModal(type),
+        onSelectPlot: (plotId) => {
+          this.selectedPlotId = plotId;
+          this.render();
+        }
+      });
+      content.appendChild(agronomistDashboard);
+
+    } else if (this.viewMode === 'valves') {
+      const operatorDashboard = createFieldOperatorDashboard({
+        plots: this.plots,
+        selectedPlotId: this.selectedPlotId,
+        telemetryMetrics: this.telemetryMetrics,
+        irrigationLogs: this.irrigationLogs,
+        onSelectPlot: (plotId) => {
+          this.selectedPlotId = plotId;
+          this.render();
+        },
+        onActuateValve: (params) => this.handleActuateValve(params),
+        onEmergencyStop: () => this.handleEmergencyStop(),
+        onOpenSimModal: () => this.openTelemetrySimModal()
+      });
+      content.appendChild(operatorDashboard);
+
+    } else if (this.viewMode === 'synergy') {
+      const synergySection = createClosedLoopSynergySection(
+        this.actionRecommendations,
+        (recId, action) => this.handleSynergyAction(recId, action)
+      );
+      content.appendChild(synergySection);
+
+    } else if (this.viewMode === 'overview') {
+      const ownerDashboard = createFarmOwnerDashboard({
+        plots: this.plots,
+        telemetryMetrics: this.telemetryMetrics,
+        actionRecommendations: this.actionRecommendations,
+        onSynergyAction: (recId, action) => this.handleSynergyAction(recId, action),
+        onSelectPlot: (plotId) => {
+          this.selectedPlotId = plotId;
+          this.render();
+        },
+        onNavigateToRole: (role) => {
+          this.activeRoleView = role;
+          this.render();
+        },
+        announcements: authService.announcements || []
+      });
+      content.appendChild(ownerDashboard);
+
+    } else if (this.viewMode === 'governance') {
+      const adminDashboard = createSuperAdminDashboard({
+        onGlobalEmergencyStop: () => this.handleEmergencyStop(),
+        onOpenSimModal: () => this.openTelemetrySimModal(),
+        onNavigateToRole: (role) => {
+          this.activeRoleView = role;
+          this.render();
+        }
+      });
+      content.appendChild(adminDashboard);
+
+    } else {
+      // Default: Farm Owner Dashboard
+      const ownerDashboard = createFarmOwnerDashboard({
+        plots: this.plots,
+        telemetryMetrics: this.telemetryMetrics,
+        actionRecommendations: this.actionRecommendations,
+        onSynergyAction: (recId, action) => this.handleSynergyAction(recId, action),
+        onSelectPlot: (plotId) => {
+          this.selectedPlotId = plotId;
+          this.render();
+        },
+        onNavigateToRole: (role) => {
+          this.activeRoleView = role;
+          this.render();
+        },
+        announcements: authService.announcements || []
+      });
+      content.appendChild(ownerDashboard);
+    }
 
     // Footer Audit Info
     const footer = document.createElement('footer');
-    footer.className = "py-6 border-t border-slate-800 text-center text-xs text-slate-500 font-mono";
+    footer.className = "py-6 border-t border-stone-200 dark:border-slate-800 text-center text-xs text-stone-500 dark:text-slate-500 font-mono";
     footer.innerHTML = `
       <div class="max-w-7xl mx-auto px-4 flex flex-wrap items-center justify-between gap-2">
-        <span>AGRISPECTRA FLOW & FIELD • Production Precision Agronomy</span>
-        <span>Firebase NoSQL • BLE 5.0 GATT • ±12V DC Latching Controls</span>
+        <span>AGRISPECTRA FLOW & FIELD • ${this.activeRoleView.toUpperCase()} WORKSPACE</span>
+        <span>Authenticated as ${this.currentUser.email} (${this.currentUser.role || 'User'})</span>
       </div>
     `;
     content.appendChild(footer);
 
-    mainWrapper.appendChild(content);
-    this.appEl.appendChild(mainWrapper);
+    rightCol.appendChild(content);
+    layoutWrapper.appendChild(rightCol);
+    this.appEl.appendChild(layoutWrapper);
 
-    // Render Canvas Spectral Curve & 5 Decision Cards for current selected plot
-    this.postRenderSpectroscopy();
+    // If Spectroscopy canvas is present, render spectral canvas & decision cards
+    if (document.getElementById('spectral-canvas')) {
+      this.postRenderSpectroscopy();
+    }
   }
 
   postRenderSpectroscopy() {
@@ -245,7 +523,6 @@ class AgriSpectraApp {
     this.selectedPlotId = plotId;
     const plot = this.plots.find(p => p.id === plotId) || this.plots[0];
     
-    // Average soil moisture of plot
     let avgVwc = 25.0;
     if (plot?.soilSensors && plot.soilSensors.length > 0) {
       avgVwc = plot.soilSensors.reduce((a, s) => a + Number(s.vwc), 0) / plot.soilSensors.length;
@@ -261,7 +538,6 @@ class AgriSpectraApp {
 
       this.latestScanAnalysis = analysis;
 
-      // Save to Firestore NoSQL collection
       await firestoreService.saveLeafScan({
         plotId: plot.id,
         crop: plot.crop,
@@ -319,7 +595,7 @@ class AgriSpectraApp {
   }
 
   /**
-   * Set and persist agricultural visual theme
+   * Set and persist visual theme
    */
   setTheme(themeId) {
     this.currentTheme = themeId;
@@ -332,17 +608,20 @@ class AgriSpectraApp {
 
   applyTheme(themeId) {
     const body = document.body;
-    body.classList.remove('theme-creamy-agri', 'theme-lush-emerald', 'theme-sunlight', 'theme-dark-soil', 'sunlight-mode');
+    body.classList.remove('theme-aero-field', 'theme-official-enterprise', 'theme-creamy-agri', 'theme-lush-emerald', 'theme-sunlight', 'theme-dark-soil', 'sunlight-mode');
     
-    if (themeId === 'sunlight') {
+    if (themeId === 'aero-field') {
+      body.classList.add('theme-aero-field');
+    } else if (themeId === 'sunlight') {
       body.classList.add('theme-sunlight', 'sunlight-mode');
     } else if (themeId === 'lush-emerald') {
       body.classList.add('theme-lush-emerald');
     } else if (themeId === 'dark-soil') {
       body.classList.add('theme-dark-soil');
-    } else {
-      // Default: Creamy light theme & botanical green
+    } else if (themeId === 'creamy-agri') {
       body.classList.add('theme-creamy-agri');
+    } else {
+      body.classList.add('theme-aero-field');
     }
   }
 
@@ -364,19 +643,6 @@ class AgriSpectraApp {
     document.body.appendChild(modal);
   }
 
-  openAuthModal(initialMode = 'SIGN_IN') {
-    const modal = createAuthModal({
-      initialMode,
-      onClose: () => modal.remove(),
-      onAuthSuccess: (user) => {
-        this.currentUser = user;
-        modal.remove();
-        this.render();
-      }
-    });
-    document.body.appendChild(modal);
-  }
-
   openEnterpriseAdminModal() {
     const modal = createEnterpriseAdminModal({
       onClose: () => modal.remove(),
@@ -392,16 +658,14 @@ class AgriSpectraApp {
   }
 
   /**
-   * Fast targeted DOM metric updates during fast MQTT ticks
+   * Lightweight dynamic metric updates on MQTT ticks
    */
-  updateBentoAndCanvasMetrics() {
-    // Dynamically update pressure and counters in DOM without re-rendering entire layout
-    const bentoHost = document.getElementById('overview-bento-section');
-    if (bentoHost) {
-      const newBento = createFieldOverviewBento(this.plots, this.telemetryMetrics);
-      bentoHost.replaceWith(newBento);
-      newBento.id = 'overview-bento-section';
-    }
+  updateDynamicMetrics() {
+    // If elements in DOM have pressure or flow, update dynamically
+    const pressureEls = document.querySelectorAll('.dynamic-mainline-pressure');
+    pressureEls.forEach(el => {
+      el.textContent = `${this.telemetryMetrics.mainlinePressureBar} Bar`;
+    });
   }
 }
 

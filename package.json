@@ -15,7 +15,8 @@
     "seed": "node scripts/seed-firestore.js",
     "security:audit": "node scripts/security-adversarial-audit.js",
     "verify:health": "node scripts/verify-connection-health.js",
-    "telemetry:mock": "node scripts/mock-telemetry-generator.js"
+    "telemetry:mock": "node scripts/mock-telemetry-generator.js",
+    "monitor:security": "node scripts/security-monitor.js"
   },
   "dependencies": {
     "@capacitor/android": "^8.6.2",
