@@ -1,0 +1,121 @@
+name: AgriSpectra CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  test-frontend:
+    name: Frontend Test Suite (16 QA & Chaos Suites)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Application Dependencies
+        run: npm ci
+
+      - name: Run 16 Automated QA & Chaos Engineering Test Suites
+        run: npm test
+
+      - name: Run Governance & Decision Invariant Verification
+        run: npm run test:governance
+
+  test-backend:
+    name: Backend Test Suite & API Verification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install Backend Dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Run Backend API Test Suite
+        run: npm run test:backend
+
+      - name: Run Backend Adversarial Penetration Tests
+        working-directory: ./backend
+        run: npm run test:pentest
+
+      - name: Run End-to-End Connection, Health & Offline Resilience Audit
+        run: npm run verify:health
+
+  build-bundle:
+    name: Production Vite Bundle Build & Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Application Dependencies
+        run: npm ci
+
+      - name: Build Production Vite Web Bundle
+        run: npm run build
+        env:
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY || 'AIzaSyBm_aZ_92IJwSuX4YHgWh6eca4ygQSH8eE' }}
+          VITE_FIREBASE_AUTH_DOMAIN: "water-irrigation-system-8aeeb.firebaseapp.com"
+          VITE_FIREBASE_PROJECT_ID: "water-irrigation-system-8aeeb"
+          VITE_FIREBASE_STORAGE_BUCKET: "water-irrigation-system-8aeeb.firebasestorage.app"
+          VITE_FIREBASE_MESSAGING_SENDER_ID: "160643566396"
+          VITE_FIREBASE_APP_ID: "1:160643566396:web:62dedea727308c050d6c39"
+          VITE_FIREBASE_MEASUREMENT_ID: "G-VYL5W9P5NF"
+          VITE_BACKEND_API_URL: "http://localhost:5050"
+
+      - name: Validate Build Outputs & Capacitor Target
+        run: |
+          test -d dist || { echo "❌ dist folder missing"; exit 1; }
+          test -f dist/index.html || { echo "❌ dist/index.html missing"; exit 1; }
+          echo "✅ Production Vite bundle generated and verified for Firebase Hosting & Capacitor Mobile"
+
+  security-audit:
+    name: Red/Blue Team Adversarial Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Application Dependencies
+        run: npm ci
+
+      - name: Run Red/Blue Team Security & Access Control Audit
+        run: npm run security:audit

@@ -80,12 +80,18 @@ rules_version = '2';
 //    - updatedAt: timestamp [optional]
 //
 // 6. Collection: users/{userId} (Strict PII & RBAC isolation)
-//    - uid: string [required, immutable]
-//    - email: string [required]
-//    - displayName: string (1..100 chars) [optional]
-//    - role: string ('admin' | 'manager' | 'operator' | 'viewer') [required]
+//    - uid: string (1..128 chars) [optional/immutable]
+//    - email: string (RFC regex validated, 5..254 chars) [required]
+//    - role: string ('superadmin' | 'farm_owner' | 'agronomist' | 'field_operator') [required]
+//    - displayName / name: string (1..100 chars) [optional]
+//    - farmId: string (1..100 chars) [optional]
 //    - farmIds: list of strings (max 20) [optional]
-//    - createdAt: timestamp [required, immutable]
+//    - orgId / organizationId: string (1..100 chars) [optional]
+//    - phoneNumber: string (1..30 chars) [optional]
+//    - photoURL: string (1..500 chars) [optional]
+//    - status: string (1..50 chars) [optional]
+//    - createdAt: timestamp [optional, immutable]
+//    - updatedAt: timestamp [optional]
 // ===============================================================
 
 service cloud.firestore {
@@ -106,7 +112,7 @@ service cloud.firestore {
     function isAdmin() {
       return isAuthenticated() && (
         request.auth.token.get('admin', false) == true ||
-        request.auth.token.get('role', '') == 'admin'
+        request.auth.token.get('role', '') in ['admin', 'superadmin']
       );
     }
 
@@ -120,14 +126,6 @@ service cloud.firestore {
       return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
     }
 
-    function hasOnlyAllowedFields(fields) {
-      return request.resource.data.keys().hasOnly(fields);
-    }
-
-    function hasRequiredFields(fields) {
-      return request.resource.data.keys().hasAll(fields);
-    }
-
     function isValidLocation(loc) {
       return loc is latlng || (
         loc is map &&
@@ -137,8 +135,15 @@ service cloud.firestore {
       );
     }
 
-    function isValidStringList(arr, maxSize, maxItemLen) {
+    function isValidStringList(arr, maxSize) {
       return arr is list && arr.size() <= maxSize;
+    }
+
+    function isValidEmail(email) {
+      return email is string &&
+             email.size() >= 5 &&
+             email.size() <= 254 &&
+             email.matches('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$');
     }
 
     // ===============================================================
@@ -160,7 +165,7 @@ service cloud.firestore {
     function isFarmManager(farmId) {
       return isAuthenticated() && (
         isAdmin() ||
-        (request.auth.token.get('farmId', '') == farmId && request.auth.token.get('role', '') == 'manager') ||
+        (request.auth.token.get('farmId', '') == farmId && request.auth.token.get('role', '') in ['manager', 'farm_owner', 'agronomist']) ||
         (farmExists(farmId) && (
           getFarmData(farmId).get('ownerId', '') == request.auth.uid ||
           (getFarmData(farmId).get('managers', []) is list && request.auth.uid in getFarmData(farmId).get('managers', []))
@@ -171,7 +176,7 @@ service cloud.firestore {
     function isFarmOperator(farmId) {
       return isAuthenticated() && (
         isFarmManager(farmId) ||
-        (request.auth.token.get('farmId', '') == farmId && request.auth.token.get('role', '') in ['operator', 'manager']) ||
+        (request.auth.token.get('farmId', '') == farmId && request.auth.token.get('role', '') in ['operator', 'field_operator', 'manager', 'farm_owner', 'agronomist']) ||
         (farmExists(farmId) && (
           (getFarmData(farmId).get('operators', []) is list && request.auth.uid in getFarmData(farmId).get('operators', []))
         ))
@@ -189,6 +194,55 @@ service cloud.firestore {
     }
 
     // ===============================================================
+    // User Organization / Farm Helpers
+    // ===============================================================
+
+    function callerUserExists() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function getCallerUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isSameOrgOrFarm(targetData) {
+      return isAuthenticated() && (
+        // Farm matching via custom claims
+        ('farmId' in targetData && targetData.farmId is string && targetData.farmId != '' && (
+          request.auth.token.get('farmId', '') == targetData.farmId ||
+          isFarmMember(targetData.farmId)
+        )) ||
+        // Org matching via custom claims
+        ('orgId' in targetData && targetData.orgId is string && targetData.orgId != '' &&
+          request.auth.token.get('orgId', '') == targetData.orgId) ||
+        ('organizationId' in targetData && targetData.organizationId is string && targetData.organizationId != '' &&
+          request.auth.token.get('organizationId', '') == targetData.organizationId) ||
+        // Farm list matching via custom claim
+        ('farmIds' in targetData && targetData.farmIds is list &&
+          request.auth.token.get('farmId', '') != '' &&
+          request.auth.token.get('farmId', '') in targetData.farmIds) ||
+        // Mutual farm/org match via caller's user document in Firestore
+        (callerUserExists() && (
+          ('farmId' in targetData && targetData.farmId is string && targetData.farmId != '' &&
+           getCallerUserData().get('farmId', '') == targetData.farmId) ||
+          ('orgId' in targetData && targetData.orgId is string && targetData.orgId != '' &&
+           getCallerUserData().get('orgId', '') == targetData.orgId) ||
+          ('organizationId' in targetData && targetData.organizationId is string && targetData.organizationId != '' &&
+           getCallerUserData().get('organizationId', '') == targetData.organizationId) ||
+          ('farmIds' in targetData && targetData.farmIds is list &&
+           getCallerUserData().get('farmIds', []) is list &&
+           targetData.farmIds.hasAny(getCallerUserData().get('farmIds', []))) ||
+          ('farmId' in targetData && targetData.farmId is string && targetData.farmId != '' &&
+           getCallerUserData().get('farmIds', []) is list &&
+           targetData.farmId in getCallerUserData().get('farmIds', [])) ||
+          ('farmIds' in targetData && targetData.farmIds is list &&
+           getCallerUserData().get('farmId', '') != '' &&
+           getCallerUserData().get('farmId', '') in targetData.farmIds)
+        ))
+      );
+    }
+
+    // ===============================================================
     // Domain Validators
     // ===============================================================
 
@@ -201,9 +255,9 @@ service cloud.firestore {
              isValidLocation(data.location) &&
              data.createdAt is timestamp &&
              data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 &&
-             (!('managers' in data) || isValidStringList(data.managers, 20, 128)) &&
-             (!('operators' in data) || isValidStringList(data.operators, 50, 128)) &&
-             (!('members' in data) || isValidStringList(data.members, 100, 128)) &&
+             (!('managers' in data) || isValidStringList(data.managers, 20)) &&
+             (!('operators' in data) || isValidStringList(data.operators, 50)) &&
+             (!('members' in data) || isValidStringList(data.members, 100)) &&
              (!('updatedAt' in data) || data.updatedAt is timestamp);
     }
 
@@ -308,16 +362,27 @@ service cloud.firestore {
              isAdmin();
     }
 
-    // User Profile Validator (for optional users collection)
+    // User Profile Validator
     function isValidUser(data) {
-      return data.keys().hasAll(['uid', 'email', 'role', 'createdAt']) &&
-             data.keys().hasOnly(['uid', 'email', 'role', 'createdAt', 'displayName', 'farmIds', 'updatedAt']) &&
-             data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 &&
-             data.email is string && data.email.size() <= 100 &&
-             data.role in ['admin', 'manager', 'operator', 'viewer'] &&
-             data.createdAt is timestamp &&
+      return data.keys().hasAll(['email', 'role']) &&
+             data.keys().hasOnly([
+               'uid', 'email', 'role', 'displayName', 'name',
+               'farmId', 'farmIds', 'orgId', 'organizationId',
+               'phoneNumber', 'photoURL', 'status', 'createdAt', 'updatedAt'
+             ]) &&
+             isValidEmail(data.email) &&
+             data.role in ['superadmin', 'farm_owner', 'agronomist', 'field_operator'] &&
+             (!('uid' in data) || (data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128)) &&
              (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 100)) &&
-             (!('farmIds' in data) || isValidStringList(data.farmIds, 20, 100)) &&
+             (!('name' in data) || (data.name is string && data.name.size() <= 100)) &&
+             (!('farmId' in data) || (data.farmId is string && data.farmId.size() <= 100)) &&
+             (!('farmIds' in data) || isValidStringList(data.farmIds, 20)) &&
+             (!('orgId' in data) || (data.orgId is string && data.orgId.size() <= 100)) &&
+             (!('organizationId' in data) || (data.organizationId is string && data.organizationId.size() <= 100)) &&
+             (!('phoneNumber' in data) || (data.phoneNumber is string && data.phoneNumber.size() <= 30)) &&
+             (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 500)) &&
+             (!('status' in data) || (data.status is string && data.status.size() <= 50)) &&
+             (!('createdAt' in data) || data.createdAt is timestamp) &&
              (!('updatedAt' in data) || data.updatedAt is timestamp);
     }
 
@@ -334,17 +399,33 @@ service cloud.firestore {
     // User Profiles: users/{userId}
     // -------------------------------------------------------------
     match /users/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId) &&
+      // 1. User can read their own document (request.auth.uid == userId)
+      // 2. Authenticated users in the same organization/farm can read basic user profiles
+      // 3. Superadmin / Admin can read
+      allow read: if isAuthenticated() && (
+        isOwner(userId) ||
+        isAdmin() ||
+        isSameOrgOrFarm(resource.data)
+      );
+
+      // User can create their own document (request.auth.uid == userId) or admin
+      allow create: if isAuthenticated() &&
+                       (isOwner(userId) || isAdmin()) &&
                        isValidUser(request.resource.data) &&
-                       request.resource.data.uid == request.auth.uid &&
-                       isRecent(request.resource.data.createdAt) &&
-                       (request.resource.data.role in ['operator', 'viewer'] || isAdmin());
-      allow update: if isOwner(userId) &&
+                       (!('uid' in request.resource.data) || request.resource.data.uid == userId) &&
+                       (!('createdAt' in request.resource.data) || isRecent(request.resource.data.createdAt));
+
+      // User can update their own document (request.auth.uid == userId) or admin
+      // Role modification requires admin; uid and createdAt are immutable
+      allow update: if isAuthenticated() &&
+                       (isOwner(userId) || isAdmin()) &&
                        isValidUser(request.resource.data) &&
                        areImmutableFieldsUnchanged(['uid', 'createdAt']) &&
                        (request.resource.data.role == resource.data.role || isAdmin());
-      allow delete: if isAdmin();
+
+      // User can delete their own document (request.auth.uid == userId) or admin
+      allow delete: if isAuthenticated() &&
+                       (isOwner(userId) || isAdmin());
     }
 
     // -------------------------------------------------------------

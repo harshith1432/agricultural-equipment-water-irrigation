@@ -268,9 +268,11 @@ class ReactiveMockFirestore {
 
   loadData() {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        return JSON.parse(stored);
+      if (typeof localStorage !== 'undefined') {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          return JSON.parse(stored);
+        }
       }
     } catch (e) {
       console.warn("Could not read from localStorage, using initial mock data.");
@@ -280,7 +282,9 @@ class ReactiveMockFirestore {
 
   saveData() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data));
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data));
+      }
     } catch (e) {
       console.warn("Could not persist to localStorage:", e);
     }

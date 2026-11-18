@@ -1,0 +1,19 @@
+{
+  "name": "agrispectra-enterprise-backend",
+  "version": "1.0.0",
+  "description": "Enterprise Control & Administration Server for AgriSpectra Flow & Field",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node test/backend-api.test.js",
+    "test:pentest": "node test/adversarial-pentest.test.js",
+    "test:all": "node test/backend-api.test.js && node test/adversarial-pentest.test.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  }
+}

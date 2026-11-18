@@ -9,12 +9,18 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "node tests/run-tests.js",
+    "test:backend": "cd backend && npm test",
+    "backend:start": "cd backend && npm start",
     "test:governance": "node tests/governance-verification.test.js",
     "seed": "node scripts/seed-firestore.js",
     "security:audit": "node scripts/security-adversarial-audit.js",
+    "verify:health": "node scripts/verify-connection-health.js",
     "telemetry:mock": "node scripts/mock-telemetry-generator.js"
   },
   "dependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/cli": "^8.6.2",
+    "@capacitor/core": "^8.6.2",
     "chart.js": "^4.4.7",
     "firebase": "^11.2.0",
     "lucide": "^0.474.0"

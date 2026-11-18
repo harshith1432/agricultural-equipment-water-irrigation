@@ -17,6 +17,9 @@ import {
 import { createClosedLoopSynergySection } from './components/ClosedLoopSynergyCard.js';
 import { createCalibrationModal } from './components/CalibrationWizard.js';
 import { createTelemetrySimulatorModal } from './components/TelemetrySimulatorModal.js';
+import { createAuthModal } from './components/AuthModal.js';
+import { createEnterpriseAdminModal } from './components/EnterpriseAdminModal.js';
+import { authService } from './firebase/authService.js';
 import { generateSpectralSignature, processSpectralVector } from './hardware/chemometricsEngine.js';
 
 class AgriSpectraApp {
@@ -45,6 +48,8 @@ class AgriSpectraApp {
     this.mqttState = {
       running: false
     };
+
+    this.currentUser = authService.getCurrentUser();
 
     this.init();
   }
@@ -119,6 +124,12 @@ class AgriSpectraApp {
       this.render();
     });
 
+    // 5. Auth state listener for enterprise and user profile
+    this.unsubscribeAuth = authService.onAuthStateChanged((user) => {
+      this.currentUser = user;
+      this.render();
+    });
+
     this.render();
   }
 
@@ -138,7 +149,11 @@ class AgriSpectraApp {
       onThemeChange: (themeId) => this.setTheme(themeId),
       currentTheme: this.currentTheme,
       bleState: this.bleState,
-      mqttState: this.mqttState
+      mqttState: this.mqttState,
+      currentUser: this.currentUser,
+      onOpenAuthModal: (mode) => this.openAuthModal(mode),
+      onOpenEnterpriseAdmin: () => this.openEnterpriseAdminModal(),
+      onSignOut: () => this.handleSignOut()
     });
     mainWrapper.appendChild(header);
 
@@ -349,6 +364,33 @@ class AgriSpectraApp {
     document.body.appendChild(modal);
   }
 
+  openAuthModal(initialMode = 'SIGN_IN') {
+    const modal = createAuthModal({
+      initialMode,
+      onClose: () => modal.remove(),
+      onAuthSuccess: (user) => {
+        this.currentUser = user;
+        modal.remove();
+        this.render();
+      }
+    });
+    document.body.appendChild(modal);
+  }
+
+  openEnterpriseAdminModal() {
+    const modal = createEnterpriseAdminModal({
+      onClose: () => modal.remove(),
+      onGlobalEmergencyStop: () => this.handleEmergencyStop()
+    });
+    document.body.appendChild(modal);
+  }
+
+  async handleSignOut() {
+    await authService.signOut();
+    this.currentUser = null;
+    this.render();
+  }
+
   /**
    * Fast targeted DOM metric updates during fast MQTT ticks
    */
@@ -367,10 +409,19 @@ class AgriSpectraApp {
 window.addEventListener('DOMContentLoaded', () => {
   window.agriSpectraApp = new AgriSpectraApp();
 
-  // Register PWA Service Worker for offline field resilience
-  if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-    navigator.serviceWorker.register('/sw.js')
-      .then((reg) => console.log('[AgriSpectra PWA] Service Worker registered:', reg.scope))
-      .catch((err) => console.warn('[AgriSpectra PWA] Service Worker registration failed:', err));
+  // Handle PWA Service Worker: only for web browser, bypass in native Capacitor container
+  const isCapacitor = Boolean(window.Capacitor?.isNativePlatform && window.Capacitor.isNativePlatform());
+  if ('serviceWorker' in navigator) {
+    if (isCapacitor) {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        for (let registration of registrations) {
+          registration.unregister();
+        }
+      });
+    } else if (window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      navigator.serviceWorker.register('/sw.js')
+        .then((reg) => console.log('[AgriSpectra PWA] Service Worker registered:', reg.scope))
+        .catch((err) => console.warn('[AgriSpectra PWA] Service Worker registration failed:', err));
+    }
   }
 });

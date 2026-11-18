@@ -104,6 +104,16 @@ export const it = runner.it.bind(runner);
 
 export function expect(actual) {
   return {
+    toBeDefined() {
+      if (actual === undefined) {
+        throw new Error(`Expected defined value, got undefined`);
+      }
+    },
+    toBeNull() {
+      if (actual !== null) {
+        throw new Error(`Expected null, got ${JSON.stringify(actual)}`);
+      }
+    },
     toBe(expected) {
       if (actual !== expected) {
         throw new Error(`Expected ${JSON.stringify(actual)} to be ${JSON.stringify(expected)}`);

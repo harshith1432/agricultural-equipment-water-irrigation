@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- AgriSpectra Brand Color Tokens -->
+    <color name="colorPrimary">#1E462A</color>
+    <color name="colorPrimaryDark">#15331E</color>
+    <color name="colorAccent">#10B981</color>
+    <color name="windowBackground">#F7F4EB</color>
+    <color name="statusBarColor">#1E462A</color>
+    <color name="navigationBarColor">#F7F4EB</color>
+    <color name="splashBackground">#F7F4EB</color>
+</resources>

@@ -99,7 +99,11 @@ export function processSpectralVector(spectrum, cropName = "Bell Peppers", growt
   const cire = (R750 / Math.max(0.001, R705)) - 1;
 
   // 5. Crop Vitality Score (0 - 100)
-  let rawScore = (ndvi * 48) + (ndre * 40) + (Math.min(1.0, leafWaterIndex) * 22) - 4;
+  const greenRedRatio = R550 / Math.max(0.001, R680);
+  let rawScore = (ndvi * 48) + (ndre * 42) + (Math.min(1.0, leafWaterIndex) * 22) - 2;
+  if (greenRedRatio < 2.5) {
+    rawScore -= 6; // Pre-symptomatic fungal pathogen suppression penalty
+  }
   let vitalityScore = Math.min(100, Math.max(5, Math.round(rawScore)));
 
   // Calculate Nitrogen Prescription (kg/Acre)
@@ -142,7 +146,6 @@ export function processSpectralVector(spectrum, cropName = "Bell Peppers", growt
     preventativeAction: "Maintain preventive bio-fungicide schedule."
   };
 
-  const greenRedRatio = R550 / Math.max(0.001, R680);
   if (greenRedRatio < 2.5 || (vitalityScore < 65 && greenRedRatio < 4.0)) {
     diseaseRisk = {
       detected: true,

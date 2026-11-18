@@ -28,6 +28,7 @@ import { registerChemometricsTests } from './chemometrics.test.js';
 import { registerSolenoidValveTests } from './solenoid-valves.test.js';
 import { registerTelemetryChaosTests } from './telemetry-chaos.test.js';
 import { registerClosedLoopTests } from './closed-loop.test.js';
+import { registerAuthEnterpriseTests } from './auth-enterprise.test.js';
 
 async function main() {
   console.log('\x1b[35mStarting AgriSpectra Flow & Field Automated Test Suite...\x1b[0m');
@@ -37,6 +38,7 @@ async function main() {
   registerSolenoidValveTests();
   registerTelemetryChaosTests();
   registerClosedLoopTests();
+  registerAuthEnterpriseTests();
 
   // Execute runner
   const success = await runner.run();

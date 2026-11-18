@@ -1,6 +1,7 @@
 # Dependencies
 node_modules/
 functions/node_modules/
+backend/node_modules/
 .pnp
 .pnp.js
 
@@ -12,11 +13,28 @@ build/
 .env
 .env.*
 *.env
+backend/.env
+backend/.env.*
 !*.example
 !*.example.*
+!backend/.env.example
 *service-account*.json
 *.pem
 *.key
+
+# Android Native Build & Local Config
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+android/.idea/
+android/capacitor-cordova-android-plugins/
+
+# Test Dumps, Temporary Screenshots & QA Artifacts
+*.png
+!public/icons/**
+!android/app/src/main/res/**
+tests/qa_artifacts/
 
 # Firebase & Emulators
 .firebase/
