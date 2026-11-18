@@ -262,8 +262,9 @@ export function createNativeMobileAppView({
         break;
       }
 
-      case 'environment':
-      case 'soil': {
+      case 'soil':
+      case 'weather':
+      case 'environment': {
         renderScreenSafely(() => {
           const wrapper = document.createElement('div');
           wrapper.className = "space-y-3 min-w-0 overflow-hidden";
@@ -288,7 +289,7 @@ export function createNativeMobileAppView({
                 type="button" 
                 id="subtab-env-btn" 
                 class="px-4 py-1.5 rounded-xl text-xs font-bold transition ${
-                  activeTab === 'environment' 
+                  activeTab === 'environment' || activeTab === 'weather'
                     ? 'bg-[#0E5431] text-white shadow-sm' 
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
                 }"
@@ -310,7 +311,7 @@ export function createNativeMobileAppView({
 
           wrapper.appendChild(subNav);
 
-          if (activeTab === 'environment') {
+          if (activeTab === 'environment' || activeTab === 'weather') {
             wrapper.appendChild(createEnvironmentMonitorView());
           } else {
             wrapper.appendChild(createSoilAnalysisView({ plot }));

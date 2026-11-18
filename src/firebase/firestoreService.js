@@ -23,6 +23,7 @@ import {
   setDoc,
   updateDoc,
   addDoc,
+  deleteDoc,
   onSnapshot,
   query,
   orderBy,
@@ -206,13 +207,14 @@ export class FirestoreDataService {
   // =========================================================================
 
   /**
-   * Subscribe to 6-Zone Plots with real-time updates and offline synchronization
+   * Subscribe to Plots with real-time updates and offline synchronization
    * @param {Function} callback
+   * @param {string} farmId
    */
-  subscribePlots(callback) {
+  subscribePlots(callback, farmId = FARM_ID) {
     if (this.useLive) {
       try {
-        const plotsRef = collection(this.db, "farms", FARM_ID, "plots");
+        const plotsRef = collection(this.db, "farms", farmId, "plots");
         return onSnapshot(plotsRef, (snapshot) => {
           if (snapshot.empty) {
             callback(mockFirestore.getChannelSnapshot('plots'));
@@ -223,9 +225,9 @@ export class FirestoreDataService {
             const plotData = { id: doc.id, ...doc.data() };
             plots.push(plotData);
             // Synchronize with local mock Firestore cache so offline transitions are seamless
-            if (mockFirestore.data.plots[doc.id]) {
+            if (mockFirestore.data.plots) {
               mockFirestore.data.plots[doc.id] = {
-                ...mockFirestore.data.plots[doc.id],
+                ...(mockFirestore.data.plots[doc.id] || {}),
                 ...plotData
               };
             }
@@ -245,25 +247,102 @@ export class FirestoreDataService {
   }
 
   /**
-   * Update Plot document directly
+   * Create a new plot/crop zone in Firestore under farms/{farmId}/plots/{plotId} and local reactive store.
+   * Auto-generates ID if not provided. Validates fields (name, crop, plotNumber, targetVwcMin, targetVwcMax, soilSensors, valve, growthStage).
+   * @param {Object} plotData
+   * @param {string} farmId
+   */
+  async createPlot(plotData = {}, farmId = FARM_ID) {
+    // 1. Write to local reactive store for 0ms instantaneous UI update
+    const createdPlot = mockFirestore.createPlot(plotData);
+
+    // 2. Synchronize to Cloud Firestore if connected
+    if (this.useLive) {
+      try {
+        const plotRef = doc(this.db, "farms", farmId, "plots", createdPlot.id);
+        const { id, ...firestorePayload } = createdPlot;
+        await setDoc(plotRef, {
+          ...firestorePayload,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+        console.log(`[FirestoreService] Real-time Plot created in Cloud Firestore: ${createdPlot.id}`);
+      } catch (err) {
+        console.warn("[FirestoreService] Cloud Firestore createPlot queued/buffered locally:", err.message);
+      }
+    }
+
+    return createdPlot;
+  }
+
+  /**
+   * Update existing plot in Firestore & reactive store in real time
    * @param {string} plotId
    * @param {Object} plotData
+   * @param {string} farmId
    */
-  async updatePlot(plotId, plotData) {
-    mockFirestore.updatePlot(plotId, plotData);
+  async updatePlot(plotId, plotData, farmId = FARM_ID) {
+    if (!plotId) throw new Error("Plot ID is required for updatePlot.");
+
+    const updated = mockFirestore.updatePlot(plotId, plotData);
 
     if (this.useLive) {
       try {
-        const plotRef = doc(this.db, "farms", FARM_ID, "plots", plotId);
+        const plotRef = doc(this.db, "farms", farmId, "plots", plotId);
         await updateDoc(plotRef, {
           ...plotData,
           updatedAt: serverTimestamp()
         });
+        console.log(`[FirestoreService] Live Plot updated in Cloud Firestore: ${plotId}`);
       } catch (err) {
         console.warn("[FirestoreService] Cloud updatePlot note:", err.message);
       }
     }
-    return { success: true };
+    return { success: true, plot: updated || mockFirestore.data?.plots?.[plotId] };
+  }
+
+  /**
+   * Delete plot/crop from Firestore & reactive store, cleans up references,
+   * and triggers real-time listener updates so UI immediately reflects removal.
+   * @param {string} plotId
+   * @param {string} farmId
+   */
+  async deletePlot(plotId, farmId = FARM_ID) {
+    if (!plotId) throw new Error("Plot ID is required for deletePlot.");
+
+    const result = mockFirestore.deletePlot(plotId);
+
+    if (this.useLive) {
+      try {
+        const plotRef = doc(this.db, "farms", farmId, "plots", plotId);
+        await deleteDoc(plotRef);
+        console.log(`[FirestoreService] Real-time Plot deleted from Cloud Firestore: ${plotId}`);
+      } catch (err) {
+        console.warn("[FirestoreService] Cloud deletePlot note:", err.message);
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Read single plot by ID
+   * @param {string} plotId
+   * @param {string} farmId
+   */
+  async getPlot(plotId, farmId = FARM_ID) {
+    if (this.useLive) {
+      try {
+        const plotRef = doc(this.db, "farms", farmId, "plots", plotId);
+        const snap = await getDoc(plotRef);
+        if (snap.exists()) {
+          return { id: snap.id, ...snap.data() };
+        }
+      } catch (err) {
+        console.warn("[FirestoreService] Error reading plot doc from Cloud Firestore:", err.message);
+      }
+    }
+    return mockFirestore.data?.plots?.[plotId] || null;
   }
 
   /**
@@ -702,7 +781,178 @@ export class FirestoreDataService {
   }
 
   // =========================================================================
-  // 8. Aggregated Usage Statistics (Offline-First Resilient Analytics)
+  // 8. Crop Catalog Subcollection: farms/{farmId}/crops/{cropId}
+  // =========================================================================
+
+  /**
+   * Subscribe to real-time Crop Catalog updates
+   * @param {Function} callback
+   * @param {string} farmId
+   */
+  subscribeCropCatalog(callback, farmId = FARM_ID) {
+    if (this.useLive) {
+      try {
+        const cropsRef = collection(this.db, "farms", farmId, "crops");
+        return onSnapshot(cropsRef, (snapshot) => {
+          if (snapshot.empty) {
+            callback(mockFirestore.getCropCatalog());
+            return;
+          }
+          const crops = [];
+          snapshot.forEach((doc) => {
+            const cropData = { id: doc.id, ...doc.data() };
+            crops.push(cropData);
+            if (mockFirestore.data.crops) {
+              mockFirestore.data.crops[doc.id] = cropData;
+            }
+          });
+          crops.sort((a, b) => a.name.localeCompare(b.name));
+          mockFirestore.saveData();
+          callback(crops);
+        }, (error) => {
+          console.warn("[FirestoreService] Live crops subscription error, using local fallback:", error);
+          mockFirestore.subscribeCropCatalog(callback);
+        });
+      } catch (err) {
+        console.warn("[FirestoreService] Live crops init error, falling back to local:", err);
+      }
+    }
+    return mockFirestore.subscribeCropCatalog(callback);
+  }
+
+  /**
+   * Get all crop types from catalog
+   * @param {string} farmId
+   */
+  async getCropCatalog(farmId = FARM_ID) {
+    if (this.useLive) {
+      try {
+        const cropsRef = collection(this.db, "farms", farmId, "crops");
+        const snap = await getDocs(cropsRef);
+        if (!snap.empty) {
+          const crops = [];
+          snap.forEach(d => {
+            const c = { id: d.id, ...d.data() };
+            crops.push(c);
+            if (mockFirestore.data.crops) {
+              mockFirestore.data.crops[d.id] = c;
+            }
+          });
+          crops.sort((a, b) => a.name.localeCompare(b.name));
+          return crops;
+        }
+      } catch (err) {
+        console.warn("[FirestoreService] Live getCropCatalog note, using local fallback:", err.message);
+      }
+    }
+    return mockFirestore.getCropCatalog();
+  }
+
+  /**
+   * Get single crop type by ID
+   * @param {string} cropId
+   * @param {string} farmId
+   */
+  async getCropType(cropId, farmId = FARM_ID) {
+    if (this.useLive) {
+      try {
+        const cropRef = doc(this.db, "farms", farmId, "crops", cropId);
+        const snap = await getDoc(cropRef);
+        if (snap.exists()) {
+          return { id: snap.id, ...snap.data() };
+        }
+      } catch (err) {
+        console.warn("[FirestoreService] Live getCropType note, using local fallback:", err.message);
+      }
+    }
+    return mockFirestore.data?.crops?.[cropId] || null;
+  }
+
+  /**
+   * Insert a new crop type into Firestore and local reactive store
+   * Validates: name, scientificName, optimalVwcMin, optimalVwcMax, optimalPhMin, optimalPhMax, targetNitrogen, growthStages
+   * @param {Object} cropData
+   * @param {string} farmId
+   */
+  async addCropType(cropData, farmId = FARM_ID) {
+    if (!cropData || !cropData.name) {
+      throw new Error("Crop name is required to add crop type.");
+    }
+
+    // 1. Write to local reactive store for 0ms instantaneous UI feedback
+    const createdCrop = mockFirestore.addCropType(cropData);
+
+    // 2. Synchronize to Cloud Firestore if connected
+    if (this.useLive) {
+      try {
+        const cropRef = doc(this.db, "farms", farmId, "crops", createdCrop.id);
+        const { id, ...firestorePayload } = createdCrop;
+        await setDoc(cropRef, {
+          ...firestorePayload,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+        console.log(`[FirestoreService] Real-time Crop Type created in Cloud Firestore: ${createdCrop.id}`);
+      } catch (err) {
+        console.warn("[FirestoreService] Cloud addCropType note, cached locally:", err.message);
+      }
+    }
+
+    return createdCrop;
+  }
+
+  /**
+   * Edit an existing crop type in Firestore and reactive store
+   * @param {string} cropId
+   * @param {Object} cropData
+   * @param {string} farmId
+   */
+  async updateCropType(cropId, cropData, farmId = FARM_ID) {
+    if (!cropId) throw new Error("Crop ID is required to update crop type.");
+
+    const updated = mockFirestore.updateCropType(cropId, cropData);
+
+    if (this.useLive) {
+      try {
+        const cropRef = doc(this.db, "farms", farmId, "crops", cropId);
+        await updateDoc(cropRef, {
+          ...cropData,
+          updatedAt: serverTimestamp()
+        });
+        console.log(`[FirestoreService] Real-time Crop Type updated in Cloud Firestore: ${cropId}`);
+      } catch (err) {
+        console.warn("[FirestoreService] Cloud updateCropType note:", err.message);
+      }
+    }
+
+    return updated || mockFirestore.data?.crops?.[cropId];
+  }
+
+  /**
+   * Delete a crop type from Firestore and reactive store
+   * @param {string} cropId
+   * @param {string} farmId
+   */
+  async deleteCropType(cropId, farmId = FARM_ID) {
+    if (!cropId) throw new Error("Crop ID is required to delete crop type.");
+
+    const result = mockFirestore.deleteCropType(cropId);
+
+    if (this.useLive) {
+      try {
+        const cropRef = doc(this.db, "farms", farmId, "crops", cropId);
+        await deleteDoc(cropRef);
+        console.log(`[FirestoreService] Real-time Crop Type deleted from Cloud Firestore: ${cropId}`);
+      } catch (err) {
+        console.warn("[FirestoreService] Cloud deleteCropType note:", err.message);
+      }
+    }
+
+    return result;
+  }
+
+  // =========================================================================
+  // 9. Aggregated Usage Statistics (Offline-First Resilient Analytics)
   // =========================================================================
 
   /**

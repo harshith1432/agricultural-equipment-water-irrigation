@@ -4,8 +4,189 @@
  * Ensures instantaneous out-of-the-box operation and offline resilience.
  */
 
-const STORAGE_KEY = "AGRISPECTRA_FIRESTORE_DATA_V2";
+export const PRIMARY_STORAGE_KEY = "agrispectra_offline_db";
+export const LEGACY_STORAGE_KEY = "AGRISPECTRA_FIRESTORE_DATA_V2";
+const STORAGE_KEY = PRIMARY_STORAGE_KEY;
 export const USER_PREFS_STORAGE_KEY = "agrispectra_user_prefs";
+
+export const PRESEEDED_CROPS = {
+  "crop-potato": {
+    id: "crop-potato",
+    name: "Potato",
+    scientificName: "Solanum tuberosum",
+    optimalVwcMin: 22.0,
+    optimalVwcMax: 35.0,
+    optimalPhMin: 5.5,
+    optimalPhMax: 6.5,
+    targetNitrogen: 140,
+    growthStages: ["Sprouting", "Vegetative", "Tuber Initiation", "Tuber Bulking", "Maturation"],
+    category: "Tubers",
+    defaultCycleDays: 90,
+    areaHaDefault: 1.4,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z"
+  },
+  "crop-tomato": {
+    id: "crop-tomato",
+    name: "Tomato",
+    scientificName: "Solanum lycopersicum",
+    optimalVwcMin: 20.0,
+    optimalVwcMax: 32.0,
+    optimalPhMin: 6.0,
+    optimalPhMax: 6.8,
+    targetNitrogen: 120,
+    growthStages: ["Germination", "Vegetative", "Flowering", "Fruit Sizing", "Ripening"],
+    category: "Vegetables",
+    defaultCycleDays: 90,
+    areaHaDefault: 1.2,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z"
+  },
+  "crop-bell-pepper": {
+    id: "crop-bell-pepper",
+    name: "Bell Pepper",
+    scientificName: "Capsicum annuum",
+    optimalVwcMin: 22.0,
+    optimalVwcMax: 34.0,
+    optimalPhMin: 6.0,
+    optimalPhMax: 7.0,
+    targetNitrogen: 110,
+    growthStages: ["Seedling", "Vegetative", "Budding", "Fruiting", "Harvest"],
+    category: "Vegetables",
+    defaultCycleDays: 85,
+    areaHaDefault: 1.0,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z"
+  },
+  "crop-sweet-corn": {
+    id: "crop-sweet-corn",
+    name: "Sweet Corn",
+    scientificName: "Zea mays var. saccharata",
+    optimalVwcMin: 24.0,
+    optimalVwcMax: 38.0,
+    optimalPhMin: 5.8,
+    optimalPhMax: 7.0,
+    targetNitrogen: 160,
+    growthStages: ["Emergence", "V4-V8 Vegetative", "Tasseling & Silking", "Blister/Milk", "Maturity"],
+    category: "Cereals",
+    defaultCycleDays: 75,
+    areaHaDefault: 1.6,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z"
+  },
+  "crop-wheat": {
+    id: "crop-wheat",
+    name: "Wheat",
+    scientificName: "Triticum aestivum",
+    optimalVwcMin: 18.0,
+    optimalVwcMax: 28.0,
+    optimalPhMin: 6.0,
+    optimalPhMax: 7.5,
+    targetNitrogen: 120,
+    growthStages: ["Germination", "Tillering", "Stem Elongation", "Booting & Heading", "Grain Fill & Ripening"],
+    category: "Cereals",
+    defaultCycleDays: 120,
+    areaHaDefault: 2.0,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z"
+  },
+  "crop-cotton": {
+    id: "crop-cotton",
+    name: "Cotton",
+    scientificName: "Gossypium hirsutum",
+    optimalVwcMin: 20.0,
+    optimalVwcMax: 30.0,
+    optimalPhMin: 5.8,
+    optimalPhMax: 7.5,
+    targetNitrogen: 150,
+    growthStages: ["Emergence", "Squaring", "Flowering & Boll Setting", "Boll Maturation", "Defoliation & Opening"],
+    category: "Cash Crops",
+    defaultCycleDays: 150,
+    areaHaDefault: 2.5,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z"
+  },
+  "crop-sugarcane": {
+    id: "crop-sugarcane",
+    name: "Sugarcane",
+    scientificName: "Saccharum officinarum",
+    optimalVwcMin: 28.0,
+    optimalVwcMax: 42.0,
+    optimalPhMin: 6.0,
+    optimalPhMax: 7.5,
+    targetNitrogen: 200,
+    growthStages: ["Germination", "Tillering", "Grand Growth", "Ripening & Sugar Accumulation"],
+    category: "Cash Crops",
+    defaultCycleDays: 360,
+    areaHaDefault: 3.0,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z"
+  },
+  "crop-paddy-rice": {
+    id: "crop-paddy-rice",
+    name: "Paddy Rice",
+    scientificName: "Oryza sativa",
+    optimalVwcMin: 35.0,
+    optimalVwcMax: 50.0,
+    optimalPhMin: 5.0,
+    optimalPhMax: 6.5,
+    targetNitrogen: 130,
+    growthStages: ["Seedling", "Tillering", "Panicle Initiation", "Flowering/Heading", "Dough & Ripening"],
+    category: "Cereals",
+    defaultCycleDays: 120,
+    areaHaDefault: 1.8,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z"
+  },
+  "crop-chilli": {
+    id: "crop-chilli",
+    name: "Chilli",
+    scientificName: "Capsicum frutescens",
+    optimalVwcMin: 20.0,
+    optimalVwcMax: 32.0,
+    optimalPhMin: 6.0,
+    optimalPhMax: 7.0,
+    targetNitrogen: 100,
+    growthStages: ["Seedling", "Vegetative Growth", "Flowering", "Pod Development", "Red Ripe Maturation"],
+    category: "Vegetables / Spices",
+    defaultCycleDays: 100,
+    areaHaDefault: 0.8,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z"
+  },
+  "crop-groundnut": {
+    id: "crop-groundnut",
+    name: "Groundnut",
+    scientificName: "Arachis hypogaea",
+    optimalVwcMin: 18.0,
+    optimalVwcMax: 28.0,
+    optimalPhMin: 5.8,
+    optimalPhMax: 6.8,
+    targetNitrogen: 40,
+    growthStages: ["Emergence", "Vegetative", "Flowering & Pegging", "Pod Development", "Maturity"],
+    category: "Oilseeds / Legumes",
+    defaultCycleDays: 110,
+    areaHaDefault: 1.5,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z"
+  },
+  "crop-soybean": {
+    id: "crop-soybean",
+    name: "Soybean",
+    scientificName: "Glycine max",
+    optimalVwcMin: 22.0,
+    optimalVwcMax: 32.0,
+    optimalPhMin: 6.0,
+    optimalPhMax: 7.0,
+    targetNitrogen: 60,
+    growthStages: ["Emergence", "Vegetative Branches", "Flowering (R1-R2)", "Pod Development (R3-R4)", "Seed Fill (R5-R6)", "Full Maturity"],
+    category: "Oilseeds / Legumes",
+    defaultCycleDays: 100,
+    areaHaDefault: 2.0,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z"
+  }
+};
 
 export const DEFAULT_USER_PREFERENCES = {
   theme: "dark",
@@ -376,7 +557,8 @@ export const INITIAL_FARM_DATA = {
         preventativeAction: "Apply Potassium Bicarbonate foliar spray."
       }
     }
-  ]
+  ],
+  crops: JSON.parse(JSON.stringify(PRESEEDED_CROPS))
 };
 
 class ReactiveMockFirestore {
@@ -388,9 +570,13 @@ class ReactiveMockFirestore {
   loadData() {
     try {
       if (typeof localStorage !== 'undefined') {
-        const stored = localStorage.getItem(STORAGE_KEY);
+        const stored = localStorage.getItem(PRIMARY_STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
         if (stored) {
-          return JSON.parse(stored);
+          const parsed = JSON.parse(stored);
+          if (!parsed.crops || Object.keys(parsed.crops).length === 0) {
+            parsed.crops = JSON.parse(JSON.stringify(PRESEEDED_CROPS));
+          }
+          return parsed;
         }
       }
     } catch (e) {
@@ -402,7 +588,9 @@ class ReactiveMockFirestore {
   saveData() {
     try {
       if (typeof localStorage !== 'undefined') {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data));
+        const serialized = JSON.stringify(this.data);
+        localStorage.setItem(PRIMARY_STORAGE_KEY, serialized);
+        localStorage.setItem(LEGACY_STORAGE_KEY, serialized);
       }
     } catch (e) {
       console.warn("Could not persist to localStorage:", e);
@@ -432,16 +620,19 @@ class ReactiveMockFirestore {
 
   getChannelSnapshot(channel) {
     if (channel === 'plots') {
-      return Object.values(this.data.plots);
+      return Object.values(this.data.plots || {});
+    }
+    if (channel === 'crops' || channel === 'cropCatalog') {
+      return Object.values(this.data.crops || {});
     }
     if (channel === 'leafScans') {
-      return [...this.data.leafScans].reverse();
+      return [...(this.data.leafScans || [])].reverse();
     }
     if (channel === 'irrigationLogs') {
-      return [...this.data.irrigationLogs].reverse();
+      return [...(this.data.irrigationLogs || [])].reverse();
     }
     if (channel === 'actionRecommendations') {
-      return [...this.data.actionRecommendations].reverse();
+      return [...(this.data.actionRecommendations || [])].reverse();
     }
     if (channel === 'farm') {
       return {
@@ -459,15 +650,174 @@ class ReactiveMockFirestore {
 
   // --- API Mutators ---
 
+  createPlot(plotData = {}) {
+    const id = plotData.id || `plot-${Date.now()}`;
+    const plotNumber = plotData.plotNumber !== undefined ? Number(plotData.plotNumber) : (Object.keys(this.data.plots || {}).length + 1);
+    const crop = plotData.crop || "Potato Crop";
+    const name = plotData.name || `Zone ${plotNumber} - ${crop}`;
+    const targetVwcMin = Number(plotData.targetVwcMin !== undefined ? plotData.targetVwcMin : 20.0);
+    const targetVwcMax = Number(plotData.targetVwcMax !== undefined ? plotData.targetVwcMax : 35.0);
+    const stage = plotData.stage || plotData.growthStage || "Vegetative";
+
+    // Standardized soil sensors if not provided
+    const soilSensors = Array.isArray(plotData.soilSensors) && plotData.soilSensors.length > 0
+      ? plotData.soilSensors
+      : [
+          { probeId: `S${plotNumber}_10cm`, depthCm: 10, vwc: Number((targetVwcMin + 4.5).toFixed(1)), temperature: 23.5, salinityEc: 1.10, lastUpdated: new Date().toISOString() },
+          { probeId: `S${plotNumber}_30cm`, depthCm: 30, vwc: Number((targetVwcMin + 7.2).toFixed(1)), temperature: 22.0, salinityEc: 1.00, lastUpdated: new Date().toISOString() },
+          { probeId: `S${plotNumber}_50cm`, depthCm: 50, vwc: Number((targetVwcMin + 10.0).toFixed(1)), temperature: 20.5, salinityEc: 0.90, lastUpdated: new Date().toISOString() }
+        ];
+
+    // Standardized valve if not provided
+    const valve = plotData.valve ? {
+      id: plotData.valve.id || `G${plotNumber}`,
+      state: plotData.valve.state || "CLOSED",
+      flowRate: Number(plotData.valve.flowRate) || 480.0,
+      timerEnd: plotData.valve.timerEnd || null
+    } : {
+      id: `G${plotNumber}`,
+      state: "CLOSED",
+      flowRate: 480.0,
+      timerEnd: null
+    };
+
+    const newPlot = {
+      id,
+      name,
+      plotNumber,
+      crop,
+      stage,
+      targetVwcMin,
+      targetVwcMax,
+      plantAgeDays: Number(plotData.plantAgeDays) || 30,
+      totalCycleDays: Number(plotData.totalCycleDays) || 90,
+      daysToHarvest: Number(plotData.daysToHarvest) || 60,
+      areaHa: Number(plotData.areaHa) || 1.0,
+      projectedYieldTons: Number(plotData.projectedYieldTons) || 5.0,
+      currentHeightCm: Number(plotData.currentHeightCm) || 40,
+      growthRateData: Array.isArray(plotData.growthRateData) ? plotData.growthRateData : [
+        { day: 0, heightCm: 0, label: "Day 0" },
+        { day: 15, heightCm: 20, label: "Day 15" },
+        { day: 30, heightCm: 40, label: "Day 30" },
+        { day: 45, heightCm: 55, label: "Day 45" },
+        { day: 60, heightCm: 70, label: "Day 60" },
+        { day: 75, heightCm: 80, label: "Day 75" },
+        { day: 90, heightCm: 85, label: "Day 90" }
+      ],
+      valve,
+      soilSensors,
+      createdAt: plotData.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    if (!this.data.plots) {
+      this.data.plots = {};
+    }
+    this.data.plots[id] = newPlot;
+    this.saveData();
+    this.notify('plots');
+    return newPlot;
+  }
+
   updatePlot(plotId, updates) {
-    if (this.data.plots[plotId]) {
+    if (this.data.plots && this.data.plots[plotId]) {
       this.data.plots[plotId] = {
         ...this.data.plots[plotId],
-        ...updates
+        ...updates,
+        id: plotId,
+        updatedAt: new Date().toISOString()
       };
       this.saveData();
       this.notify('plots');
+      return this.data.plots[plotId];
     }
+    return null;
+  }
+
+  deletePlot(plotId) {
+    if (!this.data.plots || !this.data.plots[plotId]) {
+      return { success: false, error: `Plot with ID "${plotId}" not found.` };
+    }
+    delete this.data.plots[plotId];
+    if (Array.isArray(this.data.actionRecommendations)) {
+      this.data.actionRecommendations = this.data.actionRecommendations.filter(r => r.plotId !== plotId);
+      this.notify('actionRecommendations');
+    }
+    this.saveData();
+    this.notify('plots');
+    return { success: true, id: plotId };
+  }
+
+  // --- Crop Catalog Subcollection & Store Methods ---
+
+  getCropCatalog() {
+    if (!this.data.crops || Object.keys(this.data.crops).length === 0) {
+      this.data.crops = JSON.parse(JSON.stringify(PRESEEDED_CROPS));
+      this.saveData();
+    }
+    return Object.values(this.data.crops);
+  }
+
+  subscribeCropCatalog(callback) {
+    return this.subscribe('crops', callback);
+  }
+
+  addCropType(cropData = {}) {
+    if (!cropData.name) {
+      throw new Error("Crop name is required to add a crop type.");
+    }
+    const cleanSlug = cropData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const id = cropData.id || `crop-${cleanSlug || Date.now()}`;
+    const newCrop = {
+      id,
+      name: cropData.name,
+      scientificName: cropData.scientificName || `${cropData.name} sp.`,
+      optimalVwcMin: Number(cropData.optimalVwcMin !== undefined ? cropData.optimalVwcMin : 20.0),
+      optimalVwcMax: Number(cropData.optimalVwcMax !== undefined ? cropData.optimalVwcMax : 35.0),
+      optimalPhMin: Number(cropData.optimalPhMin !== undefined ? cropData.optimalPhMin : 6.0),
+      optimalPhMax: Number(cropData.optimalPhMax !== undefined ? cropData.optimalPhMax : 7.0),
+      targetNitrogen: Number(cropData.targetNitrogen !== undefined ? cropData.targetNitrogen : 100),
+      growthStages: Array.isArray(cropData.growthStages) && cropData.growthStages.length > 0 
+        ? cropData.growthStages 
+        : ["Germination", "Vegetative", "Flowering", "Maturity"],
+      category: cropData.category || "General",
+      defaultCycleDays: Number(cropData.defaultCycleDays) || 90,
+      createdAt: cropData.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    if (!this.data.crops) {
+      this.data.crops = {};
+    }
+    this.data.crops[id] = newCrop;
+    this.saveData();
+    this.notify('crops');
+    return newCrop;
+  }
+
+  updateCropType(cropId, updates = {}) {
+    if (!this.data.crops || !this.data.crops[cropId]) {
+      return null;
+    }
+    this.data.crops[cropId] = {
+      ...this.data.crops[cropId],
+      ...updates,
+      id: cropId,
+      updatedAt: new Date().toISOString()
+    };
+    this.saveData();
+    this.notify('crops');
+    return this.data.crops[cropId];
+  }
+
+  deleteCropType(cropId) {
+    if (!this.data.crops || !this.data.crops[cropId]) {
+      return { success: false, error: `Crop type with ID "${cropId}" not found.` };
+    }
+    delete this.data.crops[cropId];
+    this.saveData();
+    this.notify('crops');
+    return { success: true, id: cropId };
   }
 
   addLeafScan(scan) {
@@ -680,6 +1030,7 @@ class ReactiveMockFirestore {
     this.data = JSON.parse(JSON.stringify(INITIAL_FARM_DATA));
     this.saveData();
     this.notify('plots');
+    this.notify('crops');
     this.notify('leafScans');
     this.notify('irrigationLogs');
     this.notify('actionRecommendations');
