@@ -23,6 +23,8 @@ backend/.env.*
 *.key
 
 # Android Native Build & Local Config
+.gradle/
+local.properties
 android/.gradle/
 android/app/build/
 android/build/
