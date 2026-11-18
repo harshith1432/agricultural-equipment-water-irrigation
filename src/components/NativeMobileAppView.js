@@ -271,63 +271,18 @@ export function createNativeMobileAppView({
         break;
       }
 
-      case 'soil':
+      case 'soil': {
+        renderScreenSafely(() => {
+          return createSoilAnalysisView({ plot });
+        }, 'soil');
+        break;
+      }
+
       case 'weather':
       case 'environment': {
         renderScreenSafely(() => {
-          const wrapper = document.createElement('div');
-          wrapper.className = "space-y-3 min-w-0 overflow-hidden";
-
-          // Sub-navigation segmented switcher
-          const subNav = document.createElement('div');
-          subNav.className = "flex items-center justify-center pt-0.5 pb-1";
-          subNav.innerHTML = `
-            <div class="inline-flex bg-white/90 dark:bg-slate-800/90 backdrop-blur-md p-1 rounded-2xl border border-emerald-900/10 dark:border-slate-700 shadow-sm">
-              <button 
-                type="button" 
-                id="subtab-soil-btn" 
-                class="px-4 py-1.5 rounded-xl text-xs font-bold transition ${
-                  activeTab === 'soil' 
-                    ? 'bg-[#0E5431] text-white shadow-sm' 
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                }"
-              >
-                8-in-1 Soil Probe
-              </button>
-              <button 
-                type="button" 
-                id="subtab-env-btn" 
-                class="px-4 py-1.5 rounded-xl text-xs font-bold transition ${
-                  activeTab === 'environment' || activeTab === 'weather'
-                    ? 'bg-[#0E5431] text-white shadow-sm' 
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                }"
-              >
-                Weather & Climate
-              </button>
-            </div>
-          `;
-
-          subNav.querySelector('#subtab-soil-btn')?.addEventListener('click', () => {
-            activeTab = 'soil';
-            renderActiveScreen();
-          });
-
-          subNav.querySelector('#subtab-env-btn')?.addEventListener('click', () => {
-            activeTab = 'environment';
-            renderActiveScreen();
-          });
-
-          wrapper.appendChild(subNav);
-
-          if (activeTab === 'environment' || activeTab === 'weather') {
-            wrapper.appendChild(createEnvironmentMonitorView());
-          } else {
-            wrapper.appendChild(createSoilAnalysisView({ plot }));
-          }
-
-          return wrapper;
-        }, activeTab);
+          return createEnvironmentMonitorView();
+        }, 'weather');
         break;
       }
 

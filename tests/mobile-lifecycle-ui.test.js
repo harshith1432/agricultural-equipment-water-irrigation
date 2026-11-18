@@ -179,15 +179,16 @@ export function registerMobileLifecycleTests() {
     });
   });
 
-  describe('Mobile Bottom Navigation Bar (6 Core Tabs)', () => {
-    it('exposes exactly 6 ergonomic tabs for precision agronomy', () => {
-      expect(MOBILE_TABS.length).toBe(6);
+  describe('Mobile Bottom Navigation Bar (7 Ergonomic Tabs)', () => {
+    it('exposes exactly 7 ergonomic tabs for precision agronomy', () => {
+      expect(MOBILE_TABS.length).toBe(7);
       const tabIds = MOBILE_TABS.map(t => t.id);
       expect(tabIds).toContain('dashboard');
       expect(tabIds).toContain('irrigation');
       expect(tabIds).toContain('spectroscopy');
+      expect(tabIds).toContain('soil');
+      expect(tabIds).toContain('environment');
       expect(tabIds).toContain('synergy');
-      expect(tabIds).toContain('usage');
       expect(tabIds).toContain('settings');
     });
 

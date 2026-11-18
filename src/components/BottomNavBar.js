@@ -12,11 +12,12 @@ import { icon } from '../utils/icons.js';
 import { t, onLocaleChange } from '../utils/i18n.js';
 
 export const MOBILE_TABS = [
-  { id: 'dashboard', alias: 'overview', icon: 'home', labelKey: 'nav_home', defaultLabel: 'Dashboard' },
-  { id: 'irrigation', alias: 'irrigation', icon: 'droplet', labelKey: 'nav_irrigation', defaultLabel: 'Irrigation' },
+  { id: 'dashboard', alias: 'overview', icon: 'home', labelKey: 'nav_home', defaultLabel: 'Home' },
+  { id: 'irrigation', alias: 'irrigation', icon: 'droplet', labelKey: 'nav_irrigation', defaultLabel: 'Drip' },
   { id: 'spectroscopy', alias: 'spectroscopy', icon: 'spectroscopy', labelKey: 'nav_spectroscopy', defaultLabel: 'Spectro' },
-  { id: 'synergy', alias: 'ai', icon: 'synergy', labelKey: 'nav_ai', defaultLabel: 'Synergy' },
-  { id: 'usage', alias: 'usage', icon: 'usage', labelKey: 'nav_usage', defaultLabel: 'Usage' },
+  { id: 'soil', alias: 'soil', icon: 'soil', labelKey: 'nav_soil', defaultLabel: 'Soil' },
+  { id: 'environment', alias: 'weather', icon: 'thermometer', labelKey: 'nav_environment', defaultLabel: 'Weather' },
+  { id: 'synergy', alias: 'ai', icon: 'synergy', labelKey: 'nav_ai', defaultLabel: 'AI' },
   { id: 'settings', alias: 'settings', icon: 'settings', labelKey: 'nav_settings', defaultLabel: 'Settings' }
 ];
 
