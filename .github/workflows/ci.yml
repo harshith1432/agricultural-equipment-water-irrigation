@@ -66,6 +66,9 @@ jobs:
         working-directory: ./backend
         run: npm run test:pentest
 
+      - name: Build Application Bundle
+        run: npm run build
+
       - name: Run End-to-End Connection, Health & Offline Resilience Audit
         run: npm run verify:health
 
