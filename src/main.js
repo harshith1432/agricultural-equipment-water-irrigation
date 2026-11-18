@@ -18,24 +18,36 @@ import { createCalibrationModal } from './components/CalibrationWizard.js';
 import { createTelemetrySimulatorModal } from './components/TelemetrySimulatorModal.js';
 import { createEnterpriseAdminModal } from './components/EnterpriseAdminModal.js';
 import { createMobileFrameShowcase } from './components/MobileFrameShowcase.js';
+import { createNativeMobileAppView } from './components/NativeMobileAppView.js';
 import { createCropOverviewScreen } from './components/CropOverviewScreen.js';
 import { createFieldZoneScreen } from './components/FieldZoneScreen.js';
 import { createClosedLoopSynergySection } from './components/ClosedLoopSynergyCard.js';
 import { authService } from './firebase/authService.js';
+import { INITIAL_FARM_DATA } from './firebase/mockFirestore.js';
 import { generateSpectralSignature, processSpectralVector } from './hardware/chemometricsEngine.js';
+import { Capacitor } from '@capacitor/core';
 
 class AgriSpectraApp {
   constructor() {
     this.appEl = document.getElementById('app');
     this.currentTheme = localStorage.getItem('agrispectra_theme') || 'aero-field';
-    this.viewMode = localStorage.getItem('agrispectra_view_mode') || 'aero-showcase';
+
+    // Native mobile app detection (Capacitor Android / iOS or mobile screen)
+    const isNative = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform();
+    const isMobileViewport = typeof window !== 'undefined' && window.innerWidth < 1024;
+    if (isNative) {
+      this.viewMode = 'mobile';
+      try { localStorage.setItem('agrispectra_view_mode', 'mobile'); } catch (e) {}
+    } else {
+      this.viewMode = localStorage.getItem('agrispectra_view_mode') || (isMobileViewport ? 'mobile' : 'aero-showcase');
+    }
     this.isSidebarOpen = true;
     this.selectedPlotId = "plot-1"; // Start focused on Plot 1 (Potato Field Zone) matching reference design
 
-    // Reactive State
-    this.plots = [];
-    this.actionRecommendations = [];
-    this.irrigationLogs = [];
+    // Reactive State with robust offline defaults
+    this.plots = Object.values(INITIAL_FARM_DATA.plots || {});
+    this.actionRecommendations = Object.values(INITIAL_FARM_DATA.actionRecommendations || {});
+    this.irrigationLogs = Object.values(INITIAL_FARM_DATA.irrigationLogs || []);
     this.latestScanAnalysis = null;
     this.telemetryMetrics = {
       mainlinePressureBar: 2.42,
@@ -162,7 +174,41 @@ class AgriSpectraApp {
     this.appEl.innerHTML = '';
 
     // =========================================================================
-    // CASE 0: AERO-FIELD MOBILE REFERENCE SHOWCASE VIEW (Flagship Design)
+    // CASE 0: TRUE FULL-SCREEN NATIVE MOBILE APP (Capacitor Android/iOS & Mobile)
+    // =========================================================================
+    const isNative = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform();
+    const isMobileViewport = typeof window !== 'undefined' && window.innerWidth < 1024;
+
+    if (isNative || this.viewMode === 'mobile' || (isMobileViewport && this.viewMode !== 'desktop')) {
+      const mobileApp = createNativeMobileAppView({
+        plots: this.plots,
+        selectedPlotId: this.selectedPlotId,
+        latestScanAnalysis: this.latestScanAnalysis,
+        telemetryMetrics: this.telemetryMetrics,
+        actionRecommendations: this.actionRecommendations,
+        onSelectPlot: (plotId) => {
+          this.selectedPlotId = plotId;
+          this.render();
+        },
+        onAcquireScan: (plotId) => this.handleAcquireScan(plotId),
+        onActuateValve: (params) => this.handleActuateValve(params),
+        onOpenCalibration: (type) => this.openCalibrationModal(type),
+        onEmergencyStop: () => this.handleEmergencyStop(),
+        onOpenSimModal: () => this.openTelemetrySimModal(),
+        onOpenEnterpriseAdmin: () => this.openEnterpriseAdminModal(),
+        currentUser: this.currentUser || {
+          displayName: "Carlos Mendoza",
+          email: "grower@agrispectra.io",
+          role: "Farm Owner"
+        }
+      });
+
+      this.appEl.appendChild(mobileApp);
+      return;
+    }
+
+    // =========================================================================
+    // CASE 0B: DESKTOP TWIN REFERENCE SHOWCASE VIEW (Preview Mode on Wide Screens)
     // =========================================================================
     if (this.viewMode === 'aero-showcase') {
       const showcaseWrapper = document.createElement('div');
