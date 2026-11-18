@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: agricultural-equipment-water-irrigation
+    runtime: node
+    plan: free
+    region: virginia
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: node server.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5050
+      - key: ENTERPRISE_API_SECRET
+        value: agrispectra_enterprise_sec_2026_99x
+      - key: FIREBASE_PROJECT_ID
+        value: water-irrigation-system-8aeeb
+      - key: FIREBASE_API_KEY
+        sync: false
+      - key: FIREBASE_AUTH_DOMAIN
+        value: water-irrigation-system-8aeeb.firebaseapp.com
+      - key: FIREBASE_STORAGE_BUCKET
+        value: water-irrigation-system-8aeeb.firebasestorage.app
+      - key: CORS_ORIGIN
+        value: "*"
+      - key: FIREBASE_SERVICE_ACCOUNT
+        sync: false

@@ -41,7 +41,21 @@ app.use(cors({
   origin: (origin, callback) => {
     // Allow non-browser clients (native mobile WebView, server-to-server IoT gateways, curl, testing)
     if (!origin) return callback(null, true);
-    if (process.env.NODE_ENV !== 'production' || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+    
+    let isAllowed = process.env.NODE_ENV !== 'production' || allowedOrigins.includes('*') || allowedOrigins.includes(origin);
+    
+    if (!isAllowed) {
+      try {
+        const originUrl = new URL(origin);
+        if (originUrl.hostname === 'vercel.app' || originUrl.hostname.endsWith('.vercel.app')) {
+          isAllowed = true;
+        }
+      } catch {
+        // Invalid origin URL format
+      }
+    }
+
+    if (isAllowed) {
       return callback(null, true);
     }
     return callback(new Error(`Origin ${origin} not permitted by CORS policy`), false);
@@ -118,17 +132,18 @@ const isMainModule = process.argv[1] && (
 if (isMainModule || process.env.START_SERVER === 'true') {
   serverInstance = app.listen(PORT, '0.0.0.0', () => {
     const token = firestoreClient.getAccessToken();
+    const isLiveDb = Boolean(firestoreClient.adminDb || (token && token.startsWith('ya29.')) || token === 'firebase-admin-sdk-active');
     console.log("====================================================================");
     console.log("   AGRISPECTRA FLOW & FIELD - ENTERPRISE BACKEND SERVER            ");
     console.log("====================================================================");
-    console.log(` > Server Listening Port:  http://localhost:${PORT}`);
-    console.log(` > Health Endpoint:        http://localhost:${PORT}/api/health`);
-    console.log(` > Admin Metrics:          http://localhost:${PORT}/api/admin/metrics`);
-    console.log(` > User Management:        http://localhost:${PORT}/api/admin/users`);
-    console.log(` > Emergency Killswitch:   http://localhost:${PORT}/api/admin/emergency-killswitch`);
-    console.log(` > Audit Trail:            http://localhost:${PORT}/api/admin/audit-logs`);
-    console.log(` > Telemetry Sync:         http://localhost:${PORT}/api/telemetry/sync`);
-    console.log(` > Cloud Firestore DB:     ${firestoreClient.projectId} (${token ? 'LIVE CLOUD LINK' : 'OFFLINE STORE'})`);
+    console.log(` > Server Listening Port:  http://0.0.0.0:${PORT}`);
+    console.log(` > Health Endpoint:        /api/health`);
+    console.log(` > Admin Metrics:          /api/admin/metrics`);
+    console.log(` > User Management:        /api/admin/users`);
+    console.log(` > Emergency Killswitch:   /api/admin/emergency-killswitch`);
+    console.log(` > Audit Trail:            /api/admin/audit-logs`);
+    console.log(` > Telemetry Sync:         /api/telemetry/sync`);
+    console.log(` > Cloud Firestore DB:     ${firestoreClient.projectId} (${isLiveDb ? `LIVE CLOUD LINK - ${firestoreClient.authProvider}` : 'OFFLINE STORE'})`);
     console.log(` > Active Parcels:         ${enterpriseStore.plots.length} Zones Managed`);
     console.log(` > Registered Users:       ${enterpriseStore.users.length} Enterprise Operators`);
     console.log("====================================================================");

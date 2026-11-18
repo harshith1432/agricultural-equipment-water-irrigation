@@ -10,6 +10,7 @@ const router = Router();
 router.get('/health', async (req, res) => {
   const uptimeSeconds = Math.floor(process.uptime());
   const token = firestoreClient.getAccessToken();
+  const isConnected = Boolean(firestoreClient.adminDb || (token && token.startsWith('ya29.')) || token === 'firebase-admin-sdk-active');
 
   const healthPayload = {
     status: "HEALTHY",
@@ -20,9 +21,11 @@ router.get('/health', async (req, res) => {
     timestamp: new Date().toISOString(),
     database: {
       projectId: firestoreClient.projectId,
-      status: token ? "CONNECTED" : "FALLBACK_RESILLIENT_STORE",
-      mode: token ? "LIVE_CLOUD_FIRESTORE" : "REACTIVE_OFFLINE_CACHE",
-      authProvider: token ? "Google Cloud ADC Bearer" : "Web API Fallback"
+      status: isConnected ? "CONNECTED" : "FALLBACK_RESILIENT_STORE",
+      mode: isConnected ? "LIVE_CLOUD_FIRESTORE" : "REACTIVE_OFFLINE_CACHE",
+      authProvider: firestoreClient.adminDb
+        ? firestoreClient.authProvider
+        : (token && token.startsWith('ya29.') ? "Google Cloud ADC Bearer" : "Web API Fallback")
     },
     systemMetrics: {
       memoryMb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024 * 10) / 10,
