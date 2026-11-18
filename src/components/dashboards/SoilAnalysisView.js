@@ -2,21 +2,13 @@
  * Module 4 Dashboard: LABART 8-in-1 Soil Tester
  * Strict NO-EMOJI vector UI styled after the lush forest green farm mobile theme.
  * Faithfully matches the user's physical sensor interface:
- *   - Header: 'Soil Parameter Detector' with connected LABART device pill
- *   - 3-Way Connection Mode Switcher: USB Type-C | Bluetooth BLE | Wi-Fi Cloud Stream
- *   - Live "Wi-Fi IoT Synced (via Cloud Database)" badge when Cloud Stream selected with auto-polling
- *   - 8 Dynamic Tiles:
- *       1. Temperature °C (e.g. 12.5°C)
- *       2. Moisture % VWC (e.g. 42.2%)
- *       3. Conductivity (EC) µS/cm (e.g. 1378 µS/cm)
- *       4. pH (e.g. 7.9)
- *       5. (N) Nitrogen mg/kg (e.g. 68 mg/kg)
- *       6. (P) Phosphorus mg/kg (e.g. 96 mg/kg)
- *       7. (K) Potassium mg/kg (e.g. 220 mg/kg)
- *       8. Fertility mg/kg (e.g. 757 mg/kg)
+ *   - Auto-detection logic: plug-and-play detection for USB-C and Bluetooth
+ *   - Sleek header with compact Auto-Detected status pill & 3-dots settings button
+ *   - Settings modal accessible via 3-dots for inspecting connection or manual override
+ *   - 8 Dynamic Tiles: Temp, Moisture, EC, pH, N, P, K, Fertility
  *   - Farmer-friendly condition summary: Nitrogen, Phosphorus, Potassium, Soil pH, Moisture
- *   - 'Save to file' and 'Data History' buttons
- *   - Crop selector (Tomatoes, Bell Peppers, Potatoes, Wheat, Corn, Cotton) adapting thresholds
+ *   - 'Save to file' (CSV) and 'Data History' buttons
+ *   - Crop selector adapting thresholds
  */
 
 import { icon } from '../../utils/icons.js';
@@ -29,14 +21,15 @@ import {
 
 export function createSoilAnalysisView({
   plot = null
-}) {
+} = {}) {
   const container = document.createElement('div');
-  container.className = "soil-analysis-view w-full space-y-4 pb-28 text-slate-800 select-none";
+  container.className = "soil-analysis-view w-full space-y-4 pb-28 text-slate-800 select-none overflow-x-hidden";
 
   let connectionMode = labartSoilSensorUSB.connectionMode || CONNECTION_MODES.USB_TYPE_C;
   let selectedCropKey = 'POTATO';
   let currentReading = null;
   let pollingIntervalId = null;
+  let isSettingsOpen = false;
 
   // History buffer for 'Data History' modal
   const historyLog = [
@@ -48,9 +41,14 @@ export function createSoilAnalysisView({
   async function loadReading() {
     try {
       if (!labartSoilSensorUSB.isConnected) {
-        await labartSoilSensorUSB.connect({ mode: connectionMode, autoFallback: true });
+        if (typeof labartSoilSensorUSB.autoDetectAndConnect === 'function') {
+          await labartSoilSensorUSB.autoDetectAndConnect({ cropKey: selectedCropKey });
+        } else {
+          await labartSoilSensorUSB.connect({ mode: connectionMode, autoFallback: true });
+        }
       }
       currentReading = await labartSoilSensorUSB.readData({ cropKey: selectedCropKey });
+      connectionMode = labartSoilSensorUSB.connectionMode || connectionMode;
     } catch (e) {
       console.warn("Soil read error:", e);
     } finally {
@@ -74,310 +72,428 @@ export function createSoilAnalysisView({
     loadReading();
   }
 
+  // Listen to auto-connected hardware events (USB plug-in or Bluetooth connection)
+  const unsubs = [];
+  if (typeof labartSoilSensorUSB.on === 'function') {
+    unsubs.push(labartSoilSensorUSB.on('autoConnected', (data) => {
+      connectionMode = data.mode;
+      loadReading();
+    }));
+    unsubs.push(labartSoilSensorUSB.on('statusChange', () => {
+      render();
+    }));
+  }
+
+  function getReadableModeLabel(mode) {
+    switch (mode) {
+      case CONNECTION_MODES.USB_TYPE_C:
+        return 'USB-C Probe';
+      case CONNECTION_MODES.BLUETOOTH_BLE:
+        return 'Bluetooth BLE';
+      case CONNECTION_MODES.WIFI_CLOUD:
+        return 'Cloud Ingest';
+      default:
+        return 'Auto Detect';
+    }
+  }
+
   function render() {
-    const p = currentReading?.parameters || (currentReading?.raw ? {
-      temperatureC: currentReading.raw.temperature_c ?? 12.5,
-      moistureVwc: currentReading.raw.moisture_vwc ?? 42.2,
-      ecUsCm: currentReading.raw.ec_us_cm ?? 1378,
-      ph: currentReading.raw.ph ?? 7.9,
-      nitrogenMgKg: currentReading.raw.nitrogen_mg_kg ?? 68,
-      phosphorusMgKg: currentReading.raw.phosphorus_mg_kg ?? 96,
-      potassiumMgKg: currentReading.raw.potassium_mg_kg ?? 220,
-      fertilityMgKg: currentReading.raw.fertility_mg_kg ?? 757
-    } : null) || {
-      temperatureC: 12.5,
-      moistureVwc: 42.2,
-      ecUsCm: 1378,
-      ph: 7.9,
-      nitrogenMgKg: 68,
-      phosphorusMgKg: 96,
-      potassiumMgKg: 220,
-      fertilityMgKg: 757
-    };
+    try {
+      const p = currentReading?.parameters || (currentReading?.raw ? {
+        temperatureC: currentReading.raw.temperature_c ?? 12.5,
+        moistureVwc: currentReading.raw.moisture_vwc ?? 42.2,
+        ecUsCm: currentReading.raw.ec_us_cm ?? 1378,
+        ph: currentReading.raw.ph ?? 7.9,
+        nitrogenMgKg: currentReading.raw.nitrogen_mg_kg ?? 68,
+        phosphorusMgKg: currentReading.raw.phosphorus_mg_kg ?? 96,
+        potassiumMgKg: currentReading.raw.potassium_mg_kg ?? 220,
+        fertilityMgKg: currentReading.raw.fertility_mg_kg ?? 757
+      } : null) || {
+        temperatureC: 12.5,
+        moistureVwc: 42.2,
+        ecUsCm: 1378,
+        ph: 7.9,
+        nitrogenMgKg: 68,
+        phosphorusMgKg: 96,
+        potassiumMgKg: 220,
+        fertilityMgKg: 757
+      };
 
-    const interp = currentReading?.interpretation?.npk ? {
-      nitrogenCondition: currentReading.interpretation.npk?.nitrogen?.status || 'Moderate',
-      phosphorusCondition: currentReading.interpretation.npk?.phosphorus?.status || 'High',
-      potassiumCondition: currentReading.interpretation.npk?.potassium?.status || 'Moderate',
-      phCondition: currentReading.interpretation.ph?.status || 'Alkaline',
-      moistureCondition: currentReading.interpretation.moisture?.status || 'Saturated',
-      overallAgronomicStatus: `Score: ${currentReading.interpretation.agronomicScore ?? 85}/100 • ${currentReading.interpretation.moisture?.advisory || 'Balanced'}`
-    } : (currentReading?.interpretation || {
-      nitrogenCondition: 'Moderate',
-      phosphorusCondition: 'High',
-      potassiumCondition: 'Moderate',
-      phCondition: 'Alkaline',
-      moistureCondition: 'Saturated',
-      overallAgronomicStatus: 'Caution: Elevated pH & Moisture Saturated'
-    });
+      const interp = currentReading?.interpretation?.npk ? {
+        nitrogenCondition: currentReading.interpretation.npk?.nitrogen?.status || 'Moderate',
+        phosphorusCondition: currentReading.interpretation.npk?.phosphorus?.status || 'High',
+        potassiumCondition: currentReading.interpretation.npk?.potassium?.status || 'Moderate',
+        phCondition: currentReading.interpretation.ph?.status || 'Alkaline',
+        moistureCondition: currentReading.interpretation.moisture?.status || 'Saturated',
+        overallAgronomicStatus: `Score: ${currentReading.interpretation.agronomicScore ?? 85}/100 • ${currentReading.interpretation.moisture?.advisory || 'Balanced'}`
+      } : (currentReading?.interpretation || {
+        nitrogenCondition: 'Moderate',
+        phosphorusCondition: 'High',
+        potassiumCondition: 'Moderate',
+        phCondition: 'Alkaline',
+        moistureCondition: 'Saturated',
+        overallAgronomicStatus: 'Caution: Elevated pH & Moisture Saturated'
+      });
 
-    const activeCrop = CROP_THRESHOLDS[selectedCropKey] || CROP_THRESHOLDS.POTATO;
+      const activeCrop = CROP_THRESHOLDS[selectedCropKey] || CROP_THRESHOLDS.POTATO;
+      const isConnected = labartSoilSensorUSB.isConnected;
+      const modeLabel = getReadableModeLabel(connectionMode);
 
-    container.innerHTML = `
-      <!-- 1. Header Card with Connected LABART USB Device Pill -->
-      <div class="bg-gradient-to-br from-[#0E5431] to-[#0A3D23] text-white rounded-3xl p-5 shadow-lg border border-emerald-800/40 space-y-3">
-        <div class="flex items-center justify-between">
-          <div>
-            <h2 class="text-base font-bold tracking-tight">${t('soil_title')}</h2>
-            <p class="text-[11px] text-emerald-200/80">${t('soil_subtitle')}</p>
+      container.innerHTML = `
+        <!-- 1. Sleek Forest Green Header Card (NO huge 3-button switcher, compact 3-dots button) -->
+        <div class="bg-gradient-to-br from-[#0E5431] to-[#0A3D23] text-white rounded-3xl p-4 sm:p-5 shadow-lg border border-emerald-800/40 space-y-3 overflow-hidden">
+          <div class="flex items-center justify-between gap-2">
+            <div class="min-w-0">
+              <h2 class="text-base font-bold tracking-tight truncate">${t('soil_title')}</h2>
+              <p class="text-[11px] text-emerald-200/80 truncate">${t('soil_subtitle')}</p>
+            </div>
+
+            <!-- Header Controls: Compact Auto-Detected Status Badge & 3-Dots Settings Button -->
+            <div class="flex items-center gap-2 flex-shrink-0">
+              <!-- Auto-Detected Hardware Pill -->
+              <div 
+                id="soil-connection-pill"
+                class="px-2.5 py-1 rounded-full text-xs font-semibold bg-white/15 border border-white/20 text-emerald-100 flex items-center gap-1.5 shadow-sm"
+                title="Hardware Auto-Detected Interface"
+              >
+                <span class="w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}"></span>
+                <span class="font-mono text-[11px]">${modeLabel}</span>
+              </div>
+
+              <!-- 3-Dots Settings Overflow Button -->
+              <button 
+                type="button" 
+                id="btn-soil-settings"
+                class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 text-white flex items-center justify-center transition border border-white/20 shadow-sm"
+                title="Soil Sensor Connection & Calibration Settings"
+                aria-label="Soil Settings"
+              >
+                ${icon('moreVertical', 'w-4 h-4')}
+              </button>
+            </div>
           </div>
 
-          <!-- Connected Device Pill -->
-          <span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-white/15 border border-white/20 text-emerald-100 flex items-center gap-1.5 shadow-sm">
-            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span>LABART USB Type-C</span>
-          </span>
-        </div>
-
-        <!-- 3-Way Mode Switcher Pill -->
-        <div class="pt-2 border-t border-emerald-700/40">
-          <div class="grid grid-cols-3 gap-1.5 bg-black/20 p-1 rounded-2xl">
-            <button 
-              type="button" 
-              data-mode="${CONNECTION_MODES.USB_TYPE_C}"
-              class="soil-mode-btn py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition ${
-                connectionMode === CONNECTION_MODES.USB_TYPE_C 
-                  ? 'bg-white text-[#0E5431] shadow-sm' 
-                  : 'text-emerald-100 hover:bg-white/10'
-              }"
-            >
-              ${icon('usb', 'w-3.5 h-3.5')}
-              <span>${t('mode_usb')}</span>
-            </button>
-
-            <button 
-              type="button" 
-              data-mode="${CONNECTION_MODES.BLUETOOTH_BLE}"
-              class="soil-mode-btn py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition ${
-                connectionMode === CONNECTION_MODES.BLUETOOTH_BLE 
-                  ? 'bg-white text-[#0E5431] shadow-sm' 
-                  : 'text-emerald-100 hover:bg-white/10'
-              }"
-            >
-              ${icon('bluetooth', 'w-3.5 h-3.5')}
-              <span>${t('mode_ble')}</span>
-            </button>
-
-            <button 
-              type="button" 
-              data-mode="${CONNECTION_MODES.WIFI_CLOUD}"
-              class="soil-mode-btn py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition ${
-                connectionMode === CONNECTION_MODES.WIFI_CLOUD 
-                  ? 'bg-white text-[#0E5431] shadow-sm' 
-                  : 'text-emerald-100 hover:bg-white/10'
-              }"
-            >
-              ${icon('wifi', 'w-3.5 h-3.5')}
-              <span>${t('mode_wifi')}</span>
-            </button>
+          <!-- Crop Selector Dropdown (Compact, well-spaced) -->
+          <div class="flex items-center justify-between pt-2 border-t border-emerald-700/40">
+            <span class="text-xs text-emerald-100 font-medium">${t('crop_selector')}:</span>
+            <select id="soil-crop-select" class="min-h-[34px] px-3 py-1 rounded-xl bg-white/15 border border-white/25 text-xs font-bold text-white focus:outline-none cursor-pointer">
+              <option value="POTATO" class="text-slate-900" ${selectedCropKey === 'POTATO' ? 'selected' : ''}>Potatoes (Scab pH Sensitive)</option>
+              <option value="TOMATO" class="text-slate-900" ${selectedCropKey === 'TOMATO' ? 'selected' : ''}>Tomatoes (High K Feeder)</option>
+              <option value="BELL_PEPPER" class="text-slate-900" ${selectedCropKey === 'BELL_PEPPER' ? 'selected' : ''}>Bell Peppers (Moisture Sensitive)</option>
+              <option value="WHEAT" class="text-slate-900" ${selectedCropKey === 'WHEAT' ? 'selected' : ''}>Wheat (Crown Root Phase)</option>
+              <option value="MAIZE" class="text-slate-900" ${selectedCropKey === 'MAIZE' ? 'selected' : ''}>Corn / Maize (High N Feeder)</option>
+              <option value="COTTON" class="text-slate-900" ${selectedCropKey === 'COTTON' ? 'selected' : ''}>Cotton (Salt Tolerant)</option>
+            </select>
           </div>
         </div>
 
-        <!-- Wi-Fi Cloud Live Badge -->
-        ${connectionMode === CONNECTION_MODES.WIFI_CLOUD ? `
-          <div class="px-3 py-1.5 rounded-xl bg-white/15 border border-white/20 flex items-center justify-between text-xs text-white">
-            <span class="font-bold flex items-center gap-1.5">
-              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-              <span>${t('wifi_synced_badge')}</span>
-            </span>
-            <span class="text-[10px] font-mono text-emerald-200">Auto-polling 4s</span>
-          </div>
-        ` : ''}
+        <!-- 2. The 8 Dynamic Tiles Matching Physical LABART 8-in-1 Device Interface -->
+        <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 shadow-sm border border-emerald-900/5 dark:border-slate-800 space-y-3 overflow-hidden">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+            <div class="min-w-0">
+              <h3 class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5 truncate">
+                ${icon('soil', 'w-4 h-4 text-[#0E5431] shrink-0')}
+                <span class="truncate">8-Parameter Digital Matrix</span>
+              </h3>
+              <p class="text-[10px] text-slate-500 truncate">Modbus RTU 5-Prong Subsurface Probe</p>
+            </div>
 
-        <!-- Crop Selector Dropdown -->
-        <div class="flex items-center justify-between pt-1">
-          <span class="text-xs text-emerald-100 font-medium">${t('crop_selector')}:</span>
-          <select id="soil-crop-select" class="min-h-[36px] px-3 py-1 rounded-xl bg-white/15 border border-white/25 text-xs font-bold text-white focus:outline-none cursor-pointer">
-            <option value="POTATO" class="text-slate-900" ${selectedCropKey === 'POTATO' ? 'selected' : ''}>Potatoes (Scab pH Sensitive)</option>
-            <option value="TOMATO" class="text-slate-900" ${selectedCropKey === 'TOMATO' ? 'selected' : ''}>Tomatoes (High K Feeder)</option>
-            <option value="BELL_PEPPER" class="text-slate-900" ${selectedCropKey === 'BELL_PEPPER' ? 'selected' : ''}>Bell Peppers (Moisture Sensitive)</option>
-            <option value="WHEAT" class="text-slate-900" ${selectedCropKey === 'WHEAT' ? 'selected' : ''}>Wheat (Crown Root Phase)</option>
-            <option value="MAIZE" class="text-slate-900" ${selectedCropKey === 'MAIZE' ? 'selected' : ''}>Corn / Maize (High N Feeder)</option>
-            <option value="COTTON" class="text-slate-900" ${selectedCropKey === 'COTTON' ? 'selected' : ''}>Cotton (Salt Tolerant)</option>
-          </select>
+            <button 
+              type="button" 
+              id="btn-take-soil-reading"
+              class="px-3 py-1.5 rounded-full bg-[#0E5431] hover:bg-[#083820] text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition shrink-0 active:scale-95"
+            >
+              ${icon('refresh', 'w-3.5 h-3.5')}
+              <span>Read Sensor</span>
+            </button>
+          </div>
+
+          <!-- 8 Tiles Grid (Clean 2x4 on mobile, 4x2 on tablet) -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <!-- 1. Temperature -->
+            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/80 flex flex-col min-w-0 overflow-hidden">
+              <span class="text-[10px] text-slate-500 font-medium truncate">${t('param_temp')}</span>
+              <div class="flex items-baseline gap-1 mt-1 truncate">
+                <span class="text-2xl font-black text-slate-900 dark:text-white font-mono">${p.temperatureC.toFixed(1)}</span>
+                <span class="text-xs text-slate-500 font-bold">°C</span>
+              </div>
+              <span class="text-[9px] text-slate-400 mt-1 truncate">Target: 15–24°C</span>
+            </div>
+
+            <!-- 2. Moisture % VWC -->
+            <div class="p-3 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-300 dark:border-emerald-800/40 flex flex-col min-w-0 overflow-hidden">
+              <span class="text-[10px] text-emerald-800 dark:text-emerald-300 font-medium truncate">${t('param_moisture')}</span>
+              <div class="flex items-baseline gap-1 mt-1 truncate">
+                <span class="text-2xl font-black text-emerald-900 dark:text-emerald-200 font-mono">${p.moistureVwc.toFixed(1)}</span>
+                <span class="text-xs text-emerald-700 font-bold">%</span>
+              </div>
+              <span class="text-[9px] text-emerald-600 dark:text-emerald-400 mt-1 truncate">Opt: ${activeCrop.moistureVwc.optimalMin}–${activeCrop.moistureVwc.optimalMax}%</span>
+            </div>
+
+            <!-- 3. Conductivity (EC) -->
+            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/80 flex flex-col min-w-0 overflow-hidden">
+              <span class="text-[10px] text-slate-500 font-medium truncate">${t('param_ec')}</span>
+              <div class="flex items-baseline gap-1 mt-1 truncate">
+                <span class="text-2xl font-black text-slate-900 dark:text-white font-mono">${p.ecUsCm}</span>
+                <span class="text-xs text-slate-500 font-bold">µS/cm</span>
+              </div>
+              <span class="text-[9px] text-slate-400 mt-1 truncate">Max: ${activeCrop.ecMax} µS/cm</span>
+            </div>
+
+            <!-- 4. pH -->
+            <div class="p-3 rounded-2xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-300 dark:border-amber-800/40 flex flex-col min-w-0 overflow-hidden">
+              <span class="text-[10px] text-amber-800 dark:text-amber-300 font-medium truncate">${t('param_ph')}</span>
+              <div class="flex items-baseline gap-1 mt-1 truncate">
+                <span class="text-2xl font-black text-amber-900 dark:text-amber-200 font-mono">${p.ph.toFixed(1)}</span>
+                <span class="text-xs text-amber-700 font-bold">pH</span>
+              </div>
+              <span class="text-[9px] text-amber-600 dark:text-amber-400 mt-1 truncate">Opt: ${activeCrop.ph.optimalMin}–${activeCrop.ph.optimalMax}</span>
+            </div>
+
+            <!-- 5. Nitrogen (N) -->
+            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/80 flex flex-col min-w-0 overflow-hidden">
+              <span class="text-[10px] text-slate-500 font-medium truncate">${t('param_nitrogen')}</span>
+              <div class="flex items-baseline gap-1 mt-1 truncate">
+                <span class="text-2xl font-black text-slate-900 dark:text-white font-mono">${p.nitrogenMgKg}</span>
+                <span class="text-xs text-slate-500 font-bold">mg/kg</span>
+              </div>
+              <span class="text-[9px] text-slate-400 mt-1 truncate">Opt: ${activeCrop.nitrogen.optimal} mg/kg</span>
+            </div>
+
+            <!-- 6. Phosphorus (P) -->
+            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/80 flex flex-col min-w-0 overflow-hidden">
+              <span class="text-[10px] text-slate-500 font-medium truncate">${t('param_phosphorus')}</span>
+              <div class="flex items-baseline gap-1 mt-1 truncate">
+                <span class="text-2xl font-black text-slate-900 dark:text-white font-mono">${p.phosphorusMgKg}</span>
+                <span class="text-xs text-slate-500 font-bold">mg/kg</span>
+              </div>
+              <span class="text-[9px] text-slate-400 mt-1 truncate">Opt: ${activeCrop.phosphorus.optimal} mg/kg</span>
+            </div>
+
+            <!-- 7. Potassium (K) -->
+            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/80 flex flex-col min-w-0 overflow-hidden">
+              <span class="text-[10px] text-slate-500 font-medium truncate">${t('param_potassium')}</span>
+              <div class="flex items-baseline gap-1 mt-1 truncate">
+                <span class="text-2xl font-black text-slate-900 dark:text-white font-mono">${p.potassiumMgKg}</span>
+                <span class="text-xs text-slate-500 font-bold">mg/kg</span>
+              </div>
+              <span class="text-[9px] text-slate-400 mt-1 truncate">Opt: ${activeCrop.potassium.optimal} mg/kg</span>
+            </div>
+
+            <!-- 8. Fertility Index -->
+            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/80 flex flex-col min-w-0 overflow-hidden">
+              <span class="text-[10px] text-slate-500 font-medium truncate">${t('param_fertility')}</span>
+              <div class="flex items-baseline gap-1 mt-1 truncate">
+                <span class="text-2xl font-black text-slate-900 dark:text-white font-mono">${p.fertilityMgKg}</span>
+                <span class="text-xs text-slate-500 font-bold">mg/kg</span>
+              </div>
+              <span class="text-[9px] text-slate-400 mt-1 truncate">Comprehensive</span>
+            </div>
+          </div>
         </div>
-      </div>
 
-      <!-- 2. The 8 Dynamic Tiles Matching Physical LABART 8-in-1 Device Interface -->
-      <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 shadow-sm border border-emerald-900/5 dark:border-slate-800 space-y-3">
-        <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-          <div>
-            <h3 class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-              ${icon('soil', 'w-4 h-4 text-[#0E5431]')}
-              <span>8-Parameter Digital Matrix</span>
-            </h3>
-            <p class="text-[10px] text-slate-500">Modbus RTU 5-Prong Multi-Depth Subsurface Probe</p>
+        <!-- 3. Farmer-Friendly Condition Summary -->
+        <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 shadow-sm border border-emerald-900/5 dark:border-slate-800 space-y-3 overflow-hidden">
+          <h3 class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+            ${icon('shieldCheck', 'w-4 h-4 text-[#0E5431] shrink-0')}
+            <span>Farmer-Friendly Agronomic Summary</span>
+          </h3>
+
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+            <div class="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 flex flex-col min-w-0 overflow-hidden">
+              <span class="text-[10px] text-slate-500 truncate">Nitrogen Condition:</span>
+              <span class="font-bold text-slate-800 dark:text-white mt-0.5 truncate">${interp.nitrogenCondition}</span>
+            </div>
+
+            <div class="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 flex flex-col min-w-0 overflow-hidden">
+              <span class="text-[10px] text-slate-500 truncate">Phosphorus Condition:</span>
+              <span class="font-bold text-slate-800 dark:text-white mt-0.5 truncate">${interp.phosphorusCondition}</span>
+            </div>
+
+            <div class="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 flex flex-col min-w-0 overflow-hidden">
+              <span class="text-[10px] text-slate-500 truncate">Potassium Condition:</span>
+              <span class="font-bold text-slate-800 dark:text-white mt-0.5 truncate">${interp.potassiumCondition}</span>
+            </div>
+
+            <div class="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 flex flex-col min-w-0 overflow-hidden">
+              <span class="text-[10px] text-slate-500 truncate">Soil pH:</span>
+              <span class="font-bold text-amber-700 dark:text-amber-300 mt-0.5 truncate">${interp.phCondition} (${p.ph.toFixed(1)})</span>
+            </div>
+
+            <div class="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 flex flex-col min-w-0 overflow-hidden">
+              <span class="text-[10px] text-slate-500 truncate">Moisture Level:</span>
+              <span class="font-bold text-blue-700 dark:text-blue-300 mt-0.5 truncate">${interp.moistureCondition} (${p.moistureVwc.toFixed(1)}%)</span>
+            </div>
+
+            <div class="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 flex flex-col min-w-0 overflow-hidden">
+              <span class="text-[10px] text-slate-500 truncate">Target Crop:</span>
+              <span class="font-bold text-[#0E5431] dark:text-emerald-300 mt-0.5 truncate">${activeCrop.name}</span>
+            </div>
           </div>
+
+          <div class="p-2.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-xs text-[#0E5431] dark:text-emerald-200">
+            <span class="font-bold">Agronomic Insight:</span>
+            <span>${activeCrop.notes}</span>
+          </div>
+        </div>
+
+        <!-- 4. Action Buttons: 'Save to file' & 'Data History' -->
+        <div class="grid grid-cols-2 gap-3">
+          <button 
+            type="button" 
+            id="btn-save-to-file"
+            class="py-3 px-4 rounded-full bg-[#0E5431] hover:bg-[#083820] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition transform active:scale-95"
+          >
+            ${icon('download', 'w-4 h-4')}
+            <span>${t('save_to_file')}</span>
+          </button>
 
           <button 
             type="button" 
-            id="btn-take-soil-reading"
-            class="px-3 py-1.5 rounded-full bg-[#0E5431] hover:bg-[#083820] text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition"
+            id="btn-data-history"
+            class="py-3 px-4 rounded-full bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition border border-slate-200 dark:border-slate-700 hover:bg-slate-50 active:scale-95"
           >
-            ${icon('refresh', 'w-3.5 h-3.5')}
-            <span>Read Sensor</span>
+            ${icon('history', 'w-4 h-4')}
+            <span>${t('data_history')}</span>
           </button>
         </div>
 
-        <!-- 8 Tiles Grid (2x4) -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-          <!-- 1. Temperature -->
-          <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/80 flex flex-col">
-            <span class="text-[10px] text-slate-500 font-medium">${t('param_temp')}</span>
-            <div class="flex items-baseline gap-1 mt-1">
-              <span class="text-2xl font-black text-slate-900 dark:text-white font-mono">${p.temperatureC.toFixed(1)}</span>
-              <span class="text-xs text-slate-500 font-bold">°C</span>
+        <!-- 5. Subtle Settings Modal (Opened via 3-dots in header) -->
+        <div id="soil-settings-modal" class="${isSettingsOpen ? '' : 'hidden'} fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 max-w-sm w-full shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5">
+              <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                ${icon('settings', 'w-4 h-4 text-[#0E5431]')}
+                <span>Soil Sensor Hardware Settings</span>
+              </h3>
+              <button type="button" id="close-settings-modal" class="p-1 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                ${icon('x', 'w-4 h-4')}
+              </button>
             </div>
-            <span class="text-[9px] text-slate-400 mt-1">Target: 15–24°C</span>
-          </div>
 
-          <!-- 2. Moisture % VWC -->
-          <div class="p-3 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-300 dark:border-emerald-800/40 flex flex-col">
-            <span class="text-[10px] text-emerald-800 dark:text-emerald-300 font-medium">${t('param_moisture')}</span>
-            <div class="flex items-baseline gap-1 mt-1">
-              <span class="text-2xl font-black text-emerald-900 dark:text-emerald-200 font-mono">${p.moistureVwc.toFixed(1)}</span>
-              <span class="text-xs text-emerald-700 font-bold">%</span>
+            <!-- Auto-Detection Status Info Banner -->
+            <div class="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-700/50 text-xs space-y-1.5">
+              <div class="flex items-center gap-2 font-bold text-[#0E5431] dark:text-emerald-300">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                <span>Auto-Detection Active (Plug & Play)</span>
+              </div>
+              <p class="text-[11px] text-emerald-800 dark:text-emerald-200/90 leading-relaxed">
+                Connect your USB-C probe or turn on Bluetooth; the app automatically detects the hardware and streams telemetry with zero configuration needed.
+              </p>
             </div>
-            <span class="text-[9px] text-emerald-600 dark:text-emerald-400 mt-1">Opt: ${activeCrop.moistureVwc.optimalMin}–${activeCrop.moistureVwc.optimalMax}%</span>
-          </div>
 
-          <!-- 3. Conductivity (EC) -->
-          <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/80 flex flex-col">
-            <span class="text-[10px] text-slate-500 font-medium">${t('param_ec')}</span>
-            <div class="flex items-baseline gap-1 mt-1">
-              <span class="text-2xl font-black text-slate-900 dark:text-white font-mono">${p.ecUsCm}</span>
-              <span class="text-xs text-slate-500 font-bold">µS/cm</span>
+            <!-- Manual Override Interface (Compact options if needed) -->
+            <div class="space-y-1.5">
+              <span class="text-xs font-bold text-slate-700 dark:text-slate-300">Manual Interface Override:</span>
+              <div class="grid grid-cols-3 gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl">
+                <button 
+                  type="button" 
+                  data-mode="${CONNECTION_MODES.USB_TYPE_C}"
+                  class="soil-mode-btn py-1.5 px-1 rounded-xl text-xs font-bold flex flex-col items-center justify-center gap-1 transition ${
+                    connectionMode === CONNECTION_MODES.USB_TYPE_C 
+                      ? 'bg-[#0E5431] text-white shadow-sm' 
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                  }"
+                >
+                  ${icon('usb', 'w-3.5 h-3.5')}
+                  <span class="text-[10px]">USB Type-C</span>
+                </button>
+
+                <button 
+                  type="button" 
+                  data-mode="${CONNECTION_MODES.BLUETOOTH_BLE}"
+                  class="soil-mode-btn py-1.5 px-1 rounded-xl text-xs font-bold flex flex-col items-center justify-center gap-1 transition ${
+                    connectionMode === CONNECTION_MODES.BLUETOOTH_BLE 
+                      ? 'bg-[#0E5431] text-white shadow-sm' 
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                  }"
+                >
+                  ${icon('bluetooth', 'w-3.5 h-3.5')}
+                  <span class="text-[10px]">Bluetooth</span>
+                </button>
+
+                <button 
+                  type="button" 
+                  data-mode="${CONNECTION_MODES.WIFI_CLOUD}"
+                  class="soil-mode-btn py-1.5 px-1 rounded-xl text-xs font-bold flex flex-col items-center justify-center gap-1 transition ${
+                    connectionMode === CONNECTION_MODES.WIFI_CLOUD 
+                      ? 'bg-[#0E5431] text-white shadow-sm' 
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                  }"
+                >
+                  ${icon('wifi', 'w-3.5 h-3.5')}
+                  <span class="text-[10px]">Cloud Ingest</span>
+                </button>
+              </div>
             </div>
-            <span class="text-[9px] text-slate-400 mt-1">Max: ${activeCrop.ecMax} µS/cm</span>
-          </div>
 
-          <!-- 4. pH -->
-          <div class="p-3 rounded-2xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-300 dark:border-amber-800/40 flex flex-col">
-            <span class="text-[10px] text-amber-800 dark:text-amber-300 font-medium">${t('param_ph')}</span>
-            <div class="flex items-baseline gap-1 mt-1">
-              <span class="text-2xl font-black text-amber-900 dark:text-amber-200 font-mono">${p.ph.toFixed(1)}</span>
-              <span class="text-xs text-amber-700 font-bold">pH</span>
+            <!-- Hardware Specifications -->
+            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 text-xs space-y-1 font-mono text-[11px] text-slate-600 dark:text-slate-300">
+              <div class="flex justify-between">
+                <span>Protocol:</span>
+                <span class="font-bold text-slate-800 dark:text-white">Modbus RTU RS485</span>
+              </div>
+              <div class="flex justify-between">
+                <span>Baud Rate:</span>
+                <span class="font-bold text-slate-800 dark:text-white">9600 bps (8-N-1)</span>
+              </div>
+              <div class="flex justify-between">
+                <span>Probe:</span>
+                <span class="font-bold text-slate-800 dark:text-white">5-Prong 316L Steel</span>
+              </div>
             </div>
-            <span class="text-[9px] text-amber-600 dark:text-amber-400 mt-1">Opt: ${activeCrop.ph.optimalMin}–${activeCrop.ph.optimalMax}</span>
-          </div>
 
-          <!-- 5. Nitrogen (N) -->
-          <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/80 flex flex-col">
-            <span class="text-[10px] text-slate-500 font-medium">${t('param_nitrogen')}</span>
-            <div class="flex items-baseline gap-1 mt-1">
-              <span class="text-2xl font-black text-slate-900 dark:text-white font-mono">${p.nitrogenMgKg}</span>
-              <span class="text-xs text-slate-500 font-bold">mg/kg</span>
-            </div>
-            <span class="text-[9px] text-slate-400 mt-1">Opt: ${activeCrop.nitrogen.optimal} mg/kg</span>
-          </div>
-
-          <!-- 6. Phosphorus (P) -->
-          <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/80 flex flex-col">
-            <span class="text-[10px] text-slate-500 font-medium">${t('param_phosphorus')}</span>
-            <div class="flex items-baseline gap-1 mt-1">
-              <span class="text-2xl font-black text-slate-900 dark:text-white font-mono">${p.phosphorusMgKg}</span>
-              <span class="text-xs text-slate-500 font-bold">mg/kg</span>
-            </div>
-            <span class="text-[9px] text-slate-400 mt-1">Opt: ${activeCrop.phosphorus.optimal} mg/kg</span>
-          </div>
-
-          <!-- 7. Potassium (K) -->
-          <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/80 flex flex-col">
-            <span class="text-[10px] text-slate-500 font-medium">${t('param_potassium')}</span>
-            <div class="flex items-baseline gap-1 mt-1">
-              <span class="text-2xl font-black text-slate-900 dark:text-white font-mono">${p.potassiumMgKg}</span>
-              <span class="text-xs text-slate-500 font-bold">mg/kg</span>
-            </div>
-            <span class="text-[9px] text-slate-400 mt-1">Opt: ${activeCrop.potassium.optimal} mg/kg</span>
-          </div>
-
-          <!-- 8. Fertility Index -->
-          <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/80 flex flex-col">
-            <span class="text-[10px] text-slate-500 font-medium">${t('param_fertility')}</span>
-            <div class="flex items-baseline gap-1 mt-1">
-              <span class="text-2xl font-black text-slate-900 dark:text-white font-mono">${p.fertilityMgKg}</span>
-              <span class="text-xs text-slate-500 font-bold">mg/kg</span>
-            </div>
-            <span class="text-[9px] text-slate-400 mt-1">Comprehensive</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- 3. Farmer-Friendly Condition Summary -->
-      <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 shadow-sm border border-emerald-900/5 dark:border-slate-800 space-y-3">
-        <h3 class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-          ${icon('shieldCheck', 'w-4 h-4 text-[#0E5431]')}
-          <span>Farmer-Friendly Agronomic Summary</span>
-        </h3>
-
-        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
-          <div class="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 flex flex-col">
-            <span class="text-[10px] text-slate-500">Nitrogen Condition:</span>
-            <span class="font-bold text-slate-800 dark:text-white mt-0.5">${interp.nitrogenCondition}</span>
-          </div>
-
-          <div class="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 flex flex-col">
-            <span class="text-[10px] text-slate-500">Phosphorus Condition:</span>
-            <span class="font-bold text-slate-800 dark:text-white mt-0.5">${interp.phosphorusCondition}</span>
-          </div>
-
-          <div class="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 flex flex-col">
-            <span class="text-[10px] text-slate-500">Potassium Condition:</span>
-            <span class="font-bold text-slate-800 dark:text-white mt-0.5">${interp.potassiumCondition}</span>
-          </div>
-
-          <div class="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 flex flex-col">
-            <span class="text-[10px] text-slate-500">Soil pH:</span>
-            <span class="font-bold text-amber-700 dark:text-amber-300 mt-0.5">${interp.phCondition} (${p.ph.toFixed(1)})</span>
-          </div>
-
-          <div class="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 flex flex-col">
-            <span class="text-[10px] text-slate-500">Moisture Level:</span>
-            <span class="font-bold text-blue-700 dark:text-blue-300 mt-0.5">${interp.moistureCondition} (${p.moistureVwc.toFixed(1)}%)</span>
-          </div>
-
-          <div class="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 flex flex-col">
-            <span class="text-[10px] text-slate-500">Target Crop:</span>
-            <span class="font-bold text-[#0E5431] dark:text-emerald-300 mt-0.5">${activeCrop.name}</span>
+            <button 
+              type="button" 
+              id="confirm-settings-btn"
+              class="w-full py-2.5 rounded-full bg-[#0E5431] text-white text-xs font-bold hover:bg-[#083820] transition active:scale-95 shadow-sm"
+            >
+              Done
+            </button>
           </div>
         </div>
 
-        <div class="p-2.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-xs text-[#0E5431] dark:text-emerald-200">
-          <span class="font-bold">Agronomic Insight:</span>
-          <span>${activeCrop.notes}</span>
+        <!-- 6. History Modal Container -->
+        <div id="soil-history-modal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"></div>
+      `;
+
+      attachEvents();
+    } catch (renderError) {
+      console.error("[SoilAnalysisView] Render error safely handled:", renderError);
+      container.innerHTML = `
+        <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-sm border border-emerald-900/10 dark:border-slate-800 text-center space-y-3">
+          <div class="w-12 h-12 mx-auto rounded-full bg-emerald-50 text-[#0E5431] flex items-center justify-center">
+            ${icon('soil', 'w-6 h-6')}
+          </div>
+          <h3 class="text-sm font-bold text-slate-900 dark:text-white">LABART 8-in-1 Soil Sensor Ready</h3>
+          <p class="text-xs text-slate-500">Live Modbus RTU telemetry streaming in background.</p>
+          <button type="button" id="btn-soil-recovery-retry" class="px-4 py-2 rounded-full bg-[#0E5431] text-white text-xs font-bold">
+            Refresh Telemetry
+          </button>
         </div>
-      </div>
-
-      <!-- 4. Action Buttons: 'Save to file' & 'Data History' -->
-      <div class="grid grid-cols-2 gap-3">
-        <button 
-          type="button" 
-          id="btn-save-to-file"
-          class="py-3 px-4 rounded-full bg-[#0E5431] hover:bg-[#083820] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition transform active:scale-95"
-        >
-          ${icon('download', 'w-4 h-4')}
-          <span>${t('save_to_file')}</span>
-        </button>
-
-        <button 
-          type="button" 
-          id="btn-data-history"
-          class="py-3 px-4 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition border border-slate-300 dark:border-slate-700"
-        >
-          ${icon('history', 'w-4 h-4')}
-          <span>${t('data_history')}</span>
-        </button>
-      </div>
-
-      <!-- History Modal Container -->
-      <div id="soil-history-modal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"></div>
-    `;
-
-    attachEvents();
+      `;
+      container.querySelector('#btn-soil-recovery-retry')?.addEventListener('click', () => loadReading());
+    }
   }
 
   function attachEvents() {
-    // Mode Switcher Buttons
+    // 3-Dots Settings Button
+    container.querySelector('#btn-soil-settings')?.addEventListener('click', () => {
+      isSettingsOpen = true;
+      render();
+    });
+
+    // Close Settings Button
+    container.querySelector('#close-settings-modal')?.addEventListener('click', () => {
+      isSettingsOpen = false;
+      render();
+    });
+    container.querySelector('#confirm-settings-btn')?.addEventListener('click', () => {
+      isSettingsOpen = false;
+      render();
+    });
+
+    // Mode Switcher Buttons inside Settings Modal
     container.querySelectorAll('.soil-mode-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const mode = btn.getAttribute('data-mode');
@@ -438,12 +554,12 @@ export function createSoilAnalysisView({
 
     modal.innerHTML = `
       <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 max-w-sm w-full shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
-        <div class="flex items-center justify-between border-b pb-2">
+        <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
           <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
             ${icon('history', 'w-4 h-4 text-[#0E5431]')}
             <span>LABART 8-in-1 Soil Log</span>
           </h3>
-          <button type="button" id="close-history-modal" class="text-slate-400 hover:text-slate-600">
+          <button type="button" id="close-history-modal" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
             ${icon('x', 'w-4 h-4')}
           </button>
         </div>
@@ -479,5 +595,6 @@ export function createSoilAnalysisView({
 
   render();
   loadReading();
+
   return container;
 }

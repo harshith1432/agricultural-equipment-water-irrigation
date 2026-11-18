@@ -610,6 +610,172 @@ export class FirestoreDataService {
     }
     return id;
   }
+
+  // =========================================================================
+  // 7. User Preferences: userPreferences/{userId} (agrispectra_user_prefs)
+  // =========================================================================
+
+  /**
+   * Save user dashboard and UI preferences
+   * Synchronizes with Cloud Firestore `userPreferences/{userId}` and local storage
+   * @param {string} userId
+   * @param {Object} preferences
+   */
+  async saveUserPreferences(userId, preferences = {}) {
+    const effectiveUid = userId || (typeof localStorage !== 'undefined' ? JSON.parse(localStorage.getItem('agrispectra_auth_user') || '{}')?.uid : null) || 'default';
+
+    // 1. Instantly save to persistent local store (0ms UI latency)
+    const localResult = mockFirestore.saveUserPreferences(effectiveUid, preferences);
+
+    // 2. Persist to Cloud Firestore if connected
+    if (this.useLive) {
+      try {
+        const prefRef = doc(this.db, "userPreferences", effectiveUid);
+        await setDoc(prefRef, {
+          ...preferences,
+          userId: effectiveUid,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+        console.log(`[FirestoreService] Saved user preferences to Cloud Firestore: ${effectiveUid}`);
+      } catch (err) {
+        console.warn("[FirestoreService] Could not write user preferences to Cloud Firestore, cached locally:", err.message);
+      }
+    }
+
+    return localResult;
+  }
+
+  /**
+   * Load user dashboard and UI preferences
+   * Fetches from Cloud Firestore or falls back gracefully to offline cache
+   * @param {string} userId
+   */
+  async getUserPreferences(userId) {
+    const effectiveUid = userId || (typeof localStorage !== 'undefined' ? JSON.parse(localStorage.getItem('agrispectra_auth_user') || '{}')?.uid : null) || 'default';
+
+    if (this.useLive) {
+      try {
+        const prefRef = doc(this.db, "userPreferences", effectiveUid);
+        const snap = await getDoc(prefRef);
+        if (snap.exists()) {
+          const remoteData = { id: snap.id, ...snap.data() };
+          mockFirestore.saveUserPreferences(effectiveUid, remoteData);
+          return remoteData;
+        }
+      } catch (err) {
+        console.warn("[FirestoreService] Error reading user preferences from Cloud Firestore, falling back to local store:", err.message);
+      }
+    }
+
+    return mockFirestore.getUserPreferences(effectiveUid);
+  }
+
+  /**
+   * Subscribe to real-time user preference updates
+   * @param {string} userId
+   * @param {Function} callback
+   */
+  subscribeUserPreferences(userId, callback) {
+    const effectiveUid = userId || (typeof localStorage !== 'undefined' ? JSON.parse(localStorage.getItem('agrispectra_auth_user') || '{}')?.uid : null) || 'default';
+
+    if (this.useLive) {
+      try {
+        const prefRef = doc(this.db, "userPreferences", effectiveUid);
+        return onSnapshot(prefRef, (snap) => {
+          if (snap.exists()) {
+            const data = { id: snap.id, ...snap.data() };
+            mockFirestore.saveUserPreferences(effectiveUid, data);
+            callback(data);
+          } else {
+            callback(mockFirestore.getUserPreferences(effectiveUid));
+          }
+        }, (err) => {
+          console.warn("[FirestoreService] User preferences snapshot note, using local fallback:", err.message);
+          mockFirestore.subscribe('userPreferences', () => callback(mockFirestore.getUserPreferences(effectiveUid)));
+        });
+      } catch (err) {
+        console.warn("[FirestoreService] User preferences subscribe error:", err.message);
+      }
+    }
+
+    return mockFirestore.subscribe('userPreferences', () => callback(mockFirestore.getUserPreferences(effectiveUid)));
+  }
+
+  // =========================================================================
+  // 8. Aggregated Usage Statistics (Offline-First Resilient Analytics)
+  // =========================================================================
+
+  /**
+   * Fetch aggregated usage statistics across the farm:
+   *  - Total liters delivered today (last 24h) and all-time
+   *  - Valve cycle count per plot
+   *  - Total leaf scans conducted
+   *  - Average canopy vitality
+   * 
+   * Seamlessly falls back to local cache if Firestore is offline or fails.
+   * @param {string} farmId
+   */
+  async getAggregatedStats(farmId = FARM_ID) {
+    if (this.useLive) {
+      try {
+        const logsRef = collection(this.db, "farms", farmId, "irrigationLogs");
+        const scansRef = collection(this.db, "farms", farmId, "leafScans");
+        const plotsRef = collection(this.db, "farms", farmId, "plots");
+
+        const [logsSnap, scansSnap, plotsSnap] = await Promise.all([
+          getDocs(logsRef),
+          getDocs(scansRef),
+          getDocs(plotsRef)
+        ]);
+
+        const now = Date.now();
+        const oneDayMs = 24 * 60 * 60 * 1000;
+        let totalLitersDeliveredToday = 0;
+        let totalLitersDeliveredAllTime = 0;
+        const valveCycleCountPerPlot = {};
+
+        plotsSnap.forEach((doc) => {
+          valveCycleCountPerPlot[doc.id] = 0;
+        });
+
+        logsSnap.forEach((doc) => {
+          const log = doc.data();
+          const liters = Number(log.litersDelivered) || 0;
+          totalLitersDeliveredAllTime += liters;
+          const ts = log.timestamp?.toDate ? log.timestamp.toDate().getTime() : (log.timestamp ? new Date(log.timestamp).getTime() : 0);
+          if ((now - ts) <= oneDayMs) {
+            totalLitersDeliveredToday += liters;
+          }
+          if (log.plotId) {
+            valveCycleCountPerPlot[log.plotId] = (valveCycleCountPerPlot[log.plotId] || 0) + 1;
+          }
+        });
+
+        const totalLeafScansConducted = scansSnap.size;
+        let vitalitySum = 0;
+        scansSnap.forEach((doc) => {
+          vitalitySum += (Number(doc.data().vitalityScore) || 0);
+        });
+        const averageCanopyVitality = totalLeafScansConducted > 0
+          ? Math.round((vitalitySum / totalLeafScansConducted) * 10) / 10
+          : 85.0;
+
+        return {
+          farmId,
+          totalLitersDeliveredToday: Math.round(totalLitersDeliveredToday * 10) / 10,
+          totalLitersDeliveredAllTime: Math.round(totalLitersDeliveredAllTime * 10) / 10,
+          valveCycleCountPerPlot,
+          totalLeafScansConducted,
+          averageCanopyVitality,
+          timestamp: new Date().toISOString()
+        };
+      } catch (err) {
+        console.warn("[FirestoreService] Live aggregated stats query error, falling back to local:", err.message);
+      }
+    }
+
+    return mockFirestore.getAggregatedStats(farmId);
+  }
 }
 
 export const firestoreService = new FirestoreDataService();

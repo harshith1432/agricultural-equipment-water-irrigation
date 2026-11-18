@@ -173,6 +173,24 @@ export function registerHardwareAdapterTests() {
       await sensor.disconnect();
       expect(sensor.isConnected).toBe(false);
     });
+
+    it('seamlessly auto-detects available connection interfaces and falls back without user intervention', async () => {
+      const sensor = new LabartSoilSensorUSB();
+      const autoRes = await sensor.autoDetectAndConnect();
+      expect(autoRes.success).toBe(true);
+      expect(sensor.isConnected).toBe(true);
+      expect(autoRes.autoDetected).toBe(true);
+
+      const reading = await sensor.readData();
+      expect(reading.status).toBe('OK');
+      expect(reading.raw.moisture_vwc).toBeDefined();
+
+      // Test setConnectionMode
+      sensor.setConnectionMode(SOIL_MODES.WIFI_CLOUD);
+      expect(sensor.connectionMode).toBe(SOIL_MODES.WIFI_CLOUD);
+
+      await sensor.disconnect();
+    });
   });
 
   // =========================================================================
@@ -240,6 +258,41 @@ export function registerHardwareAdapterTests() {
 
       await spectrometer.disconnect();
     });
+
+    it('implements acquireSample with auto-connect, returning standardized reflectance, indices (NDVI, NDRE, LWI), chemometrics, and raw vectors', async () => {
+      const spectrometer = new SpectrometerUSBAdapter();
+      // Notice: acquireSample without calling connect first -> must auto-connect defensively
+      const scan = await spectrometer.acquireSample({
+        cropName: 'Tomato',
+        growthStage: 'Fruit Ripening'
+      });
+
+      expect(spectrometer.isConnected).toBe(true);
+      expect(scan.status).toBe('OK');
+      expect(scan.reflectance).toBeDefined();
+      expect(scan.reflectanceSpectrum).toBeDefined();
+      expect(scan.indices).toBeDefined();
+      expect(scan.indices.ndvi).toBeDefined();
+      expect(scan.indices.ndre).toBeDefined();
+      expect(scan.indices.lwi).toBeDefined();
+      expect(scan.chemometrics).toBeDefined();
+      expect(scan.chemometrics.vitalityScore).toBeDefined();
+      expect(scan.chemometrics.chlorophyllIndex).toBeDefined();
+      expect(scan.chemometrics.waterIndex).toBeDefined();
+      expect(scan.chemometrics.nitrogenStatus).toBeDefined();
+      expect(scan.rawVectors).toBeDefined();
+      expect(scan.rawVectors.rawSample.length).toBe(76);
+
+      // setConnectionMode
+      spectrometer.setConnectionMode(SPEC_MODES.BLUETOOTH_BLE);
+      expect(spectrometer.connectionMode).toBe(SPEC_MODES.BLUETOOTH_BLE);
+
+      // getSpectralData
+      const last = spectrometer.getSpectralData();
+      expect(last).toBe(scan);
+
+      await spectrometer.disconnect();
+    });
   });
 
   // =========================================================================
@@ -301,6 +354,27 @@ export function registerHardwareAdapterTests() {
 
       await atmos.disconnect();
       await soilSensor.disconnect();
+    });
+
+    it('provides getThresholds, setThresholds, and configureThresholds returning valid threshold objects', () => {
+      const atmos = new TempHumiditySensorUSB();
+      const initial = atmos.getThresholds();
+      expect(initial.highTempC).toBe(35);
+      expect(initial.lowTempC).toBe(5);
+      expect(initial.highRhPercent).toBe(85);
+
+      const updated = atmos.setThresholds({ highTempC: 36, lowTempC: 3, highRhPercent: 90 });
+      expect(updated.highTempC).toBe(36);
+      expect(updated.lowTempC).toBe(3);
+      expect(updated.highRhPercent).toBe(90);
+
+      const configured = atmos.configureThresholds({ highTempC: 37 });
+      expect(configured.highTempC).toBe(37);
+      expect(atmos.getThresholds().highTempC).toBe(37);
+
+      // setConnectionMode
+      atmos.setConnectionMode(TEMP_MODES.BLUETOOTH_BLE);
+      expect(atmos.connectionMode).toBe(TEMP_MODES.BLUETOOTH_BLE);
     });
   });
 
@@ -390,6 +464,46 @@ export function registerHardwareAdapterTests() {
       expect(valve.state).toBe(VALVE_STATES.FAULT); // Auto-isolated into FAULT state
       expect(valve.faultReason).toBe('ZERO_FLOW_ANOMALY');
     });
+
+    it('supports registerSchedule, getSchedules, deleteSchedule, and getTelemetry with defensive backwards compatibility', () => {
+      const controller = new IrrigationControllerAdapter();
+      controller.registerValve({ id: 'V-SCHED-1', gateIdentifier: 'G1' });
+
+      // Register schedule
+      const sched = controller.registerSchedule('V-SCHED-1', {
+        slotName: 'Morning Root Hydration',
+        startTime: '05:30',
+        endTime: '06:15',
+        activeDays: [1, 2, 3, 4, 5],
+        targetVolumeLiters: 350,
+        flowLimitLpm: 12.0,
+        enabled: true
+      });
+
+      expect(sched).toBeDefined();
+      expect(sched.slotName).toBe('Morning Root Hydration');
+      expect(sched.durationMinutes).toBe(45); // 05:30 to 06:15 = 45 mins calculated
+      expect(sched.activeDays.length).toBe(5);
+
+      // getSchedules for specific valve
+      const valveSchedules = controller.getSchedules('V-SCHED-1');
+      expect(valveSchedules.length).toBe(1);
+      expect(valveSchedules[0].id).toBe(sched.id);
+
+      // getTelemetry
+      const telemetry = controller.getTelemetry();
+      expect(telemetry.mainlinePressureBar).toBeDefined();
+      expect(telemetry.totalActiveFlowRateLph).toBe(0);
+
+      // deleteSchedule
+      const deleted = controller.deleteSchedule('V-SCHED-1', sched.id);
+      expect(deleted).toBe(true);
+      expect(controller.getSchedules('V-SCHED-1').length).toBe(0);
+
+      // setConnectionMode
+      controller.setConnectionMode(IRRIG_MODES.WIFI_CLOUD);
+      expect(controller.connectionMode).toBe(IRRIG_MODES.WIFI_CLOUD);
+    });
   });
 
   // =========================================================================
@@ -457,6 +571,21 @@ export function registerHardwareAdapterTests() {
       const csvAudit = manager.exportAudit('csv');
       expect(csvAudit.includes('Timestamp,Source,EventType,Details')).toBe(true);
       expect(csvAudit.includes('VALVE_STATE_TRANSITION')).toBe(true);
+
+      await manager.disconnectAll();
+    });
+
+    it('supports autoDetectAndConnect and unified readData with acquireSample delegation', async () => {
+      const manager = new DeviceManager();
+      const autoRes = await manager.autoDetectAndConnect();
+      expect(autoRes.soil_sensor.success).toBe(true);
+
+      const spectroData = await manager.readData(DEVICE_NAMES.SPECTROMETER);
+      expect(spectroData.status).toBe('OK');
+      expect(spectroData.indices.ndvi).toBeDefined();
+
+      const irrigData = await manager.readData(DEVICE_NAMES.IRRIGATION);
+      expect(irrigData.telemetry.mainlinePressureBar).toBeDefined();
 
       await manager.disconnectAll();
     });

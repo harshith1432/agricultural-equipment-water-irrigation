@@ -1,7 +1,8 @@
 /**
  * AgriSpectra Authentication Modal
  * Designed with Creamy Light & Agricultural Forest Green Palette (#F7F4EB & #1E462A).
- * Supports: Sign In, Sign Up (Multi-Role), Forgot Password, and Google OAuth One-Tap.
+ * Supports: Sign In, Sign Up (Multi-Role), Forgot Password, Google OAuth One-Tap,
+ * and Instant Offline Field Guest Mode (for areas with no cellular reception).
  */
 import { authService } from '../firebase/authService.js';
 
@@ -17,12 +18,12 @@ function escapeHtml(str) {
 
 export function createAuthModal({ initialMode = 'SIGN_IN', onClose, onAuthSuccess }) {
   const overlay = document.createElement('div');
-  overlay.className = "fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-md overflow-y-auto animate-fadeIn";
+  overlay.className = "fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-md overflow-y-auto animate-fadeIn select-none";
 
   let mode = initialMode; // 'SIGN_IN' | 'SIGN_UP' | 'FORGOT_PASSWORD'
   let showPassword = false;
   let rememberMe = true;
-  let selectedRole = 'Farm Owner';
+  let selectedRole = 'Farm Owner'; // 'Farm Owner' | 'Agronomist' | 'Field Tech'
   let bannerState = null; // { type: 'success' | 'error', message: string }
   let isSubmitting = false;
 
@@ -31,7 +32,7 @@ export function createAuthModal({ initialMode = 'SIGN_IN', onClose, onAuthSucces
       <div class="relative w-full max-w-md my-auto bg-[#FBF9F4] text-[#1E462A] rounded-3xl border border-[#E5DDCF] shadow-2xl overflow-hidden transition-all duration-300">
         
         <!-- Agricultural Top Graphic Pattern -->
-        <div class="relative bg-gradient-to-br from-[#1E462A] via-[#2D5A3A] to-[#12301A] text-white p-6 pb-7">
+        <div class="relative bg-gradient-to-br from-[#1E462A] via-[#2D5A3A] to-[#12301A] text-white p-6 pb-6">
           <!-- Background botanical SVG texture -->
           <div class="absolute inset-0 opacity-10 pointer-events-none overflow-hidden">
             <svg class="w-full h-full" viewBox="0 0 400 200" fill="none">
@@ -42,7 +43,7 @@ export function createAuthModal({ initialMode = 'SIGN_IN', onClose, onAuthSucces
           </div>
 
           <!-- Close Modal Button -->
-          <button id="auth-close-btn" class="absolute top-4 right-4 min-w-[48px] min-h-[48px] flex items-center justify-center rounded-2xl bg-white/10 hover:bg-white/20 text-white/90 hover:text-white transition cursor-pointer" title="Close" aria-label="Close Authentication Modal">
+          <button id="auth-close-btn" class="absolute top-4 right-4 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-2xl bg-white/10 hover:bg-white/20 text-white/90 hover:text-white transition cursor-pointer" title="Close" aria-label="Close Authentication Modal">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M6 18L18 6M6 6l12 12"/>
             </svg>
@@ -59,7 +60,7 @@ export function createAuthModal({ initialMode = 'SIGN_IN', onClose, onAuthSucces
               </svg>
             </div>
             <div>
-              <span class="text-[11px] font-mono tracking-widest uppercase text-emerald-300 font-bold">AgriSpectra Cloud</span>
+              <span class="text-[11px] font-mono tracking-widest uppercase text-emerald-300 font-bold">AgriSpectra Access</span>
               <h2 class="text-xl font-extrabold tracking-tight text-white">
                 ${mode === 'SIGN_IN' ? 'Welcome Back, Grower' : (mode === 'SIGN_UP' ? 'Create Farm Workspace' : 'Reset Farm Access')}
               </h2>
@@ -68,6 +69,18 @@ export function createAuthModal({ initialMode = 'SIGN_IN', onClose, onAuthSucces
           <p class="text-xs text-emerald-100/80 mt-2 font-medium">
             ${mode === 'SIGN_IN' ? 'Access your 6-zone precision irrigation & leaf spectroscopy portal' : (mode === 'SIGN_UP' ? 'Equip your team with closed-loop telemetry & chemometrics' : 'Enter your registered email to receive instantaneous recovery steps')}
           </p>
+
+          <!-- Sign In / Sign Up Mode Segmented Tabs -->
+          ${mode !== 'FORGOT_PASSWORD' ? `
+            <div class="mt-4 flex bg-black/25 p-1 rounded-2xl border border-white/10 backdrop-blur-sm">
+              <button type="button" id="tab-mode-signin" class="flex-1 py-1.5 rounded-xl text-xs font-bold transition text-center ${mode === 'SIGN_IN' ? 'bg-white text-[#1E462A] shadow-md' : 'text-emerald-100/80 hover:text-white'}">
+                Sign In
+              </button>
+              <button type="button" id="tab-mode-signup" class="flex-1 py-1.5 rounded-xl text-xs font-bold transition text-center ${mode === 'SIGN_UP' ? 'bg-white text-[#1E462A] shadow-md' : 'text-emerald-100/80 hover:text-white'}">
+                Create Account
+              </button>
+            </div>
+          ` : ''}
         </div>
 
         <!-- Notification Banner (Alerts / Success) -->
@@ -89,7 +102,7 @@ export function createAuthModal({ initialMode = 'SIGN_IN', onClose, onAuthSucces
         <!-- Interactive Form Body -->
         <div class="p-6 space-y-4">
           
-          <!-- Google Sign-In High-End Button (Always available for quick auth) -->
+          <!-- One-Tap Google Sign-In High-End Button -->
           ${mode !== 'FORGOT_PASSWORD' ? `
             <button id="google-auth-btn" class="w-full min-h-[48px] px-4 py-2.5 rounded-2xl bg-white hover:bg-stone-50 text-stone-800 font-semibold text-sm border border-[#DDD5C7] shadow-sm hover:shadow flex items-center justify-center gap-3 transition-all duration-200 cursor-pointer active:scale-[0.98]">
               <!-- Official Multi-Color Google G SVG -->
@@ -102,10 +115,34 @@ export function createAuthModal({ initialMode = 'SIGN_IN', onClose, onAuthSucces
               <span>Continue with Google</span>
             </button>
 
+            <!-- Offline Field Guest Access Button -->
+            <button id="offline-guest-btn" type="button" class="w-full min-h-[46px] px-4 py-2.5 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-950 font-semibold text-xs border border-amber-300 shadow-sm flex items-center justify-between transition-all duration-200 cursor-pointer active:scale-[0.98]">
+              <div class="flex items-center gap-2">
+                <span class="w-6 h-6 rounded-lg bg-amber-200/80 flex items-center justify-center text-amber-900">
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="1" y1="1" x2="23" y2="23"/>
+                    <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/>
+                    <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/>
+                    <path d="M10.71 5.05A16 16 0 0 1 22.58 9"/>
+                    <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/>
+                    <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+                    <line x1="12" y1="20" x2="12.01" y2="20"/>
+                  </svg>
+                </span>
+                <div class="text-left">
+                  <div class="font-bold text-amber-950 text-xs">Continue as Offline Field Guest</div>
+                  <div class="text-[10px] text-amber-800">Zero cellular reception • Direct BLE & Local Cache</div>
+                </div>
+              </div>
+              <span class="text-[10px] font-mono font-bold bg-amber-200 px-2 py-0.5 rounded-md text-amber-900">
+                0ms Boot
+              </span>
+            </button>
+
             <!-- Organic Divider -->
             <div class="relative flex items-center justify-center my-2">
               <div class="border-t border-[#E5DDCF] w-full"></div>
-              <span class="bg-[#FBF9F4] px-3 text-[11px] font-bold text-stone-400 uppercase tracking-wider">or email password</span>
+              <span class="bg-[#FBF9F4] px-3 text-[11px] font-bold text-stone-400 uppercase tracking-wider">or sign in with email</span>
             </div>
           ` : ''}
 
@@ -116,22 +153,22 @@ export function createAuthModal({ initialMode = 'SIGN_IN', onClose, onAuthSucces
               <div>
                 <label class="block text-xs font-bold text-[#1E462A] mb-1">Full Name</label>
                 <div class="relative">
-                  <input type="text" id="auth-name-input" required placeholder="e.g. Sarah Jenkins" class="w-full min-h-[48px] px-3.5 py-2.5 rounded-xl bg-white border border-[#DDD5C7] text-stone-900 placeholder-stone-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#10B981] focus:border-transparent transition" />
+                  <input type="text" id="auth-name-input" required placeholder="e.g. Sarah Jenkins" class="w-full min-h-[46px] px-3.5 py-2.5 rounded-xl bg-white border border-[#DDD5C7] text-stone-900 placeholder-stone-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#10B981] focus:border-transparent transition" />
                 </div>
               </div>
 
               <div>
                 <label class="block text-xs font-bold text-[#1E462A] mb-1">Farm / Enterprise Name</label>
                 <div class="relative">
-                  <input type="text" id="auth-farm-input" required placeholder="e.g. Salinas Valley AgriCorp" class="w-full min-h-[48px] px-3.5 py-2.5 rounded-xl bg-white border border-[#DDD5C7] text-stone-900 placeholder-stone-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#10B981] focus:border-transparent transition" />
+                  <input type="text" id="auth-farm-input" required placeholder="e.g. Sonoma Valley Parcel" class="w-full min-h-[46px] px-3.5 py-2.5 rounded-xl bg-white border border-[#DDD5C7] text-stone-900 placeholder-stone-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#10B981] focus:border-transparent transition" />
                 </div>
               </div>
 
               <div>
                 <label class="block text-xs font-bold text-[#1E462A] mb-1.5">Operational Role</label>
                 <div class="grid grid-cols-3 gap-2">
-                  ${['Farm Owner', 'Agronomist', 'Field Operator'].map(r => `
-                    <button type="button" data-role="${r}" class="role-select-btn min-h-[48px] px-2 py-2 rounded-xl text-xs font-bold border transition text-center flex flex-col items-center justify-center cursor-pointer ${
+                  ${['Farm Owner', 'Agronomist', 'Field Tech'].map(r => `
+                    <button type="button" data-role="${r}" class="role-select-btn min-h-[46px] px-2 py-2 rounded-xl text-xs font-bold border transition text-center flex flex-col items-center justify-center cursor-pointer ${
                       selectedRole === r 
                         ? 'bg-[#1E462A] text-white border-[#1E462A] shadow-md shadow-emerald-950/20' 
                         : 'bg-white text-stone-700 border-[#DDD5C7] hover:bg-stone-50'
@@ -147,7 +184,7 @@ export function createAuthModal({ initialMode = 'SIGN_IN', onClose, onAuthSucces
             <div>
               <label class="block text-xs font-bold text-[#1E462A] mb-1">Work Email</label>
               <div class="relative">
-                <input type="email" id="auth-email-input" required placeholder="grower@agrispectra.io" class="w-full min-h-[48px] px-3.5 py-2.5 rounded-xl bg-white border border-[#DDD5C7] text-stone-900 placeholder-stone-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#10B981] focus:border-transparent transition" />
+                <input type="email" id="auth-email-input" required placeholder="grower@agrispectra.io" class="w-full min-h-[46px] px-3.5 py-2.5 rounded-xl bg-white border border-[#DDD5C7] text-stone-900 placeholder-stone-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#10B981] focus:border-transparent transition" />
                 <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none text-stone-400">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"/></svg>
                 </div>
@@ -166,9 +203,9 @@ export function createAuthModal({ initialMode = 'SIGN_IN', onClose, onAuthSucces
                   ` : ''}
                 </div>
                 <div class="relative">
-                  <input type="${showPassword ? 'text' : 'password'}" id="auth-password-input" required minlength="6" placeholder="••••••••••••" class="w-full min-h-[48px] px-3.5 pr-12 py-2.5 rounded-xl bg-white border border-[#DDD5C7] text-stone-900 placeholder-stone-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#10B981] focus:border-transparent transition" />
+                  <input type="${showPassword ? 'text' : 'password'}" id="auth-password-input" required minlength="6" placeholder="••••••••••••" class="w-full min-h-[46px] px-3.5 pr-12 py-2.5 rounded-xl bg-white border border-[#DDD5C7] text-stone-900 placeholder-stone-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#10B981] focus:border-transparent transition" />
                   <!-- Eye toggle button -->
-                  <button type="button" id="auth-toggle-pwd" class="absolute inset-y-0 right-0 px-3.5 min-h-[48px] flex items-center text-stone-400 hover:text-stone-700 transition cursor-pointer" title="${showPassword ? 'Hide password' : 'Show password'}">
+                  <button type="button" id="auth-toggle-pwd" class="absolute inset-y-0 right-0 px-3.5 min-h-[46px] flex items-center text-stone-400 hover:text-stone-700 transition cursor-pointer" title="${showPassword ? 'Hide password' : 'Show password'}">
                     ${showPassword ? `
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"/></svg>
                     ` : `
@@ -183,7 +220,7 @@ export function createAuthModal({ initialMode = 'SIGN_IN', onClose, onAuthSucces
                 <div class="flex items-center gap-2 pt-1">
                   <input type="checkbox" id="auth-remember-check" ${rememberMe ? 'checked' : ''} class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-stone-300 cursor-pointer" />
                   <label for="auth-remember-check" class="text-xs text-stone-600 select-none cursor-pointer">
-                    Stay authenticated on this field terminal
+                    Stay authenticated on this field device
                   </label>
                 </div>
               ` : ''}
@@ -242,7 +279,26 @@ export function createAuthModal({ initialMode = 'SIGN_IN', onClose, onAuthSucces
       });
     }
 
-    // Google Sign-In
+    // Top Segmented Tabs
+    const tabSignIn = overlay.querySelector('#tab-mode-signin');
+    if (tabSignIn) {
+      tabSignIn.addEventListener('click', () => {
+        mode = 'SIGN_IN';
+        bannerState = null;
+        render();
+      });
+    }
+
+    const tabSignUp = overlay.querySelector('#tab-mode-signup');
+    if (tabSignUp) {
+      tabSignUp.addEventListener('click', () => {
+        mode = 'SIGN_UP';
+        bannerState = null;
+        render();
+      });
+    }
+
+    // One-Tap Google Sign-In
     const googleBtn = overlay.querySelector('#google-auth-btn');
     if (googleBtn) {
       googleBtn.addEventListener('click', async () => {
@@ -262,6 +318,33 @@ export function createAuthModal({ initialMode = 'SIGN_IN', onClose, onAuthSucces
         } catch (err) {
           isSubmitting = false;
           bannerState = { type: 'error', message: err.message || "Google authentication was cancelled or interrupted." };
+          render();
+        }
+      });
+    }
+
+    // Offline Field Guest Mode Button
+    const offlineGuestBtn = overlay.querySelector('#offline-guest-btn');
+    if (offlineGuestBtn) {
+      offlineGuestBtn.addEventListener('click', () => {
+        try {
+          const guestRole = selectedRole === 'Field Tech' ? 'Field Operator' : selectedRole;
+          const user = authService.signInAsOfflineGuest(
+            `Field Guest (${guestRole})`,
+            guestRole,
+            "Sonoma Valley Parcel"
+          );
+          bannerState = {
+            type: 'success',
+            message: `Logged in as Offline Field Guest (${guestRole}). Offline telemetry & valve commands active.`
+          };
+          render();
+          setTimeout(() => {
+            if (onAuthSuccess) onAuthSuccess(user.user || user);
+            if (onClose) onClose();
+          }, 500);
+        } catch (e) {
+          bannerState = { type: 'error', message: 'Could not initialize offline guest session: ' + e.message };
           render();
         }
       });
@@ -328,6 +411,19 @@ export function createAuthModal({ initialMode = 'SIGN_IN', onClose, onAuthSucces
           return;
         }
 
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+          bannerState = { type: 'error', message: 'Please provide a valid email format (e.g., name@domain.com).' };
+          render();
+          return;
+        }
+
+        if (mode !== 'FORGOT_PASSWORD' && (!password || password.length < 6)) {
+          bannerState = { type: 'error', message: 'Password must be at least 6 characters long.' };
+          render();
+          return;
+        }
+
         isSubmitting = true;
         bannerState = null;
         render();
@@ -345,8 +441,9 @@ export function createAuthModal({ initialMode = 'SIGN_IN', onClose, onAuthSucces
             }, 600);
           } else if (mode === 'SIGN_UP') {
             const displayName = overlay.querySelector('#auth-name-input')?.value?.trim() || email.split('@')[0];
-            const farmName = overlay.querySelector('#auth-farm-input')?.value?.trim() || 'Central Valley Parcel';
-            const res = await authService.signUpWithEmail(email, password, displayName, farmName, selectedRole);
+            const farmName = overlay.querySelector('#auth-farm-input')?.value?.trim() || 'Sonoma Valley Parcel';
+            const mappedRole = selectedRole === 'Field Tech' ? 'Field Operator' : selectedRole;
+            const res = await authService.signUpWithEmail(email, password, displayName, farmName, mappedRole);
             if (res && res.success === false) throw new Error(res.message);
             const user = res.user || res;
             bannerState = { type: 'success', message: `Account created for ${displayName}! Welcome to AgriSpectra.` };

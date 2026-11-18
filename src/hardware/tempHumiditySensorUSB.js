@@ -99,43 +99,50 @@ export function calculateHeatIndex(tempC, rhPercent) {
  * @param {number} tempC 
  * @param {number} rhPercent 
  * @param {number} vpdKpa 
+ * @param {object} [thresholds] - Custom thresholds overrides
  * @returns {Array<object>} List of active alerts
  */
-export function assessMicroclimateAlerts(tempC, rhPercent, vpdKpa) {
+export function assessMicroclimateAlerts(tempC, rhPercent, vpdKpa, thresholds = null) {
   const alerts = [];
+  const highTemp = thresholds?.highTempC !== undefined ? thresholds.highTempC : 38.0;
+  const lowTemp = thresholds?.lowTempC !== undefined ? thresholds.lowTempC : 4.0;
+  const highRh = thresholds?.highRhPercent !== undefined ? thresholds.highRhPercent : 85.0;
+  const lowRh = thresholds?.lowRhPercent !== undefined ? thresholds.lowRhPercent : 25.0;
+  const highVpd = thresholds?.highVpdKpa !== undefined ? thresholds.highVpdKpa : 1.6;
+  const lowVpd = thresholds?.lowVpdKpa !== undefined ? thresholds.lowVpdKpa : 0.4;
 
-  // High Temperature Alert (> 38°C)
-  if (tempC >= 38.0) {
+  // High Temperature Alert
+  if (tempC >= highTemp) {
     alerts.push({
       type: ALERT_TYPES.HIGH_TEMPERATURE_STRESS,
-      severity: tempC >= 42.0 ? 'CRITICAL' : 'WARNING',
+      severity: tempC >= (highTemp + 4.0) ? 'CRITICAL' : 'WARNING',
       message: `Extreme heat condition (${tempC}°C). High risk of pollen sterility, flower abortion, and stomatal closure.`,
       recommendedAction: 'Engage micro-sprinklers or shade netting to cool canopy.'
     });
   }
 
-  // Low Temperature Alert (< 4°C)
-  if (tempC <= 4.0) {
+  // Low Temperature Alert
+  if (tempC <= lowTemp) {
     alerts.push({
       type: ALERT_TYPES.LOW_TEMPERATURE_FROST,
-      severity: tempC <= 1.0 ? 'CRITICAL' : 'WARNING',
+      severity: tempC <= (lowTemp - 3.0) ? 'CRITICAL' : 'WARNING',
       message: `Near-freezing/frost warning (${tempC}°C). Plant cell rupture and vegetative injury imminent.`,
       recommendedAction: 'Apply nighttime frost protection irrigation or field row covers.'
     });
   }
 
-  // High Humidity Alert (> 85%)
-  if (rhPercent >= 85.0) {
+  // High Humidity Alert
+  if (rhPercent >= highRh) {
     alerts.push({
       type: ALERT_TYPES.HIGH_HUMIDITY_BLIGHT_RISK,
-      severity: rhPercent >= 92.0 ? 'CRITICAL' : 'WARNING',
+      severity: rhPercent >= Math.min(95.0, highRh + 7.0) ? 'CRITICAL' : 'WARNING',
       message: `Prolonged high atmospheric humidity (${rhPercent}% RH). Prime conditions for fungal sporulation (Late Blight / Powdery Mildew).`,
       recommendedAction: 'Withhold overhead canopy wetting; inspect lower leaf canopy for fungal lesions.'
     });
   }
 
-  // Low Humidity Alert (< 25%)
-  if (rhPercent <= 25.0) {
+  // Low Humidity Alert
+  if (rhPercent <= lowRh) {
     alerts.push({
       type: ALERT_TYPES.LOW_HUMIDITY_DESICCATION,
       severity: 'WARNING',
@@ -145,14 +152,14 @@ export function assessMicroclimateAlerts(tempC, rhPercent, vpdKpa) {
   }
 
   // VPD Alerts
-  if (vpdKpa > 1.6) {
+  if (vpdKpa > highVpd) {
     alerts.push({
       type: ALERT_TYPES.HIGH_VPD_TRANSPIRATION_STRESS,
-      severity: vpdKpa > 2.2 ? 'CRITICAL' : 'WARNING',
+      severity: vpdKpa > (highVpd + 0.6) ? 'CRITICAL' : 'WARNING',
       message: `Elevated Vapor Pressure Deficit (${vpdKpa} kPa). High evaporative demand placing excessive tension on xylem.`,
       recommendedAction: 'Increase irrigation frequency to support high transpiration.'
     });
-  } else if (vpdKpa < 0.4 && rhPercent > 80) {
+  } else if (vpdKpa < lowVpd && rhPercent > 80) {
     alerts.push({
       type: ALERT_TYPES.LOW_VPD_STAGNATION,
       severity: 'INFO',
@@ -171,6 +178,16 @@ export class TempHumiditySensorUSB {
     this.isSimulated = false;
     this.device = null;
     this.linkedSoilSensor = null; // Optional LabartSoilSensorUSB instance for temperature pairing
+
+    // Configurable microclimate thresholds
+    this.thresholds = {
+      highTempC: 35.0,
+      lowTempC: 5.0,
+      highRhPercent: 85.0,
+      lowRhPercent: 25.0,
+      highVpdKpa: 1.6,
+      lowVpdKpa: 0.4
+    };
 
     // Geographic coordinates for weather API fallback (default: Punjab agricultural belt 30.9010, 75.8573)
     this.location = {
@@ -355,6 +372,43 @@ export class TempHumiditySensorUSB {
   }
 
   /**
+   * Set connection mode
+   */
+  setConnectionMode(mode) {
+    this.connectionMode = mode;
+    this.emit('modeChange', { mode });
+    return this.connectionMode;
+  }
+
+  /**
+   * Get active microclimate threshold configuration
+   * @returns {{ highTempC: number, lowTempC: number, highRhPercent: number, lowRhPercent?: number, highVpdKpa?: number, lowVpdKpa?: number }}
+   */
+  getThresholds() {
+    return { ...this.thresholds };
+  }
+
+  /**
+   * Set microclimate thresholds with defensive backwards compatibility
+   * @param {object} newThresholds
+   */
+  setThresholds(newThresholds = {}) {
+    this.thresholds = {
+      ...this.thresholds,
+      ...newThresholds
+    };
+    this.emit('thresholdsUpdated', this.getThresholds());
+    return this.getThresholds();
+  }
+
+  /**
+   * Configure microclimate thresholds alias
+   */
+  configureThresholds(newThresholds = {}) {
+    return this.setThresholds(newThresholds);
+  }
+
+  /**
    * Read temperature & humidity using the dual-source hierarchy with explicit source labeling:
    *   1. LIVE_PHYSICAL_SENSOR (if connected hardware or linked physical LABART sensor)
    *   2. ESTIMATED_WEATHER_API (Open-Meteo / IMD API)
@@ -479,7 +533,7 @@ export class TempHumiditySensorUSB {
     if (vpd < 0.4) vpdClassification = 'UNDER_TRANSPIRATION';
     else if (vpd > 1.6) vpdClassification = 'HIGH_WATER_STRESS';
 
-    const alerts = assessMicroclimateAlerts(roundedTemp, roundedRh, vpd);
+    const alerts = assessMicroclimateAlerts(roundedTemp, roundedRh, vpd, this.thresholds);
 
     return {
       temperatureCelsius: roundedTemp,
@@ -529,6 +583,38 @@ export class TempHumiditySensorUSB {
     return this._formatReading(24.0, 60.0, DATA_SOURCES.LAST_CACHED_READING, {
       note: 'Factory Default Offline Baseline'
     });
+  }
+
+  /**
+   * Get currently active microclimate threshold alert limits
+   * @returns {object}
+   */
+  getThresholds() {
+    if (!this.thresholds) {
+      this.thresholds = {
+        highTempC: 38.0,
+        lowTempC: 4.0,
+        highRhPercent: 85.0,
+        lowRhPercent: 25.0,
+        highVpdKpa: 1.6,
+        lowVpdKpa: 0.4
+      };
+    }
+    return { ...this.thresholds };
+  }
+
+  /**
+   * Configure microclimate threshold alert limits
+   * @param {object} newThresholds
+   * @returns {object}
+   */
+  configureThresholds(newThresholds = {}) {
+    this.thresholds = {
+      ...this.getThresholds(),
+      ...newThresholds
+    };
+    this.emit('thresholdsUpdated', this.thresholds);
+    return { ...this.thresholds };
   }
 
   getStatus() {

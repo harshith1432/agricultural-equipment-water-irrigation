@@ -28,7 +28,10 @@ export function createEnvironmentMonitorView() {
   let pollingIntervalId = null;
 
   // Threshold alerts configuration state
-  let thresholds = tempHumiditySensorUSB.getThresholds();
+  const defaultThresholds = { highTempC: 38.0, lowTempC: 4.0, highRhPercent: 85.0, lowRhPercent: 25.0, highVpdKpa: 1.6, lowVpdKpa: 0.4 };
+  let thresholds = (typeof tempHumiditySensorUSB.getThresholds === 'function')
+    ? tempHumiditySensorUSB.getThresholds()
+    : defaultThresholds;
 
   // Synthetic 24-hour sparkline history
   const tempHistory = [18, 17, 16, 16, 17, 19, 21, 23, 25, 27, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 19, 18, 18, 17];
@@ -64,7 +67,8 @@ export function createEnvironmentMonitorView() {
   }
 
   function render() {
-    const temp = currentReading?.temperatureC ?? 24.2;
+    try {
+      const temp = currentReading?.temperatureC ?? 24.2;
     const rh = currentReading?.relativeHumidityPercent ?? 48.5;
     const vpd = currentReading?.vpdKPa ?? calculateVaporPressureDeficit(temp, rh);
     const dew = currentReading?.dewPointC ?? calculateDewPoint(temp, rh);
@@ -175,35 +179,35 @@ export function createEnvironmentMonitorView() {
         </div>
 
         <!-- 4 Metrics Row (Humidity, Precipitation, Pressure, Wind) -->
-        <div class="grid grid-cols-4 gap-2 pt-3 border-t border-emerald-700/40 text-center">
-          <div class="bg-white/10 rounded-2xl py-2 px-1">
-            <div class="text-[10px] text-emerald-200 font-medium">Humidity</div>
-            <div class="text-sm font-black font-mono mt-0.5">${rh.toFixed(0)}%</div>
+        <div class="grid grid-cols-4 gap-1.5 pt-3 border-t border-emerald-700/40 text-center">
+          <div class="bg-white/10 rounded-2xl py-2 px-1 min-w-0 overflow-hidden">
+            <div class="text-[9.5px] text-emerald-200 font-medium truncate">Humidity</div>
+            <div class="text-xs sm:text-sm font-black font-mono mt-0.5 truncate">${rh.toFixed(0)}%</div>
           </div>
-          <div class="bg-white/10 rounded-2xl py-2 px-1">
-            <div class="text-[10px] text-emerald-200 font-medium">Precip</div>
-            <div class="text-sm font-black font-mono mt-0.5">0.0 mm</div>
+          <div class="bg-white/10 rounded-2xl py-2 px-1 min-w-0 overflow-hidden">
+            <div class="text-[9.5px] text-emerald-200 font-medium truncate">Precip</div>
+            <div class="text-xs sm:text-sm font-black font-mono mt-0.5 truncate">0.0 mm</div>
           </div>
-          <div class="bg-white/10 rounded-2xl py-2 px-1">
-            <div class="text-[10px] text-emerald-200 font-medium">Pressure</div>
-            <div class="text-sm font-black font-mono mt-0.5">1013 hPa</div>
+          <div class="bg-white/10 rounded-2xl py-2 px-1 min-w-0 overflow-hidden">
+            <div class="text-[9.5px] text-emerald-200 font-medium truncate">Pressure</div>
+            <div class="text-xs sm:text-sm font-black font-mono mt-0.5 truncate">1013 hPa</div>
           </div>
-          <div class="bg-white/10 rounded-2xl py-2 px-1">
-            <div class="text-[10px] text-emerald-200 font-medium">Wind</div>
-            <div class="text-sm font-black font-mono mt-0.5">12 km/h</div>
+          <div class="bg-white/10 rounded-2xl py-2 px-1 min-w-0 overflow-hidden">
+            <div class="text-[9.5px] text-emerald-200 font-medium truncate">Wind</div>
+            <div class="text-xs sm:text-sm font-black font-mono mt-0.5 truncate">12 km/h</div>
           </div>
         </div>
 
         <!-- Sunrise / Sunset Daylight Arc Indicator -->
-        <div class="bg-white/10 rounded-2xl p-3 flex items-center justify-between text-xs text-emerald-100 font-mono">
-          <div class="flex items-center gap-1.5">
+        <div class="bg-white/10 rounded-2xl p-3 flex items-center justify-between gap-2 text-xs text-emerald-100 font-mono min-w-0 overflow-hidden">
+          <div class="flex items-center gap-1.5 shrink-0">
             ${icon('sun', 'w-4 h-4 text-amber-300')}
-            <span>Sunrise: 05:45 AM</span>
+            <span class="text-[11px]">05:45 AM</span>
           </div>
-          <div class="w-16 h-1 bg-gradient-to-r from-amber-300 via-emerald-300 to-amber-400 rounded-full"></div>
-          <div class="flex items-center gap-1.5">
+          <div class="flex-1 mx-2 h-1 bg-gradient-to-r from-amber-300 via-emerald-300 to-amber-400 rounded-full min-w-[20px]"></div>
+          <div class="flex items-center gap-1.5 shrink-0">
             ${icon('cloud', 'w-4 h-4 text-emerald-300')}
-            <span>Sunset: 06:15 PM</span>
+            <span class="text-[11px]">06:15 PM</span>
           </div>
         </div>
 
@@ -374,6 +378,22 @@ export function createEnvironmentMonitorView() {
     `;
 
     attachEvents();
+    } catch (err) {
+      console.error("[EnvironmentMonitorView] Render error safely handled:", err);
+      container.innerHTML = `
+        <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-sm border border-emerald-900/10 dark:border-slate-800 text-center space-y-3">
+          <div class="w-12 h-12 mx-auto rounded-full bg-emerald-50 text-[#0E5431] flex items-center justify-center">
+            ${icon('thermometer', 'w-6 h-6')}
+          </div>
+          <h3 class="text-sm font-bold text-slate-900 dark:text-white">Environment & Microclimate Monitor</h3>
+          <p class="text-xs text-slate-500">Live dual-source sensor telemetry active.</p>
+          <button type="button" id="btn-env-recovery-retry" class="px-4 py-2 rounded-full bg-[#0E5431] text-white text-xs font-bold">
+            Refresh Climate
+          </button>
+        </div>
+      `;
+      container.querySelector('#btn-env-recovery-retry')?.addEventListener('click', () => loadReading());
+    }
   }
 
   function attachEvents() {
@@ -391,13 +411,17 @@ export function createEnvironmentMonitorView() {
       const frost = parseFloat(container.querySelector('#thresh-frost')?.value) || 3.0;
       const rh = parseFloat(container.querySelector('#thresh-rh')?.value) || 85.0;
 
-      tempHumiditySensorUSB.configureThresholds({
-        highTempC: heat,
-        lowTempC: frost,
-        highRhPercent: rh
-      });
-      thresholds = tempHumiditySensorUSB.getThresholds();
-      alert("Microclimate Thresholds Updated!");
+      if (typeof tempHumiditySensorUSB.configureThresholds === 'function') {
+        tempHumiditySensorUSB.configureThresholds({
+          highTempC: heat,
+          lowTempC: frost,
+          highRhPercent: rh
+        });
+      }
+      thresholds = (typeof tempHumiditySensorUSB.getThresholds === 'function')
+        ? tempHumiditySensorUSB.getThresholds()
+        : { highTempC: heat, lowTempC: frost, highRhPercent: rh };
+      render();
     });
   }
 

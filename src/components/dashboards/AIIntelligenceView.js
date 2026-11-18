@@ -21,13 +21,14 @@ export function createAIIntelligenceView({
   onActuateValve
 }) {
   const container = document.createElement('div');
-  container.className = "ai-intelligence-view w-full space-y-4 pb-28 text-slate-800 select-none";
+  container.className = "ai-intelligence-view w-full space-y-4 pb-28 text-slate-800 select-none overflow-x-hidden";
 
   // State of executed recommendations
   const executedActions = new Set();
 
   function render() {
-    container.innerHTML = `
+    try {
+      container.innerHTML = `
       <!-- 1. Top Hero Card: Cross-Module Data Fusion -->
       <div class="bg-gradient-to-br from-[#0E5431] to-[#0A3D23] text-white rounded-3xl p-5 shadow-lg border border-emerald-800/40 space-y-4">
         <div class="flex items-center justify-between">
@@ -210,6 +211,22 @@ export function createAIIntelligenceView({
     `;
 
     attachEvents();
+    } catch (err) {
+      console.error("[AIIntelligenceView] Safe render fallback:", err);
+      container.innerHTML = `
+        <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-sm border border-emerald-900/10 dark:border-slate-800 text-center space-y-3">
+          <div class="w-12 h-12 mx-auto rounded-full bg-emerald-50 text-[#0E5431] flex items-center justify-center">
+            ${icon('zap', 'w-6 h-6')}
+          </div>
+          <h3 class="text-sm font-bold text-slate-900 dark:text-white">AI Insights & Crop Intelligence</h3>
+          <p class="text-xs text-slate-500">Cross-module multi-modal decision support active.</p>
+          <button type="button" id="btn-ai-recovery-retry" class="px-4 py-2 rounded-full bg-[#0E5431] text-white text-xs font-bold">
+            Refresh Insights
+          </button>
+        </div>
+      `;
+      container.querySelector('#btn-ai-recovery-retry')?.addEventListener('click', () => render());
+    }
   }
 
   function attachEvents() {

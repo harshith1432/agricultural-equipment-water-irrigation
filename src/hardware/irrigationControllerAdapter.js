@@ -282,6 +282,22 @@ export class IrrigationControllerAdapter {
   }
 
   /**
+   * Set connection mode
+   */
+  setConnectionMode(mode) {
+    this.connectionMode = mode;
+    this.emit('modeChange', { mode });
+    return this.connectionMode;
+  }
+
+  /**
+   * Get current hydraulic telemetry
+   */
+  getTelemetry() {
+    return { ...this.telemetry };
+  }
+
+  /**
    * Send bi-stable +12V pulse to open solenoid valve
    * Includes controller ACK confirmation and timeout retry
    * @param {string} valveId
@@ -505,25 +521,52 @@ export class IrrigationControllerAdapter {
 
   /**
    * Multi-slot schedule management
+   * Supports registerSchedule / addSchedule with defensive backwards compatibility
    */
-  addSchedule(valveId, { id = `slot-${Date.now()}`, startTime, endTime, durationMinutes = null, activeDays = [0,1,2,3,4,5,6], targetVolumeLiters = null, enabled = true }) {
-    if (!this.valves.has(valveId)) throw new Error(`Valve ${valveId} not found`);
+  registerSchedule(valveId, scheduleOptions = {}) {
+    if (!valveId) throw new Error('Valve ID is required to register a schedule');
+    
+    // Auto-register valve placeholder if not yet registered for defensive robustness
+    if (!this.valves.has(valveId)) {
+      this.registerValve({ id: valveId, name: `Zone ${valveId}` });
+    }
+
     const slots = this.schedules.get(valveId) || [];
+    const id = scheduleOptions.id || `slot-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+    let durationMinutes = scheduleOptions.durationMinutes || null;
+    if (!durationMinutes && scheduleOptions.startTime && scheduleOptions.endTime) {
+      try {
+        const [sh, sm] = scheduleOptions.startTime.split(':').map(Number);
+        const [eh, em] = scheduleOptions.endTime.split(':').map(Number);
+        const diff = (eh * 60 + em) - (sh * 60 + sm);
+        if (diff > 0) durationMinutes = diff;
+      } catch (e) {}
+    }
+
     const slot = {
       id,
       valveId,
-      startTime, // '06:00'
-      endTime,   // '06:30'
+      slotName: scheduleOptions.slotName || scheduleOptions.name || 'Scheduled Irrigation Slot',
+      startTime: scheduleOptions.startTime || '06:00',
+      endTime: scheduleOptions.endTime || '06:30',
       durationMinutes,
-      activeDays,
-      targetVolumeLiters,
-      enabled,
-      createdAt: new Date().toISOString()
+      activeDays: scheduleOptions.activeDays || [0, 1, 2, 3, 4, 5, 6],
+      targetVolumeLiters: scheduleOptions.targetVolumeLiters || null,
+      flowLimitLpm: scheduleOptions.flowLimitLpm || null,
+      enabled: scheduleOptions.enabled !== false,
+      createdAt: scheduleOptions.createdAt || new Date().toISOString()
     };
+
     slots.push(slot);
     this.schedules.set(valveId, slots);
     this.emit('scheduleAdded', slot);
+    this.emit('scheduleRegistered', slot);
     return slot;
+  }
+
+  addSchedule(valveId, scheduleOptions = {}) {
+    return this.registerSchedule(valveId, scheduleOptions);
   }
 
   removeSchedule(valveId, scheduleId) {
@@ -533,6 +576,10 @@ export class IrrigationControllerAdapter {
     this.schedules.set(valveId, updated);
     this.emit('scheduleRemoved', { valveId, scheduleId });
     return true;
+  }
+
+  deleteSchedule(valveId, scheduleId) {
+    return this.removeSchedule(valveId, scheduleId);
   }
 
   getSchedules(valveId = null) {

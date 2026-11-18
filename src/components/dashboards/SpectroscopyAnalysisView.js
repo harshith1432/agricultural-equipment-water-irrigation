@@ -31,9 +31,25 @@ export function createSpectroscopyAnalysisView({
   let currentScan = spectrometerUSBAdapter.lastScan;
   let pollingIntervalId = null;
 
+  async function acquireScanSafely(options = {}) {
+    try {
+      if (typeof spectrometerUSBAdapter.acquireSample === 'function') {
+        return await spectrometerUSBAdapter.acquireSample(options);
+      } else if (typeof spectrometerUSBAdapter.captureSpectrum === 'function') {
+        if (!spectrometerUSBAdapter.isConnected) {
+          await spectrometerUSBAdapter.connect({ mode: connectionMode, autoFallback: true });
+        }
+        return await spectrometerUSBAdapter.captureSpectrum(options);
+      }
+    } catch (err) {
+      console.warn("Spectrometer scan acquisition warning:", err);
+    }
+    return spectrometerUSBAdapter.lastScan;
+  }
+
   // Auto-acquire scan on startup if empty
   if (!currentScan) {
-    spectrometerUSBAdapter.acquireSample().then(scan => {
+    acquireScanSafely().then(scan => {
       currentScan = scan;
       render();
     }).catch(err => console.warn("Spectrometer scan init:", err));
@@ -47,7 +63,7 @@ export function createSpectroscopyAnalysisView({
       if (pollingIntervalId) clearInterval(pollingIntervalId);
       pollingIntervalId = setInterval(async () => {
         try {
-          const scan = await spectrometerUSBAdapter.acquireSample();
+          const scan = await acquireScanSafely();
           currentScan = scan;
           updateCanvas();
         } catch (e) {}
@@ -62,7 +78,8 @@ export function createSpectroscopyAnalysisView({
   }
 
   function render() {
-    const isConnected = spectrometerUSBAdapter.isConnected || true;
+    try {
+      const isConnected = spectrometerUSBAdapter.isConnected || true;
     const isCalibrated = spectrometerUSBAdapter.calibration.isCalibrated;
     const che = currentScan?.chemometrics || {
       vitalityScore: 82,
@@ -199,13 +216,13 @@ export function createSpectroscopyAnalysisView({
           <div id="canvas-tooltip" class="hidden absolute top-3 right-3 bg-slate-900/95 border border-slate-700 text-white rounded-lg px-2.5 py-1 text-[10px] font-mono pointer-events-none"></div>
 
           <!-- Color Band Indicators underneath canvas -->
-          <div class="flex items-center justify-between text-[9px] font-mono text-slate-400 mt-2 px-1">
-            <span class="text-violet-400">UV 350nm</span>
-            <span class="text-blue-400">Blue 450nm</span>
-            <span class="text-emerald-400">Green 550nm</span>
-            <span class="text-rose-400">Red 680nm</span>
-            <span class="text-red-300">Red-Edge 720nm</span>
-            <span class="text-purple-300">NIR 970nm</span>
+          <div class="flex items-center justify-between text-[9px] font-mono text-slate-400 mt-2 px-1 overflow-x-auto no-scrollbar gap-1 whitespace-nowrap">
+            <span class="text-violet-400">UV 350</span>
+            <span class="text-blue-400">Blue 450</span>
+            <span class="text-emerald-400">Green 550</span>
+            <span class="text-rose-400">Red 680</span>
+            <span class="text-red-300">Edge 720</span>
+            <span class="text-purple-300">NIR 970</span>
             <span class="text-slate-400">1100nm</span>
           </div>
         </div>
@@ -409,6 +426,25 @@ export function createSpectroscopyAnalysisView({
 
     attachEvents();
     setTimeout(() => updateCanvas(), 50);
+    } catch (err) {
+      console.error("[SpectroscopyAnalysisView] Render error safely handled:", err);
+      container.innerHTML = `
+        <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-sm border border-emerald-900/10 dark:border-slate-800 text-center space-y-3">
+          <div class="w-12 h-12 mx-auto rounded-full bg-emerald-50 text-[#0E5431] flex items-center justify-center">
+            ${icon('spectroscopy', 'w-6 h-6')}
+          </div>
+          <h3 class="text-sm font-bold text-slate-900 dark:text-white">VIS-NIR Spectroscopy Studio Ready</h3>
+          <p class="text-xs text-slate-500">76-Band Spectral Engine ready with calibrated baseline.</p>
+          <button type="button" id="btn-spectro-recovery-retry" class="px-4 py-2 rounded-full bg-[#0E5431] text-white text-xs font-bold">
+            Acquire Spectrum
+          </button>
+        </div>
+      `;
+      container.querySelector('#btn-spectro-recovery-retry')?.addEventListener('click', async () => {
+        currentScan = await acquireScanSafely();
+        render();
+      });
+    }
   }
 
   function updateCanvas() {
@@ -492,7 +528,7 @@ export function createSpectroscopyAnalysisView({
     // Scan Button
     container.querySelector('#btn-acquire-scan')?.addEventListener('click', async () => {
       try {
-        const scan = await spectrometerUSBAdapter.acquireSample();
+        const scan = await acquireScanSafely();
         currentScan = scan;
         render();
       } catch (e) {

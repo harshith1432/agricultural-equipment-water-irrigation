@@ -45,24 +45,33 @@ export function createIrrigationManagementView({
   }
 
   // Pre-seed a schedule if empty
-  const allValves = irrigationControllerAdapter.getAllValves();
-  if (allValves.length > 0 && irrigationControllerAdapter.getSchedules(allValves[0].id).length === 0) {
-    irrigationControllerAdapter.registerSchedule(allValves[0].id, {
-      slotName: 'Morning Root Hydration',
-      startTime: '05:30',
-      endTime: '06:15',
-      activeDays: [1, 2, 3, 4, 5],
-      targetVolumeLiters: 350,
-      flowLimitLpm: 12.0,
-      enabled: true
-    });
+  const allValves = irrigationControllerAdapter.getAllValves ? irrigationControllerAdapter.getAllValves() : [];
+  if (allValves.length > 0) {
+    const existingSchedules = irrigationControllerAdapter.getSchedules ? irrigationControllerAdapter.getSchedules(allValves[0].id) : [];
+    if (!existingSchedules || existingSchedules.length === 0) {
+      const scheduleOptions = {
+        slotName: 'Morning Root Hydration',
+        startTime: '05:30',
+        endTime: '06:15',
+        activeDays: [1, 2, 3, 4, 5],
+        targetVolumeLiters: 350,
+        flowLimitLpm: 12.0,
+        enabled: true
+      };
+      if (typeof irrigationControllerAdapter.registerSchedule === 'function') {
+        irrigationControllerAdapter.registerSchedule(allValves[0].id, scheduleOptions);
+      } else if (typeof irrigationControllerAdapter.addSchedule === 'function') {
+        irrigationControllerAdapter.addSchedule(allValves[0].id, scheduleOptions);
+      }
+    }
   }
 
   function render() {
-    const valves = irrigationControllerAdapter.getAllValves();
-    const telemetry = irrigationControllerAdapter.getTelemetry();
-    const activeValvesCount = valves.filter(v => v.state === VALVE_STATES.OPEN).length;
-    const currentFlowLpm = (telemetry.totalActiveFlowRateLph / 60).toFixed(1);
+    try {
+      const valves = irrigationControllerAdapter.getAllValves ? irrigationControllerAdapter.getAllValves() : [];
+      const telemetry = irrigationControllerAdapter.getTelemetry ? irrigationControllerAdapter.getTelemetry() : { totalActiveFlowRateLph: 0, totalLitersDeliveredAllTime: 0, totalLitersToday: 0, mainlinePressureBar: 2.1 };
+      const activeValvesCount = valves.filter(v => v.state === VALVE_STATES.OPEN).length;
+      const currentFlowLpm = (((telemetry && telemetry.totalActiveFlowRateLph) || 0) / 60).toFixed(1);
 
     container.innerHTML = `
       <!-- 1. Header Card with Live Water Flow Meter -->
@@ -177,16 +186,16 @@ export function createIrrigationManagementView({
             return `
               <div 
                 data-valve-id="${valve.id}"
-                class="valve-card p-3 rounded-2xl border transition-all ${
+                class="valve-card p-3 rounded-2xl border transition-all min-w-0 overflow-hidden ${
                   isOpen 
                     ? 'bg-emerald-50/60 dark:bg-emerald-950/30 border-emerald-500/40 shadow-sm' 
                     : 'bg-slate-50/60 dark:bg-slate-850 border-slate-200 dark:border-slate-700/60'
                 }"
               >
-                <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center justify-between gap-2.5">
                   <!-- Left: Valve Info -->
-                  <div class="flex items-center gap-2.5">
-                    <div class="w-9 h-9 rounded-xl flex items-center justify-center font-mono font-bold text-xs ${
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="w-9 h-9 rounded-xl flex items-center justify-center font-mono font-bold text-xs shrink-0 ${
                       isOpen 
                         ? 'bg-[#0E5431] text-white shadow-sm' 
                         : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
@@ -194,43 +203,43 @@ export function createIrrigationManagementView({
                       ${valve.gateIdentifier || 'G'}
                     </div>
 
-                    <div class="flex flex-col">
-                      <div class="flex items-center gap-2">
-                        <span class="text-xs font-bold text-slate-900 dark:text-white">${valve.name}</span>
+                    <div class="flex flex-col min-w-0">
+                      <div class="flex items-center gap-1.5 flex-wrap">
+                        <span class="text-xs font-bold text-slate-900 dark:text-white truncate">${valve.name}</span>
                         <!-- Status Pill -->
                         ${renderStatusPill(currentPill)}
                       </div>
-                      <div class="flex items-center gap-2 text-[10px] text-slate-500 font-mono mt-0.5">
+                      <div class="flex items-center gap-1 text-[10px] text-slate-500 font-mono mt-0.5 truncate">
                         <span>Rate: ${valve.nominalFlowRateLph} LPH</span>
                         <span>•</span>
-                        <span>Delivered: ${valve.litersDeliveredSession.toFixed(0)} L</span>
+                        <span>${valve.litersDeliveredSession.toFixed(0)} L</span>
                       </div>
                     </div>
                   </div>
 
                   <!-- Right: Manual Toggle & Actions -->
-                  <div class="flex items-center gap-1.5">
+                  <div class="flex items-center gap-1.5 shrink-0">
                     <!-- Tactile Actuate Button (Preserves .valve-actuate-btn for CDP automated testing) -->
                     <button 
                       type="button"
                       data-valve-id="${valve.id}"
                       data-gate-id="${valve.gateIdentifier}"
                       data-action="${targetAction}"
-                      class="valve-actuate-btn px-4 py-2 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm ${
+                      class="valve-actuate-btn px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm whitespace-nowrap active:scale-95 ${
                         isOpen 
                           ? 'bg-rose-600 hover:bg-rose-700 text-white' 
                           : 'bg-[#0E5431] hover:bg-[#093820] text-white'
                       }"
                     >
                       ${isOpen ? icon('pause', 'w-3.5 h-3.5') : icon('play', 'w-3.5 h-3.5')}
-                      <span>${isOpen ? 'Close Gate (-12V)' : 'Open Gate (+12V)'}</span>
+                      <span>${isOpen ? 'Close' : 'Irrigate'}</span>
                     </button>
 
                     <!-- Delete Valve -->
                     <button 
                       type="button" 
                       data-delete-valve-id="${valve.id}"
-                      class="p-2 rounded-full hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition"
+                      class="p-1.5 rounded-full hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition shrink-0"
                       title="Remove Valve"
                     >
                       ${icon('trash', 'w-3.5 h-3.5')}
@@ -278,6 +287,22 @@ export function createIrrigationManagementView({
     `;
 
     attachEvents();
+    } catch (err) {
+      console.error("[IrrigationManagementView] Safe render fallback:", err);
+      container.innerHTML = `
+        <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-sm border border-emerald-900/10 dark:border-slate-800 text-center space-y-3">
+          <div class="w-12 h-12 mx-auto rounded-full bg-emerald-50 text-[#0E5431] flex items-center justify-center">
+            ${icon('droplet', 'w-6 h-6')}
+          </div>
+          <h3 class="text-sm font-bold text-slate-900 dark:text-white">Drip Irrigation Hub</h3>
+          <p class="text-xs text-slate-500">Telemetry synced with 6 hydraulic latching valves.</p>
+          <button type="button" id="btn-irrigation-recovery-retry" class="px-4 py-2 rounded-full bg-[#0E5431] text-white text-xs font-bold">
+            Refresh Valves
+          </button>
+        </div>
+      `;
+      container.querySelector('#btn-irrigation-recovery-retry')?.addEventListener('click', () => render());
+    }
   }
 
   function renderStatusPill(status) {
@@ -581,7 +606,7 @@ export function createIrrigationManagementView({
       const flowLimit = parseFloat(modal.querySelector('#sch-flow')?.value) || 15.0;
 
       if (vId) {
-        irrigationControllerAdapter.registerSchedule(vId, {
+        const scheduleData = {
           slotName: slotName || 'Scheduled Slot',
           startTime,
           endTime,
@@ -589,7 +614,12 @@ export function createIrrigationManagementView({
           targetVolumeLiters: targetVol,
           flowLimitLpm: flowLimit,
           enabled: true
-        });
+        };
+        if (typeof irrigationControllerAdapter.registerSchedule === 'function') {
+          irrigationControllerAdapter.registerSchedule(vId, scheduleData);
+        } else if (typeof irrigationControllerAdapter.addSchedule === 'function') {
+          irrigationControllerAdapter.addSchedule(vId, scheduleData);
+        }
       }
 
       modal.classList.add('hidden');

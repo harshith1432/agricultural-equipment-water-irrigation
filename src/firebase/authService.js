@@ -20,14 +20,15 @@
  */
 
 import {
+  getAuth,
   signInWithPopup,
   signInWithRedirect,
   GoogleAuthProvider,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
-  signOut,
-  onAuthStateChanged,
+  signOut as firebaseSignOut,
+  onAuthStateChanged as firebaseOnAuthStateChanged,
   updateProfile
 } from 'firebase/auth';
 import {
@@ -37,16 +38,32 @@ import {
   updateDoc,
   serverTimestamp
 } from 'firebase/firestore';
-import { auth, db, isLiveFirebaseConfigured } from './config.js';
+import { app, auth, db, isLiveFirebaseConfigured } from './config.js';
 
 export const DEFAULT_FARM_ID = "farm-valley-1";
 export const DEFAULT_ROLE = "Agronomist";
 const STORAGE_USER_KEY = "agrispectra_auth_user";
 const STORAGE_OFFLINE_PROFILE_KEY = "agrispectra_offline_profile";
 
+/**
+ * Standard Offline Guest Mode User Object
+ * Used when field operations are completely offline or Firebase auth is unconfigured/unreachable.
+ */
+export const GUEST_USER = {
+  uid: 'guest-offline-farmer',
+  displayName: 'Field Operator (Guest)',
+  email: 'offline@agrispectra.local',
+  role: 'Field Technician',
+  isAnonymous: true,
+  isOffline: true,
+  farmId: DEFAULT_FARM_ID,
+  farmName: 'Central Valley Alpha Block'
+};
+
 class AuthService {
   constructor() {
-    this.auth = auth;
+    // Modular Firebase Auth initialization with graceful fallback
+    this.auth = auth || (app ? (() => { try { return getAuth(app); } catch (e) { return null; } })() : null);
     this.db = db;
     this.listeners = new Set();
     this.currentUser = null;
@@ -105,7 +122,7 @@ class AuthService {
     // Setup live Firebase Auth state listener if initialized in browser
     if (this.auth && typeof window !== 'undefined') {
       try {
-        onAuthStateChanged(this.auth, async (user) => {
+        firebaseOnAuthStateChanged(this.auth, async (user) => {
           if (user) {
             this.currentUser = user;
             this.isOfflineSession = false;
@@ -171,6 +188,7 @@ class AuthService {
 
           parsed.displayName = String(parsed.displayName || parsed.email.split('@')[0]).slice(0, 100);
           parsed.farmName = String(parsed.farmName || "Central Valley Alpha Block").slice(0, 100);
+          parsed.isAnonymous = Boolean(parsed.isAnonymous || parsed.uid === 'guest-offline-farmer');
 
           this.currentUser = parsed;
           this.currentUserProfile = parsed;
@@ -207,6 +225,7 @@ class AuthService {
           farmId,
           farmName: user.farmName || this.currentUserProfile?.farmName || "Central Valley Alpha Block",
           isOffline: Boolean(user.isOffline),
+          isAnonymous: Boolean(user.isAnonymous || user.uid === 'guest-offline-farmer'),
           sessionSig,
           cachedAt: new Date().toISOString()
         };
@@ -259,7 +278,8 @@ class AuthService {
         role: role,
         farmId: this.currentUserProfile?.farmId || DEFAULT_FARM_ID,
         farmName: farmName,
-        isOffline: this.isOfflineSession,
+        isOffline: Boolean(this.isOfflineSession || this.currentUser.isOffline),
+        isAnonymous: Boolean(this.currentUser.isAnonymous || this.currentUser.uid === 'guest-offline-farmer'),
         isTampered: Boolean(this.currentUser.tampered || this.currentUser.isTampered)
       };
       return userPayload;
@@ -286,16 +306,21 @@ class AuthService {
     return this.subscribeAuthState(callback);
   }
 
+  onAuthStateChange(callback) {
+    return this.subscribeAuthState(callback);
+  }
+
   /**
    * Google Sign-In with popup and webview fallback
+   * Gracefully falls back to offline guest if network or configuration fails
    */
-  async signInWithGoogle() {
+  async signInWithGoogle(options = {}) {
     console.log("[AuthService] Starting Google Sign-In flow...");
     const isBrowser = typeof window !== 'undefined' && typeof navigator !== 'undefined';
 
     // If running in Node test environment or without live auth
     if (!isBrowser || !this.auth) {
-      return this._activateOfflineFallback("Google Agronomist", "agronomist.grower@agrispectra.io", "Agronomist");
+      return this._activateOfflineFallback("Google Agronomist", "agronomist.grower@agrispectra.io", options?.role || "Agronomist");
     }
 
     const provider = new GoogleAuthProvider();
@@ -309,10 +334,11 @@ class AuthService {
         if (
           popupErr.code === 'auth/popup-blocked' ||
           popupErr.code === 'auth/operation-not-supported-in-this-environment' ||
-          popupErr.code === 'auth/configuration-not-found'
+          popupErr.code === 'auth/configuration-not-found' ||
+          popupErr.code === 'auth/invalid-api-key'
         ) {
           console.info("[AuthService] Popup blocked/unsupported, falling back to field mode:", popupErr.code);
-          return this._activateOfflineFallback("Google Agronomist", "agronomist.grower@agrispectra.io", "Agronomist");
+          return this._activateOfflineFallback("Google Agronomist", "agronomist.grower@agrispectra.io", options?.role || "Agronomist");
         }
         throw popupErr;
       }
@@ -338,7 +364,7 @@ class AuthService {
       };
     } catch (error) {
       console.error("[AuthService] Google Sign-In error:", error);
-      return this._activateOfflineFallback("Google Agronomist", "agronomist.grower@agrispectra.io", "Agronomist");
+      return this._activateOfflineFallback("Google Agronomist", "agronomist.grower@agrispectra.io", options?.role || "Agronomist");
     }
   }
 
@@ -395,9 +421,12 @@ class AuthService {
   }
 
   /**
-   * Sign Up with Email, Password, Display Name, Farm Name, and Role
+   * Sign Up with Email, Password, Display Name, and Role / Farm Name
+   * Polymorphic signature supports:
+   *  - signUpWithEmail(email, password, displayName, role)
+   *  - signUpWithEmail(email, password, displayName, farmName, role)
    */
-  async signUpWithEmail(email, password, displayName = "", farmName = "Central Valley Alpha Block", role = "Farm Owner") {
+  async signUpWithEmail(email, password, displayName = "", param4 = "Central Valley Alpha Block", param5 = "Farm Owner") {
     console.log(`[AuthService] Registering new account for: ${email}`);
 
     if (!email || !password) {
@@ -405,6 +434,32 @@ class AuthService {
         success: false,
         message: "Please provide an email and password."
       };
+    }
+
+    let farmName = "Central Valley Alpha Block";
+    let role = "Farm Owner";
+
+    const knownRoles = [
+      "farm owner",
+      "agronomist",
+      "field operator",
+      "field technician",
+      "superadmin",
+      "admin",
+      "viewer",
+      "farmer",
+      "technician"
+    ];
+
+    if (param5 === undefined || arguments.length === 4) {
+      if (typeof param4 === 'string' && knownRoles.includes(param4.trim().toLowerCase())) {
+        role = param4.trim();
+      } else {
+        farmName = param4 || "Central Valley Alpha Block";
+      }
+    } else {
+      farmName = param4 || "Central Valley Alpha Block";
+      role = param5 || "Farm Owner";
     }
 
     const isBrowser = typeof window !== 'undefined' && typeof navigator !== 'undefined';
@@ -544,7 +599,7 @@ class AuthService {
     console.log("[AuthService] Signing out current user...");
     try {
       if (this.auth && this.currentUser && !this.isOfflineSession) {
-        await signOut(this.auth);
+        await firebaseSignOut(this.auth);
       }
     } catch (err) {
       console.warn("[AuthService] Error during live signOut:", err);
@@ -556,6 +611,13 @@ class AuthService {
       this._notifyListeners();
     }
     return { success: true, message: "Signed out successfully." };
+  }
+
+  /**
+   * Alias for signOut() for mobile auth service compliance
+   */
+  async signOutUser() {
+    return this.signOut();
   }
 
   /**
@@ -805,10 +867,44 @@ class AuthService {
   }
 
   /**
+   * Support an 'Offline Guest Mode' user object:
+   * { uid: 'guest-offline-farmer', displayName: 'Field Operator (Guest)', email: 'offline@agrispectra.local', role: 'Field Technician', isAnonymous: true }
+   */
+  signInAsGuest() {
+    console.log("[AuthService] Activating Offline Guest Mode...");
+    return this._activateOfflineFallback(
+      GUEST_USER.displayName,
+      GUEST_USER.email,
+      GUEST_USER.role,
+      GUEST_USER.farmName,
+      true,
+      GUEST_USER.uid
+    );
+  }
+
+  /**
+   * Dedicated 1-Tap Offline Field Worker Guest Access
+   * Instantly grants access for operators with zero cellular coverage
+   */
+  signInAsOfflineGuest(name = GUEST_USER.displayName, role = GUEST_USER.role, farmName = GUEST_USER.farmName) {
+    if (name === GUEST_USER.displayName && role === GUEST_USER.role) {
+      return this.signInAsGuest();
+    }
+    return this._activateOfflineFallback(name, "offline@agrispectra.local", role, farmName, true);
+  }
+
+  /**
    * Automated Offline Session Fallback
    */
-  _activateOfflineFallback(name = "Carlos Mendoza", email = "carlos.mendoza@valleyfarms.com", role = "Farm Owner", farmName = "Sonoma Valley Drip Vineyard") {
-    const offlineUid = this._generateSecureUid('usr');
+  _activateOfflineFallback(
+    name = GUEST_USER.displayName,
+    email = GUEST_USER.email,
+    role = GUEST_USER.role,
+    farmName = GUEST_USER.farmName,
+    isAnonymous = false,
+    customUid = null
+  ) {
+    const offlineUid = customUid || this._generateSecureUid('usr');
     const offlineUser = {
       uid: offlineUid,
       email: email,
@@ -817,7 +913,8 @@ class AuthService {
       role: role,
       farmId: DEFAULT_FARM_ID,
       farmName: farmName,
-      isOffline: true
+      isOffline: true,
+      isAnonymous: Boolean(isAnonymous || customUid === GUEST_USER.uid)
     };
 
     this.currentUser = offlineUser;
@@ -865,3 +962,16 @@ class AuthService {
 }
 
 export const authService = new AuthService();
+
+// Convenience top-level API exports for direct modular importing
+export const signInWithGoogle = (options) => authService.signInWithGoogle(options);
+export const signInWithEmail = (email, password) => authService.signInWithEmail(email, password);
+export const signUpWithEmail = (...args) => authService.signUpWithEmail(...args);
+export const sendPasswordReset = (email) => authService.sendPasswordReset(email);
+export const signOutUser = () => authService.signOutUser();
+export const signOut = () => authService.signOut();
+export const getCurrentUser = () => authService.getCurrentUser();
+export const onAuthStateChange = (callback) => authService.onAuthStateChange(callback);
+export const onAuthStateChanged = (callback) => authService.onAuthStateChanged(callback);
+export const signInAsGuest = () => authService.signInAsGuest();
+export default authService;

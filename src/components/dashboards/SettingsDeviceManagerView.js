@@ -26,10 +26,11 @@ export function createSettingsDeviceManagerView({
   currentTheme = 'creamy-agri'
 }) {
   const container = document.createElement('div');
-  container.className = "settings-device-manager-view w-full space-y-4 pb-28 text-slate-800 select-none";
+  container.className = "settings-device-manager-view w-full space-y-4 pb-28 text-slate-800 select-none overflow-x-hidden";
 
   function render() {
-    const locale = getLocale();
+    try {
+      const locale = getLocale();
 
     container.innerHTML = `
       <!-- 1. Header Card -->
@@ -178,6 +179,22 @@ export function createSettingsDeviceManagerView({
     `;
 
     attachEvents();
+    } catch (err) {
+      console.error("[SettingsDeviceManagerView] Safe render fallback:", err);
+      container.innerHTML = `
+        <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-sm border border-emerald-900/10 dark:border-slate-800 text-center space-y-3">
+          <div class="w-12 h-12 mx-auto rounded-full bg-emerald-50 text-[#0E5431] flex items-center justify-center">
+            ${icon('settings', 'w-6 h-6')}
+          </div>
+          <h3 class="text-sm font-bold text-slate-900 dark:text-white">Settings & Hardware Manager</h3>
+          <p class="text-xs text-slate-500">Device profiles and communication settings ready.</p>
+          <button type="button" id="btn-settings-recovery-retry" class="px-4 py-2 rounded-full bg-[#0E5431] text-white text-xs font-bold">
+            Refresh Settings
+          </button>
+        </div>
+      `;
+      container.querySelector('#btn-settings-recovery-retry')?.addEventListener('click', () => render());
+    }
   }
 
   function attachEvents() {

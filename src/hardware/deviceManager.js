@@ -226,6 +226,16 @@ export class DeviceManager {
   }
 
   /**
+   * Auto-detect and connect to available sensors
+   */
+  async autoDetectAndConnect(options = {}) {
+    const soilResult = await this.soilSensor.autoDetectAndConnect(options);
+    return {
+      soil_sensor: soilResult
+    };
+  }
+
+  /**
    * Read data from a single device
    */
   async readData(deviceName, options = {}) {
@@ -233,12 +243,12 @@ export class DeviceManager {
       case DEVICE_NAMES.SOIL_SENSOR:
         return await this.soilSensor.readData(options);
       case DEVICE_NAMES.SPECTROMETER:
-        return await this.spectrometer.captureSpectrum(options);
+        return await (this.spectrometer.acquireSample ? this.spectrometer.acquireSample(options) : this.spectrometer.captureSpectrum(options));
       case DEVICE_NAMES.TEMP_HUMIDITY:
         return await this.tempHumidity.readData(options);
       case DEVICE_NAMES.IRRIGATION:
         return {
-          telemetry: this.irrigation.telemetry,
+          telemetry: this.irrigation.getTelemetry ? this.irrigation.getTelemetry() : this.irrigation.telemetry,
           valves: this.irrigation.getAllValves(),
           alerts: this.irrigation.getActiveAlerts()
         };
@@ -253,12 +263,12 @@ export class DeviceManager {
   async readAllData(options = {}) {
     const [soil, spectro, microclimate] = await Promise.all([
       this.soilSensor.readData(options.soilOptions || {}),
-      this.spectrometer.captureSpectrum(options.spectroOptions || {}),
+      (this.spectrometer.acquireSample ? this.spectrometer.acquireSample(options.spectroOptions || {}) : this.spectrometer.captureSpectrum(options.spectroOptions || {})),
       this.tempHumidity.readData(options.weatherOptions || {})
     ]);
 
     const irrigationState = {
-      telemetry: this.irrigation.telemetry,
+      telemetry: this.irrigation.getTelemetry ? this.irrigation.getTelemetry() : this.irrigation.telemetry,
       valves: this.irrigation.getAllValves(),
       activeAlerts: this.irrigation.getActiveAlerts()
     };

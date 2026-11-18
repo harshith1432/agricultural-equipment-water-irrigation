@@ -5,6 +5,19 @@
  */
 
 const STORAGE_KEY = "AGRISPECTRA_FIRESTORE_DATA_V2";
+export const USER_PREFS_STORAGE_KEY = "agrispectra_user_prefs";
+
+export const DEFAULT_USER_PREFERENCES = {
+  theme: "dark",
+  telemetryRefreshRateMs: 3000,
+  preferredPlotId: "plot-1",
+  notificationsEnabled: true,
+  offlineAutoSync: true,
+  unitSystem: "metric",
+  language: "en",
+  autoRecommendationApproval: false,
+  hapticFeedback: true
+};
 
 export const INITIAL_FARM_DATA = {
   farmId: "farm-valley-1",
@@ -438,6 +451,9 @@ class ReactiveMockFirestore {
         location: this.data.location
       };
     }
+    if (channel === 'userPreferences') {
+      return this.getUserPreferences();
+    }
     return null;
   }
 
@@ -544,6 +560,122 @@ class ReactiveMockFirestore {
     }
   }
 
+  // --- User Preferences NoSQL Store (agrispectra_user_prefs) ---
+
+  getUserPreferences(userId = 'default') {
+    const userKey = userId || 'default';
+    let storedPrefs = null;
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const raw = localStorage.getItem(USER_PREFS_STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          storedPrefs = parsed[userKey] || parsed._lastActive || parsed;
+        }
+      }
+    } catch (e) {
+      // Ignore
+    }
+
+    const memoryPrefs = this.data.userPreferences?.[userKey];
+    return {
+      ...DEFAULT_USER_PREFERENCES,
+      ...(storedPrefs || {}),
+      ...(memoryPrefs || {}),
+      userId: userKey
+    };
+  }
+
+  saveUserPreferences(userId = 'default', prefs = {}) {
+    const userKey = userId || 'default';
+    const current = this.getUserPreferences(userKey);
+    const updated = {
+      ...current,
+      ...prefs,
+      userId: userKey,
+      updatedAt: new Date().toISOString()
+    };
+
+    if (!this.data.userPreferences) {
+      this.data.userPreferences = {};
+    }
+    this.data.userPreferences[userKey] = updated;
+    this.saveData();
+
+    try {
+      if (typeof localStorage !== 'undefined') {
+        let allPrefs = {};
+        const raw = localStorage.getItem(USER_PREFS_STORAGE_KEY);
+        if (raw) {
+          try { allPrefs = JSON.parse(raw); } catch (e) {}
+        }
+        allPrefs[userKey] = updated;
+        allPrefs._lastActive = updated;
+        localStorage.setItem(USER_PREFS_STORAGE_KEY, JSON.stringify(allPrefs));
+      }
+    } catch (e) {
+      console.warn("Could not persist agrispectra_user_prefs to localStorage:", e);
+    }
+
+    this.notify('userPreferences');
+    return updated;
+  }
+
+  // --- Aggregated Usage Statistics ---
+
+  getAggregatedStats(farmId = 'farm-valley-1') {
+    const now = Date.now();
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    const logs = this.data.irrigationLogs || [];
+    const plots = Object.values(this.data.plots || {});
+    const leafScans = this.data.leafScans || [];
+
+    // 1. Total Liters Delivered Today (last 24 hours)
+    const todayLogs = logs.filter(l => {
+      const ts = l.timestamp ? new Date(l.timestamp).getTime() : 0;
+      return (now - ts) <= oneDayMs;
+    });
+    let totalLitersDeliveredToday = todayLogs.reduce((acc, l) => acc + (Number(l.litersDelivered) || 0), 0);
+
+    // 2. Total Liters Delivered All-Time
+    let totalLitersDeliveredAllTime = logs.reduce((acc, l) => acc + (Number(l.litersDelivered) || 0), 0);
+    const plotDeliveredSum = plots.reduce((acc, p) => acc + (Number(p.totalLitersDelivered) || 0), 0);
+    totalLitersDeliveredAllTime = Math.max(totalLitersDeliveredAllTime, plotDeliveredSum);
+
+    // 3. Valve cycle count per plot
+    const valveCycleCountPerPlot = {};
+    plots.forEach(p => {
+      valveCycleCountPerPlot[p.id] = 0;
+    });
+    logs.forEach(l => {
+      if (l.plotId) {
+        valveCycleCountPerPlot[l.plotId] = (valveCycleCountPerPlot[l.plotId] || 0) + 1;
+      }
+    });
+
+    // 4. Total leaf scans conducted
+    const totalLeafScansConducted = leafScans.length;
+
+    // 5. Average canopy vitality
+    let averageCanopyVitality = 0;
+    if (leafScans.length > 0) {
+      const sum = leafScans.reduce((acc, s) => acc + (Number(s.vitalityScore) || 0), 0);
+      averageCanopyVitality = Math.round((sum / leafScans.length) * 10) / 10;
+    } else {
+      averageCanopyVitality = 85.0;
+    }
+
+    return {
+      farmId: farmId || this.data.farmId,
+      totalLitersDeliveredToday: Math.round(totalLitersDeliveredToday * 10) / 10,
+      totalLitersDeliveredAllTime: Math.round(totalLitersDeliveredAllTime * 10) / 10,
+      valveCycleCountPerPlot,
+      totalLeafScansConducted,
+      averageCanopyVitality,
+      timestamp: new Date().toISOString()
+    };
+  }
+
   resetToDefault() {
     this.data = JSON.parse(JSON.stringify(INITIAL_FARM_DATA));
     this.saveData();
@@ -552,6 +684,7 @@ class ReactiveMockFirestore {
     this.notify('irrigationLogs');
     this.notify('actionRecommendations');
     this.notify('farm');
+    this.notify('userPreferences');
   }
 }
 

@@ -9,6 +9,8 @@ import { mqttSimulator } from './hardware/mqttTelemetrySimulator.js';
 import { createSidebar } from './components/Sidebar.js';
 import { createHeader } from './components/Header.js';
 import { createAuthPortal } from './components/AuthPortal.js';
+import { createAuthModal } from './components/AuthModal.js';
+import { createOnboardingCarousel, hasCompletedOnboarding, setOnboardingCompleted } from './components/OnboardingCarousel.js';
 import { createFarmOwnerDashboard } from './components/dashboards/FarmOwnerDashboard.js';
 import { createAgronomistDashboard } from './components/dashboards/AgronomistDashboard.js';
 import { createFieldOperatorDashboard } from './components/dashboards/FieldOperatorDashboard.js';
@@ -47,19 +49,45 @@ class AgriSpectraApp {
       this.viewMode = localStorage.getItem('agrispectra_view_mode') || (isMobileViewport ? 'mobile' : 'aero-showcase');
     }
     this.isSidebarOpen = true;
-    this.selectedPlotId = "plot-1"; // Start focused on Plot 1 (Potato Field Zone) matching reference design
+    this.selectedPlotId = localStorage.getItem('agrispectra_selected_plot') || "plot-1";
 
     // Reactive State with robust offline defaults
     this.plots = Object.values(INITIAL_FARM_DATA.plots || {});
     this.actionRecommendations = Object.values(INITIAL_FARM_DATA.actionRecommendations || {});
     this.irrigationLogs = Object.values(INITIAL_FARM_DATA.irrigationLogs || []);
     this.latestScanAnalysis = null;
-    this.telemetryMetrics = {
+
+    let cachedMetrics = null;
+    try {
+      const rawMetrics = localStorage.getItem('agrispectra_last_telemetry');
+      if (rawMetrics) cachedMetrics = JSON.parse(rawMetrics);
+    } catch (e) {}
+
+    this.telemetryMetrics = cachedMetrics || {
       mainlinePressureBar: 2.42,
       activeFlowLph: 0,
       consumedLitersToday: 1845,
       weatherMode: 'NORMAL'
     };
+
+    // Setup lifecycle event handlers for state persistence
+    if (typeof window !== 'undefined') {
+      window.addEventListener('beforeunload', () => {
+        try {
+          localStorage.setItem('agrispectra_last_telemetry', JSON.stringify(this.telemetryMetrics));
+          localStorage.setItem('agrispectra_selected_plot', this.selectedPlotId);
+        } catch (e) {}
+      });
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') {
+          try {
+            localStorage.setItem('agrispectra_last_telemetry', JSON.stringify(this.telemetryMetrics));
+            localStorage.setItem('agrispectra_selected_plot', this.selectedPlotId);
+          } catch (e) {}
+        }
+      });
+    }
 
     this.bleState = {
       connected: false,
@@ -175,6 +203,13 @@ class AgriSpectraApp {
     });
 
     this.render();
+
+    // 6. Cold Launch / First-Time Install: Trigger Onboarding Carousel if not completed
+    if (typeof window !== 'undefined' && !hasCompletedOnboarding()) {
+      setTimeout(() => {
+        this.showOnboarding();
+      }, 250);
+    }
   }
 
   render() {
@@ -206,6 +241,9 @@ class AgriSpectraApp {
         onEmergencyStop: () => this.handleEmergencyStop(),
         onOpenSimModal: () => this.openTelemetrySimModal(),
         onOpenEnterpriseAdmin: () => this.openEnterpriseAdminModal(),
+        onOpenAuthModal: () => this.openAuthModal(),
+        onReplayOnboarding: () => this.showOnboarding(),
+        onSignOut: () => this.handleSignOut(),
         currentUser: this.currentUser || {
           displayName: "Carlos Mendoza",
           email: "grower@agrispectra.io",
@@ -703,6 +741,37 @@ class AgriSpectraApp {
     const modal = createEnterpriseAdminModal({
       onClose: () => modal.remove(),
       onGlobalEmergencyStop: () => this.handleEmergencyStop()
+    });
+    document.body.appendChild(modal);
+  }
+
+  showOnboarding() {
+    const existing = document.getElementById('agrispectra-onboarding-modal');
+    if (existing) existing.remove();
+    const carousel = createOnboardingCarousel({
+      onComplete: () => {
+        this.render();
+      },
+      onContinueAsGuest: () => {
+        this.currentUser = authService.getCurrentUser();
+        this.activeRoleView = this.currentUser?.role || 'Field Operator';
+        this.render();
+      }
+    });
+    document.body.appendChild(carousel);
+  }
+
+  openAuthModal(initialMode = 'SIGN_IN') {
+    const modal = createAuthModal({
+      initialMode,
+      onClose: () => {
+        if (modal.parentNode) modal.parentNode.removeChild(modal);
+      },
+      onAuthSuccess: (user) => {
+        this.currentUser = user;
+        this.activeRoleView = user.role || 'Farm Owner';
+        this.render();
+      }
     });
     document.body.appendChild(modal);
   }
