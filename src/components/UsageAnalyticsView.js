@@ -10,6 +10,7 @@
  */
 import { icon } from '../utils/icons.js';
 import { irrigationControllerAdapter } from '../hardware/irrigationControllerAdapter.js';
+import { t, onLocaleChange } from '../utils/i18n.js';
 
 export function createUsageAnalyticsView({
   plots = [],
@@ -106,8 +107,8 @@ export function createUsageAnalyticsView({
               ${icon('usage', 'w-5 h-5')}
             </div>
             <div>
-              <h2 class="text-base font-bold tracking-tight">Usage & Telemetry Ledger</h2>
-              <p class="text-[11px] text-emerald-200/80">Cumulative Hydration & Solenoid Actuation Cycles</p>
+              <h2 class="text-base font-bold tracking-tight">${t('usage_title')}</h2>
+              <p class="text-[11px] text-emerald-200/80">${t('usage_subtitle')}</p>
             </div>
           </div>
 
@@ -119,7 +120,7 @@ export function createUsageAnalyticsView({
             title="Download CSV Audit Report"
           >
             ${icon('download', 'w-4 h-4')}
-            <span>Export CSV</span>
+            <span>${t('export_csv')}</span>
           </button>
         </div>
 
@@ -128,10 +129,10 @@ export function createUsageAnalyticsView({
           <span class="text-xs text-emerald-200/90 font-medium">Time Horizon:</span>
           <div class="inline-flex bg-black/25 p-1 rounded-xl border border-white/10">
             ${[
-              { id: 'today', label: 'Today' },
-              { id: '7d', label: '7 Days' },
-              { id: '30d', label: '30 Days' },
-              { id: 'season', label: 'Season' }
+              { id: 'today', label: t('scope_today') },
+              { id: '7d', label: t('scope_7d') },
+              { id: '30d', label: t('scope_30d') },
+              { id: 'season', label: t('scope_season') }
             ].map(tf => `
               <button 
                 type="button" 
@@ -149,21 +150,21 @@ export function createUsageAnalyticsView({
         <!-- 2 Big KPI Counters -->
         <div class="grid grid-cols-2 gap-2 pt-1">
           <div class="bg-black/20 rounded-2xl p-3 border border-white/10">
-            <span class="text-[10px] text-emerald-200 font-medium">Delivered Water Volume</span>
+            <span class="text-[10px] text-emerald-200 font-medium">${t('total_water_delivered')}</span>
             <div class="flex items-baseline gap-1 mt-0.5">
               <span class="text-2xl font-black font-mono tracking-tight text-white">${totalWaterLiters.toLocaleString()}</span>
               <span class="text-xs font-mono text-emerald-300">L</span>
             </div>
-            <span class="text-[10px] text-emerald-200/70 font-mono">≈ ${(totalWaterLiters / 1000).toFixed(2)} m³ parcel total</span>
+            <span class="text-[10px] text-emerald-200/70 font-mono">≈ ${(totalWaterLiters / 1000).toFixed(2)} m³ ${t('dash_parcel_title')}</span>
           </div>
 
           <div class="bg-black/20 rounded-2xl p-3 border border-white/10">
-            <span class="text-[10px] text-emerald-200 font-medium">Solenoid Latch Cycles</span>
+            <span class="text-[10px] text-emerald-200 font-medium">${t('valve_cycles_count')}</span>
             <div class="flex items-baseline gap-1 mt-0.5">
               <span class="text-2xl font-black font-mono tracking-tight text-white">${totalCycles.toLocaleString()}</span>
-              <span class="text-xs font-mono text-emerald-300">pulses</span>
+              <span class="text-xs font-mono text-emerald-300">${t('latching_12v')}</span>
             </div>
-            <span class="text-[10px] text-emerald-200/70 font-mono">±12V bi-stable actuations</span>
+            <span class="text-[10px] text-emerald-200/70 font-mono">${t('bistable_zero_current')}</span>
           </div>
         </div>
       </div>
@@ -173,7 +174,7 @@ export function createUsageAnalyticsView({
         <div class="flex items-center justify-between">
           <h3 class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
             ${icon('droplet', 'w-4 h-4 text-[#0E5431] dark:text-emerald-400')}
-            <span>Water Volume per 1-Acre Zone</span>
+            <span>${t('usage_per_zone')}</span>
           </h3>
           <span class="text-[10px] text-slate-500 font-mono">6 Sub-Parcels</span>
         </div>
@@ -236,7 +237,7 @@ export function createUsageAnalyticsView({
         <div class="flex items-center justify-between">
           <h3 class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
             ${icon('spectroscopy', 'w-4 h-4 text-teal-600')}
-            <span>Leaf Spectroscopy Archives</span>
+            <span>${t('recent_scans_archive')}</span>
           </h3>
           <span class="text-[10px] text-teal-700 font-mono font-bold">${defaultScanHistory.length} Scans Cached</span>
         </div>
@@ -284,6 +285,8 @@ export function createUsageAnalyticsView({
       });
     });
   }
+
+  onLocaleChange(() => render());
 
   render();
   return container;

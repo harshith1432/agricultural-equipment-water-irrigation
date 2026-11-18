@@ -34,6 +34,7 @@ import { labartSoilSensorUSB } from './hardware/labartSoilSensorUSB.js';
 import { spectrometerUSBAdapter } from './hardware/spectrometerUSBAdapter.js';
 import { tempHumiditySensorUSB } from './hardware/tempHumiditySensorUSB.js';
 import { irrigationControllerAdapter } from './hardware/irrigationControllerAdapter.js';
+import { onLocaleChange } from './utils/i18n.js';
 import { Capacitor } from '@capacitor/core';
 
 class AgriSpectraApp {
@@ -222,6 +223,13 @@ class AgriSpectraApp {
         this.activeRoleView = user.role || 'Farm Owner';
       }
       this.render();
+    });
+
+    // Reactive Locale Change: Re-render web/desktop view if active
+    onLocaleChange(() => {
+      if (!this.isNative && this.viewMode !== 'mobile') {
+        this.render();
+      }
     });
 
     this.render();

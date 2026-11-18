@@ -43,10 +43,9 @@ export function createBottomNavBar({
   }
 
   function getLabel(tab) {
-    if (tab.id === 'synergy') return 'AI';
     try {
       const translated = t(tab.labelKey);
-      if (translated && !translated.startsWith('nav_') && translated.length <= 8) return translated;
+      if (translated && !translated.startsWith('nav_')) return translated;
     } catch (e) {}
     return tab.defaultLabel;
   }

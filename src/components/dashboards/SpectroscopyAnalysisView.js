@@ -110,8 +110,8 @@ export function createSpectroscopyAnalysisView({
               ${icon('layers', 'w-4 h-4')}
             </div>
             <div class="min-w-0">
-              <h3 class="text-xs font-bold text-slate-800 dark:text-white truncate">Leaf Spectrometer</h3>
-              <p class="text-[10px] text-slate-500 font-mono truncate">350–1100nm Driver</p>
+              <h3 class="text-xs font-bold text-slate-800 dark:text-white truncate">${t('spectro_driver', 'Spectrometer Driver')}</h3>
+              <p class="text-[10px] text-slate-500 font-mono truncate">${t('spectro_driver_sub', 'Multi-Mode VIS-NIR 350–1100nm')}</p>
             </div>
           </div>
 
@@ -120,11 +120,11 @@ export function createSpectroscopyAnalysisView({
               isConnected ? 'bg-emerald-50 text-[#0E5431] border border-emerald-300' : 'bg-slate-100 text-slate-500'
             } flex items-center gap-1 shadow-sm">
               <span class="w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}"></span>
-              <span>${isConnected ? 'Active' : 'Standby'}</span>
+              <span>${isConnected ? t('status_active', 'Active') : t('status_standby', 'Standby')}</span>
             </span>
             ${isCalibrated ? `
               <span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                Calibrated
+                ${t('status_calibrated', 'Calibrated')}
               </span>
             ` : ''}
           </div>
@@ -141,7 +141,7 @@ export function createSpectroscopyAnalysisView({
                 : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
             }"
           >
-            <span>USB-C OTG</span>
+            <span>${t('usb_otg', 'USB-C OTG')}</span>
           </button>
           <button 
             type="button" 
@@ -152,7 +152,7 @@ export function createSpectroscopyAnalysisView({
                 : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
             }"
           >
-            <span>Bluetooth</span>
+            <span>${t('bluetooth', 'Bluetooth')}</span>
           </button>
           <button 
             type="button" 
@@ -163,7 +163,7 @@ export function createSpectroscopyAnalysisView({
                 : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
             }"
           >
-            <span>Wi-Fi Cloud</span>
+            <span>${t('wifi_cloud', 'Wi-Fi Cloud')}</span>
           </button>
         </div>
       </div>
@@ -188,7 +188,7 @@ export function createSpectroscopyAnalysisView({
               title="Calibrate White & Dark Baseline"
             >
               ${icon('shieldCheck', 'w-3.5 h-3.5 text-blue-600')}
-              <span>Calibrate</span>
+              <span>${t('calibrate_btn', 'Calibrate')}</span>
             </button>
 
             <!-- Scan Button -->
@@ -222,7 +222,7 @@ export function createSpectroscopyAnalysisView({
 
         <!-- Simple vs Advanced Chemometrics Toggle -->
         <div class="flex items-center justify-between pt-1">
-          <span class="text-xs font-semibold text-slate-600 dark:text-slate-400">Display Detail Mode:</span>
+          <span class="text-xs font-semibold text-slate-600 dark:text-slate-400">${t('display_detail_mode', 'Display Detail Mode:')}</span>
           <div class="flex items-center bg-slate-100 dark:bg-slate-800 rounded-full p-0.5">
             <button 
               type="button" 
@@ -252,7 +252,7 @@ export function createSpectroscopyAnalysisView({
         <!-- Advanced Chemometrics Indices Table (Visible if advanced mode) -->
         ${viewMode === 'advanced' ? `
           <div class="pt-2 border-t border-slate-100 dark:border-slate-800">
-            <h4 class="text-xs font-bold text-slate-800 dark:text-white mb-2">Vegetation Indices Matrix</h4>
+            <h4 class="text-xs font-bold text-slate-800 dark:text-white mb-2">${t('vegetation_indices_matrix', 'Vegetation Indices Matrix')}</h4>
             <div class="grid grid-cols-2 gap-2 text-xs">
               <div class="p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex justify-between">
                 <span class="text-slate-500">NDVI (Canopy Vigor):</span>
@@ -278,7 +278,7 @@ export function createSpectroscopyAnalysisView({
       <!-- 3. The 5 Farmer Agronomic Decision Cards -->
       <div class="space-y-2.5">
         <h3 class="text-xs font-black uppercase tracking-wider text-slate-500 px-1">
-          5 Agronomic Precision Decision Cards
+          ${t('decision_cards_title', '5 Agronomic Precision Decision Cards')}
         </h3>
 
         <!-- Decision 1: Crop Vitality Score -->
@@ -292,7 +292,7 @@ export function createSpectroscopyAnalysisView({
                 <span>${t('decision_vitality')}</span>
                 <span class="text-[10px] text-emerald-600 font-mono font-bold">(96% conf)</span>
               </div>
-              <div class="text-[11px] text-slate-500 mt-0.5">Cellular mesophyll turgor & photosynthetic health</div>
+              <div class="text-[11px] text-slate-500 mt-0.5">${t('decision_vitality_desc', 'Cellular mesophyll turgor & photosynthetic health')}</div>
             </div>
           </div>
 
@@ -318,7 +318,7 @@ export function createSpectroscopyAnalysisView({
                 <span class="text-[10px] text-amber-600 font-mono font-bold">(92% conf)</span>
               </div>
               <div class="text-[11px] text-slate-500 mt-0.5">
-                ${che.nitrogenPrescriptionKg > 0 ? `Apply ${che.nitrogenPrescriptionKg} kg/acre Urea before next pulse` : 'Canopy Nitrogen is optimal. No supplement needed'}
+                ${che.nitrogenPrescriptionKg > 0 ? t('decision_nitrogen_apply', 'Apply {kg} kg/acre Urea before next pulse').replace('{kg}', che.nitrogenPrescriptionKg) : t('decision_nitrogen_optimal', 'Canopy Nitrogen is optimal. No supplement needed')}
               </div>
             </div>
           </div>
@@ -344,7 +344,7 @@ export function createSpectroscopyAnalysisView({
                 <span>${t('decision_irrigation')}</span>
                 <span class="text-[10px] text-blue-600 font-mono font-bold">(94% conf)</span>
               </div>
-              <div class="text-[11px] text-slate-500 mt-0.5">Based on 970nm Leaf Water Band Index</div>
+              <div class="text-[11px] text-slate-500 mt-0.5">${t('decision_irrigation_desc', 'Based on 970nm Leaf Water Band Index')}</div>
             </div>
           </div>
 
@@ -370,7 +370,7 @@ export function createSpectroscopyAnalysisView({
                 <span class="text-[10px] text-teal-600 font-mono font-bold">(${che.diseaseRisk?.confidence || 90}% conf)</span>
               </div>
               <div class="text-[11px] text-slate-500 mt-0.5">
-                ${che.diseaseRisk?.detected ? `Pathogen detected: ${che.diseaseRisk.pathogen}` : 'Healthy canopy. Zero fungal pathogen signatures'}
+                ${che.diseaseRisk?.detected ? t('decision_disease_detected', 'Pathogen detected: {pathogen}').replace('{pathogen}', che.diseaseRisk.pathogen) : t('decision_disease_healthy', 'Healthy canopy. Zero fungal pathogen signatures')}
               </div>
             </div>
           </div>
@@ -397,7 +397,7 @@ export function createSpectroscopyAnalysisView({
                 <span class="text-[10px] text-purple-600 font-mono font-bold">(88% conf)</span>
               </div>
               <div class="text-[11px] text-slate-500 mt-0.5">
-                Peak harvest opens in ${che.harvest?.daysToPeakHarvest || 12} days
+                ${t('decision_harvest_desc', 'Peak harvest opens in {days} days').replace('{days}', che.harvest?.daysToPeakHarvest || 12)}
               </div>
             </div>
           </div>
@@ -587,27 +587,27 @@ export function createSpectroscopyAnalysisView({
         <div class="space-y-2.5">
           <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
             <div class="flex items-center justify-between mb-1.5">
-              <span class="text-xs font-bold text-slate-800 dark:text-white">1. Dark Reference (0%)</span>
+              <span class="text-xs font-bold text-slate-800 dark:text-white">${t('dark_reference_title', '1. Dark Current Reference (0%)')}</span>
               <span class="text-[10px] text-slate-400">Light Shield Closed</span>
             </div>
             <button type="button" id="step-dark-cal" class="w-full py-2 rounded-xl bg-slate-800 text-white text-xs font-bold hover:bg-slate-700 transition">
-              Capture Dark Reference
+              ${t('capture_dark', 'Capture Dark Reference')}
             </button>
           </div>
 
           <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
             <div class="flex items-center justify-between mb-1.5">
-              <span class="text-xs font-bold text-slate-800 dark:text-white">2. White Reference (99% PTFE)</span>
+              <span class="text-xs font-bold text-slate-800 dark:text-white">${t('white_reference_title', '2. White Reference (99% PTFE)')}</span>
               <span class="text-[10px] text-slate-400">Target Disc Placed</span>
             </div>
             <button type="button" id="step-white-cal" class="w-full py-2 rounded-xl bg-[#0E5431] text-white text-xs font-bold hover:bg-[#083820] transition">
-              Capture White Disc
+              ${t('capture_white', 'Capture White Disc')}
             </button>
           </div>
         </div>
 
         <div id="cal-status-text" class="text-center text-xs font-mono text-emerald-600 font-bold hidden">
-          PTFE Calibration Complete!
+          ${t('ptfe_cal_complete', 'PTFE Calibration Complete!')}
         </div>
       </div>
     `;

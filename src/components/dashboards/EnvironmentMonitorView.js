@@ -82,15 +82,15 @@ export function createEnvironmentMonitorView() {
             ${icon('thermometer', 'w-4 h-4')}
           </div>
           <div class="min-w-0">
-            <h3 class="text-xs font-bold text-slate-800 dark:text-white truncate">Weather & Climate</h3>
-            <p class="text-[10px] text-slate-500 font-mono truncate">Dual-Source Sync</p>
+            <h3 class="text-xs font-bold text-slate-800 dark:text-white truncate">${t('env_sensor_title')}</h3>
+            <p class="text-[10px] text-slate-500 font-mono truncate">${t('env_dual_source_sync')}</p>
           </div>
         </div>
 
         <div class="flex items-center gap-1.5 shrink-0">
           <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-[#0E5431] border border-emerald-300 flex items-center gap-1 shadow-sm">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span>Live Active</span>
+            <span>${t('status_live_active')}</span>
           </span>
         </div>
       </div>
@@ -105,13 +105,13 @@ export function createEnvironmentMonitorView() {
               ${icon('mapPin', 'w-3.5 h-3.5')}
             </div>
             <div>
-              <div class="text-xs font-bold tracking-tight">Sonoma Valley Parcel / Chateauneuf-du-Pape</div>
+              <div class="text-xs font-bold tracking-tight">${t('dash_parcel_title')}</div>
               <div class="text-[10px] text-emerald-200/80 font-mono">Open-Meteo High-Resolution Grid</div>
             </div>
           </div>
 
           <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-white/15 text-emerald-100 border border-white/20">
-            Weather API
+            ${t('weather_api')}
           </span>
         </div>
 
@@ -122,7 +122,7 @@ export function createEnvironmentMonitorView() {
               <span class="text-4xl font-black tracking-tight font-mono">+${temp.toFixed(0)}°C</span>
               <span class="text-xs text-emerald-200 font-mono">H: 28°C • L: 16°C</span>
             </div>
-            <span class="text-xs text-emerald-100/90 font-medium mt-0.5">Partly Sunny • Moderate Vapor Deficit</span>
+            <span class="text-xs text-emerald-100/90 font-medium mt-0.5">${t('env_weather_condition')}</span>
           </div>
 
           <!-- Weather Icon Vector -->
@@ -134,19 +134,19 @@ export function createEnvironmentMonitorView() {
         <!-- 4 Metrics Row (Humidity, Precipitation, Pressure, Wind) -->
         <div class="grid grid-cols-4 gap-1.5 pt-3 border-t border-emerald-700/40 text-center">
           <div class="bg-white/10 rounded-2xl py-2 px-0.5 min-w-0 overflow-hidden">
-            <div class="text-[9px] text-emerald-200 font-medium truncate">Humidity</div>
+            <div class="text-[9px] text-emerald-200 font-medium truncate">${t('humidity')}</div>
             <div class="text-[11px] sm:text-xs font-black font-mono mt-0.5 truncate">${rh.toFixed(0)}%</div>
           </div>
           <div class="bg-white/10 rounded-2xl py-2 px-0.5 min-w-0 overflow-hidden">
-            <div class="text-[9px] text-emerald-200 font-medium truncate">Precip</div>
+            <div class="text-[9px] text-emerald-200 font-medium truncate">${t('precipitation')}</div>
             <div class="text-[11px] sm:text-xs font-black font-mono mt-0.5 truncate">0.0 mm</div>
           </div>
           <div class="bg-white/10 rounded-2xl py-2 px-0.5 min-w-0 overflow-hidden">
-            <div class="text-[9px] text-emerald-200 font-medium truncate">Pressure</div>
+            <div class="text-[9px] text-emerald-200 font-medium truncate">${t('pressure')}</div>
             <div class="text-[11px] sm:text-xs font-black font-mono mt-0.5 truncate">1013 hPa</div>
           </div>
           <div class="bg-white/10 rounded-2xl py-2 px-0.5 min-w-0 overflow-hidden">
-            <div class="text-[9px] text-emerald-200 font-medium truncate">Wind</div>
+            <div class="text-[9px] text-emerald-200 font-medium truncate">${t('wind')}</div>
             <div class="text-[11px] sm:text-xs font-black font-mono mt-0.5 truncate">12 km/h</div>
           </div>
         </div>
@@ -167,7 +167,7 @@ export function createEnvironmentMonitorView() {
         <!-- Operational Advice Banner -->
         <div class="bg-emerald-950/60 rounded-2xl p-2.5 border border-emerald-600/30 flex items-center gap-2 text-xs text-emerald-200">
           ${icon('shieldCheck', 'w-4 h-4 text-emerald-400 shrink-0')}
-          <span>Today is a good day to apply biological spray / fertigation. Low wind drift.</span>
+          <span>${t('env_spray_advice')}</span>
         </div>
       </div>
 
@@ -185,33 +185,33 @@ export function createEnvironmentMonitorView() {
           </div>
 
           <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-[#0E5431] border border-emerald-300">
-            Physical Telemetry
+            ${t('physical_telemetry')}
           </span>
         </div>
 
         <div class="grid grid-cols-2 gap-2.5">
           <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 flex flex-col">
-            <span class="text-[10px] text-slate-500 font-medium">Probe Temperature</span>
+            <span class="text-[10px] text-slate-500 font-medium">${t('probe_temperature')}</span>
             <span class="text-xl font-black text-slate-900 dark:text-white font-mono mt-0.5">${temp.toFixed(1)}°C</span>
-            <span class="text-[9px] text-slate-400 mt-1">±0.2°C Factory Calibrated</span>
+            <span class="text-[9px] text-slate-400 mt-1">±0.2°C ${t('status_calibrated')}</span>
           </div>
 
           <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 flex flex-col">
-            <span class="text-[10px] text-slate-500 font-medium">Relative Humidity</span>
+            <span class="text-[10px] text-slate-500 font-medium">${t('relative_humidity')}</span>
             <span class="text-xl font-black text-slate-900 dark:text-white font-mono mt-0.5">${rh.toFixed(1)}%</span>
             <span class="text-[9px] text-slate-400 mt-1">VPD: ${vpd.toFixed(2)} kPa</span>
           </div>
 
           <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 flex flex-col">
-            <span class="text-[10px] text-slate-500 font-medium">Dew Point</span>
+            <span class="text-[10px] text-slate-500 font-medium">${t('dew_point')}</span>
             <span class="text-xl font-black text-slate-900 dark:text-white font-mono mt-0.5">${dew.toFixed(1)}°C</span>
-            <span class="text-[9px] text-slate-400 mt-1">Condensation onset limit</span>
+            <span class="text-[9px] text-slate-400 mt-1">${t('cond_adequate')}</span>
           </div>
 
           <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 flex flex-col">
-            <span class="text-[10px] text-slate-500 font-medium">Vapor Deficit (VPD)</span>
+            <span class="text-[10px] text-slate-500 font-medium">${t('vapor_pressure_deficit')}</span>
             <span class="text-xl font-black text-emerald-700 dark:text-emerald-300 font-mono mt-0.5">${vpd.toFixed(2)} kPa</span>
-            <span class="text-[9px] text-slate-400 mt-1">Stomatal Transpiration Zone</span>
+            <span class="text-[9px] text-slate-400 mt-1">${t('optimum')}</span>
           </div>
         </div>
       </div>
@@ -220,13 +220,13 @@ export function createEnvironmentMonitorView() {
       <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 shadow-sm border border-emerald-900/5 dark:border-slate-800 space-y-3">
         <h3 class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
           ${icon('clock', 'w-4 h-4 text-[#0E5431]')}
-          <span>24-Hour Diurnal Trends</span>
+          <span>24h ${t('data_history')}</span>
         </h3>
 
         <!-- Temp Sparkline -->
         <div class="space-y-1">
           <div class="flex items-center justify-between text-[11px]">
-            <span class="text-slate-600 dark:text-slate-400 font-medium">Temperature (°C)</span>
+            <span class="text-slate-600 dark:text-slate-400 font-medium">${t('param_temp')} (°C)</span>
             <span class="font-mono font-bold text-slate-800 dark:text-white">Min 16°C • Max 28°C</span>
           </div>
           <div class="h-10 bg-slate-50 dark:bg-slate-800 rounded-xl p-1 flex items-end gap-1">
@@ -240,7 +240,7 @@ export function createEnvironmentMonitorView() {
         <!-- Humidity Sparkline -->
         <div class="space-y-1 pt-2 border-t border-slate-100 dark:border-slate-800">
           <div class="flex items-center justify-between text-[11px]">
-            <span class="text-slate-600 dark:text-slate-400 font-medium">Relative Humidity (%)</span>
+            <span class="text-slate-600 dark:text-slate-400 font-medium">${t('relative_humidity')} (%)</span>
             <span class="font-mono font-bold text-slate-800 dark:text-white">Min 45% • Max 82%</span>
           </div>
           <div class="h-10 bg-slate-50 dark:bg-slate-800 rounded-xl p-1 flex items-end gap-1">
@@ -258,9 +258,9 @@ export function createEnvironmentMonitorView() {
           <div>
             <h3 class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
               ${icon('shieldCheck', 'w-4 h-4 text-emerald-700')}
-              <span>Agronomic Microclimate Guards</span>
+              <span>${t('threshold_alerts')}</span>
             </h3>
-            <p class="text-[10px] text-slate-500">Autonomous protection rules & frost/heat mitigation</p>
+            <p class="text-[10px] text-slate-500">${t('auto_detection_active')}</p>
           </div>
 
           <button 
@@ -268,7 +268,7 @@ export function createEnvironmentMonitorView() {
             id="save-thresholds-btn"
             class="px-3 py-1 rounded-full bg-[#0E5431] text-white text-xs font-bold hover:bg-[#083820] transition"
           >
-            Update
+            ${t('save_thresholds')}
           </button>
         </div>
 
@@ -281,7 +281,7 @@ export function createEnvironmentMonitorView() {
               </div>
               <div>
                 <div class="font-bold text-amber-900 dark:text-amber-200">${t('env_heat_stress')}</div>
-                <div class="text-[10px] text-amber-700/80">Trigger overhead cooling mist</div>
+                <div class="text-[10px] text-amber-700/80">&gt; ${thresholds.highTempC}°C</div>
               </div>
             </div>
             <div class="flex items-center gap-1">
@@ -299,7 +299,7 @@ export function createEnvironmentMonitorView() {
               </div>
               <div>
                 <div class="font-bold text-blue-900 dark:text-blue-200">${t('env_frost_risk')}</div>
-                <div class="text-[10px] text-blue-700/80">Trigger ground water heating</div>
+                <div class="text-[10px] text-blue-700/80">&lt; ${thresholds.lowTempC}°C</div>
               </div>
             </div>
             <div class="flex items-center gap-1">
@@ -317,7 +317,7 @@ export function createEnvironmentMonitorView() {
               </div>
               <div>
                 <div class="font-bold text-teal-900 dark:text-teal-200">${t('env_mold_risk')}</div>
-                <div class="text-[10px] text-teal-700/80">High RH sporulation alert</div>
+                <div class="text-[10px] text-teal-700/80">&gt; ${thresholds.highRhPercent}%</div>
               </div>
             </div>
             <div class="flex items-center gap-1">

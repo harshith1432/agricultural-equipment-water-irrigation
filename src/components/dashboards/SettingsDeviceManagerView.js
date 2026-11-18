@@ -40,13 +40,13 @@ export function createSettingsDeviceManagerView({
             ${icon('settings', 'w-4 h-4')}
           </div>
           <div>
-            <h2 class="text-base font-bold tracking-tight">Settings & Hardware Manager</h2>
-            <p class="text-[11px] text-emerald-200/80">Manage OTG USB-C, BLE 5.0, Wi-Fi Cloud Ingestion & Farm Config</p>
+            <h2 class="text-base font-bold tracking-tight">${t('settings_title')}</h2>
+            <p class="text-[11px] text-emerald-200/80">${t('settings_subtitle')}</p>
           </div>
         </div>
 
         <div class="pt-2 border-t border-emerald-700/40 flex items-center justify-between text-xs text-emerald-100">
-          <span>Enterprise Farm Account:</span>
+          <span>${t('profile_details')}:</span>
           <span class="font-bold text-white">${currentUser?.displayName || 'Carlos Mendoza'}</span>
         </div>
       </div>
@@ -56,9 +56,9 @@ export function createSettingsDeviceManagerView({
         <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
           <h3 class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
             ${icon('layers', 'w-4 h-4 text-[#0E5431]')}
-            <span>Connected Agricultural Adapters</span>
+            <span>${t('menu_device_mgr')}</span>
           </h3>
-          <span class="text-[10px] text-emerald-700 font-mono font-bold">4 of 4 Ready</span>
+          <span class="text-[10px] text-emerald-700 font-mono font-bold">4 of 4 ${t('status_active')}</span>
         </div>
 
         <div class="space-y-2.5">
@@ -132,7 +132,7 @@ export function createSettingsDeviceManagerView({
       <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 shadow-sm border border-emerald-900/5 dark:border-slate-800 space-y-3">
         <h3 class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
           ${icon('globe', 'w-4 h-4 text-[#0E5431]')}
-          <span>Regional Language & Dialect</span>
+          <span>${t('menu_language')}</span>
         </h3>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
@@ -162,7 +162,7 @@ export function createSettingsDeviceManagerView({
           <div>
             <h3 class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
               ${icon('refresh', 'w-4 h-4 text-[#0E5431]')}
-              <span>Hardware Telemetry Simulator</span>
+              <span>${t('menu_telemetry_sim')}</span>
             </h3>
             <p class="text-[10px] text-slate-500">Inject heatwave, rain, and overpressure chaos</p>
           </div>
@@ -172,7 +172,7 @@ export function createSettingsDeviceManagerView({
             id="btn-open-sim"
             class="px-3.5 py-1.5 rounded-full bg-[#0E5431] hover:bg-[#083820] text-white text-xs font-bold transition shadow-sm"
           >
-            Open Simulator
+            ${t('menu_telemetry_sim')}
           </button>
         </div>
       </div>

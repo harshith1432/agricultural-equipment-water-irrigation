@@ -123,7 +123,7 @@ export function createIrrigationManagementView({
             </div>
             <div class="flex items-center gap-1 mt-1 text-[9px] text-emerald-300/80">
               <span class="w-1.5 h-1.5 rounded-full ${activeValvesCount > 0 ? 'bg-emerald-400 animate-ping' : 'bg-slate-400'}"></span>
-              <span>${activeValvesCount} Valves Active</span>
+              <span>${activeValvesCount} ${t('valves_active', 'Valves Active')}</span>
             </div>
           </div>
 
@@ -131,18 +131,18 @@ export function createIrrigationManagementView({
             <span class="text-[10px] text-emerald-200/80 font-medium">${t('flow_session')}</span>
             <div class="flex items-baseline gap-1 mt-0.5">
               <span class="text-xl font-black text-white font-mono">${telemetry.totalLitersDeliveredAllTime.toFixed(0)}</span>
-              <span class="text-[10px] text-emerald-300">Liters</span>
+              <span class="text-[10px] text-emerald-300">${t('liters', 'Liters')}</span>
             </div>
-            <span class="text-[9px] text-emerald-300/80 mt-1">Latching ±12V</span>
+            <span class="text-[9px] text-emerald-300/80 mt-1">${t('latching_12v', 'Latching ±12V')}</span>
           </div>
 
           <div class="bg-white/10 rounded-2xl p-2.5 flex flex-col">
             <span class="text-[10px] text-emerald-200/80 font-medium">${t('flow_today')}</span>
             <div class="flex items-baseline gap-1 mt-0.5">
               <span class="text-xl font-black text-white font-mono">${telemetry.totalLitersToday.toFixed(0)}</span>
-              <span class="text-[10px] text-emerald-300">Liters</span>
+              <span class="text-[10px] text-emerald-300">${t('liters', 'Liters')}</span>
             </div>
-            <span class="text-[9px] text-emerald-300/80 mt-1">${telemetry.mainlinePressureBar.toFixed(2)} Bar Line</span>
+            <span class="text-[9px] text-emerald-300/80 mt-1">${telemetry.mainlinePressureBar.toFixed(2)} ${t('bar_line', 'Bar Line')}</span>
           </div>
         </div>
       </div>
@@ -164,7 +164,7 @@ export function createIrrigationManagementView({
               <div class="text-xs font-bold font-mono">
                 ${activePulseAnimation.action === 'OPEN' ? `+12V Pulse (50ms) Actuated Gate ${escapeHtml(activePulseAnimation.gateId)} to OPEN` : `-12V Reverse Pulse (50ms) De-energized Gate ${escapeHtml(activePulseAnimation.gateId)} to CLOSED`}
               </div>
-              <p class="text-[10px] opacity-80">Bi-stable latching coil engaged. Zero holding current draw.</p>
+              <p class="text-[10px] opacity-80">${t('bistable_zero_current', 'Bi-stable latching coil engaged. Zero holding current draw.')}</p>
             </div>
           </div>
           <span class="w-2.5 h-2.5 rounded-full ${activePulseAnimation.action === 'OPEN' ? 'bg-emerald-500 animate-ping' : 'bg-amber-500 animate-ping'}"></span>
@@ -176,7 +176,7 @@ export function createIrrigationManagementView({
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
           <span class="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
             ${icon('clock', 'w-4 h-4 text-[#0E5431] dark:text-emerald-400')}
-            <span>Actuation Pulse Duration:</span>
+            <span>${t('pulse_duration', 'Actuation Pulse Duration:')}</span>
           </span>
           <div class="flex items-center gap-1.5 flex-wrap">
             ${[15, 30, 45, 60].map(dur => `
@@ -215,9 +215,9 @@ export function createIrrigationManagementView({
           <div>
             <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
               ${icon('layers', 'w-4 h-4 text-[#0E5431]')}
-              <span>Dynamic Hydraulic Solenoids</span>
+              <span>${t('dynamic_solenoids', 'Dynamic Hydraulic Solenoids')}</span>
             </h3>
-            <p class="text-[11px] text-slate-500">Bi-stable latching coils with zero holding current</p>
+            <p class="text-[11px] text-slate-500">${t('bistable_latching_desc', 'Bi-stable latching coils with zero holding current')}</p>
           </div>
 
           <button 
@@ -286,7 +286,7 @@ export function createIrrigationManagementView({
                       }"
                     >
                       ${isOpen ? icon('pause', 'w-3.5 h-3.5') : icon('play', 'w-3.5 h-3.5')}
-                      <span>${isOpen ? 'Close' : 'Irrigate'}</span>
+                      <span>${isOpen ? t('valve_close', 'Close') : t('valve_irrigate', 'Irrigate')}</span>
                     </button>
 
                     <!-- Delete Valve -->
@@ -395,7 +395,7 @@ export function createIrrigationManagementView({
     });
 
     if (allSchedules.length === 0) {
-      return `<p class="text-xs text-slate-400 py-2 text-center">No active schedules configured. Tap + to add one.</p>`;
+      return `<p class="text-xs text-slate-400 py-2 text-center">${t('no_schedules', 'No active schedules configured. Tap + to add one.')}</p>`;
     }
 
     return allSchedules.map(sch => `
@@ -414,7 +414,7 @@ export function createIrrigationManagementView({
 
         <div class="flex items-center gap-2">
           <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${sch.enabled ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'}">
-            ${sch.enabled ? 'ACTIVE' : 'PAUSED'}
+            ${sch.enabled ? t('status_active', 'ACTIVE') : t('status_paused', 'PAUSED')}
           </span>
           <button 
             type="button" 

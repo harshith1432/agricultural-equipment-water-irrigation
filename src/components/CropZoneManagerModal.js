@@ -18,7 +18,7 @@
 
 import { firestoreService, FARM_ID } from '../firebase/firestoreService.js';
 import { icon } from '../utils/icons.js';
-import { t } from '../utils/i18n.js';
+import { t, onLocaleChange } from '../utils/i18n.js';
 
 function escapeHtml(str) {
   if (str === null || str === undefined) return '';
@@ -1210,6 +1210,7 @@ export function createCropZoneManagerModal({
 
   // Initialize data and listeners
   setupRealtimeListeners();
+  onLocaleChange(() => render());
   render();
 
   return overlay;

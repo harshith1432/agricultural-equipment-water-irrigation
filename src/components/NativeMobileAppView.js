@@ -24,6 +24,7 @@ import { createUsageAnalyticsView } from './UsageAnalyticsView.js';
 import { createSettingsView } from './SettingsView.js';
 import { createSettingsDeviceManagerView } from './dashboards/SettingsDeviceManagerView.js';
 import { INITIAL_FARM_DATA } from '../firebase/mockFirestore.js';
+import { onLocaleChange } from '../utils/i18n.js';
 
 export function createNativeMobileAppView({
   plots = [],
@@ -308,6 +309,11 @@ export function createNativeMobileAppView({
     // Scroll to top on navigation
     scrollBody.scrollTop = 0;
   }
+
+  // Subscribe to reactive locale changes to update active screen instantly
+  onLocaleChange(() => {
+    renderActiveScreen();
+  });
 
   // Initial render
   renderActiveScreen();

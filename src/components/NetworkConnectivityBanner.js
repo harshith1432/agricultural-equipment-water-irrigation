@@ -7,6 +7,7 @@
  */
 import { icon } from '../utils/icons.js';
 import { leafClipDevice } from '../hardware/webBluetoothLeafClip.js';
+import { t, onLocaleChange } from '../utils/i18n.js';
 
 export function createNetworkConnectivityBanner() {
   const banner = document.createElement('div');
@@ -31,8 +32,8 @@ export function createNetworkConnectivityBanner() {
     if (isBleConnected) {
       return {
         mode: 'BLE_DIRECT',
-        title: 'BLE Direct Active',
-        subtitle: 'Leaf-Clip Spectrometer connected directly (350–1100 nm)',
+        title: t('net_ble_direct'),
+        subtitle: t('net_ble_direct_sub'),
         badgeClass: 'bg-teal-500/20 text-teal-200 border-teal-400/40',
         pillColor: 'bg-teal-400',
         iconName: 'bluetooth',
@@ -42,8 +43,8 @@ export function createNetworkConnectivityBanner() {
     if (!isOnline) {
       return {
         mode: 'OFFLINE_CACHED',
-        title: 'Offline Cached Mode',
-        subtitle: `Field worker local cache active (${offlineQueueCount} commands buffered)`,
+        title: t('net_offline_cached'),
+        subtitle: `${t('net_offline_cached_sub')} (${offlineQueueCount} ${t('net_queued')})`,
         badgeClass: 'bg-amber-500/20 text-amber-200 border-amber-400/40',
         pillColor: 'bg-amber-400',
         iconName: 'cloud',
@@ -52,8 +53,8 @@ export function createNetworkConnectivityBanner() {
     }
     return {
       mode: 'ONLINE_SYNCED',
-      title: 'Online Synced',
-      subtitle: 'Cloud Firestore & Hydraulic Gateway synchronized',
+      title: t('net_online_synced'),
+      subtitle: t('net_online_synced_sub'),
       badgeClass: 'bg-emerald-500/20 text-emerald-200 border-emerald-400/40',
       pillColor: 'bg-emerald-400',
       iconName: 'wifi',
@@ -82,7 +83,7 @@ export function createNetworkConnectivityBanner() {
         <div class="flex items-center gap-2 flex-shrink-0">
           ${!isOnline && offlineQueueCount > 0 ? `
             <span class="px-1.5 py-0.5 rounded text-[9.5px] font-mono font-bold bg-amber-400 text-slate-950">
-              ${offlineQueueCount} queued
+              ${offlineQueueCount} ${t('net_queued')}
             </span>
           ` : ''}
 
@@ -92,7 +93,7 @@ export function createNetworkConnectivityBanner() {
             class="text-[10px] font-semibold underline text-emerald-200 hover:text-white cursor-pointer px-1 py-0.5"
             aria-label="Toggle network diagnostics"
           >
-            ${isExpanded ? 'Hide' : 'Diagnostics'}
+            ${isExpanded ? t('net_hide') : t('net_diagnostics')}
           </button>
         </div>
       </div>
@@ -156,6 +157,8 @@ export function createNetworkConnectivityBanner() {
       render();
     });
   }
+
+  onLocaleChange(() => render());
 
   render();
 

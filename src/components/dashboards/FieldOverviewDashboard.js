@@ -49,7 +49,7 @@ export function createFieldOverviewDashboard({
         <div class="flex items-center gap-2">
           <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
           <h2 class="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
-            Sonoma Valley Parcel (1 Acre)
+            ${t('dash_parcel_title', 'Sonoma Valley Parcel (1 Acre)')}
           </h2>
         </div>
 
@@ -57,10 +57,10 @@ export function createFieldOverviewDashboard({
           type="button" 
           id="dash-customize-btn"
           class="min-h-[34px] px-2.5 py-1 rounded-xl bg-white dark:bg-slate-800 hover:bg-stone-50 border border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-700 dark:text-slate-300 shadow-sm flex items-center gap-1.5 transition cursor-pointer active:scale-95"
-          title="Customize Bento Widgets"
+          title="${t('customize_bento', 'Customize Bento')}"
         >
           ${icon('sliders', 'w-3.5 h-3.5 text-[#0E5431] dark:text-emerald-400')}
-          <span>Customize Bento</span>
+          <span>${t('customize_bento', 'Customize Bento')}</span>
         </button>
       </div>
 
@@ -75,7 +75,7 @@ export function createFieldOverviewDashboard({
             </div>
 
             <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/50 text-[#0E5431] dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40">
-              Live Parcel
+              ${t('live_parcel', 'Live Parcel')}
             </span>
           </div>
 
@@ -86,7 +86,7 @@ export function createFieldOverviewDashboard({
                 <span class="text-4xl font-black text-slate-900 dark:text-white font-mono tracking-tight">+17°C</span>
                 <span class="text-xs font-semibold text-slate-400 font-mono">H: 23°C • L: 14°C</span>
               </div>
-              <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">Light Breeze • Ideal photosynthetic light</p>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">${t('weather_condition_ideal', 'Light Breeze • Ideal photosynthetic light')}</p>
             </div>
 
             <div class="w-14 h-14 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/40 flex items-center justify-center text-amber-500 shadow-sm flex-shrink-0">
@@ -97,19 +97,19 @@ export function createFieldOverviewDashboard({
           <!-- 4 Key Environmental Metrics Row -->
           <div class="grid grid-cols-4 gap-1.5 pt-3 border-t border-slate-100 dark:border-slate-800">
             <div class="bg-slate-50/80 dark:bg-slate-800/60 rounded-2xl py-2 px-1 text-center border border-slate-100/80 dark:border-slate-800 flex flex-col justify-center">
-              <span class="text-[9.5px] text-slate-400 font-medium">Humidity</span>
+              <span class="text-[9.5px] text-slate-400 font-medium">${t('humidity', 'Humidity')}</span>
               <span class="text-xs font-bold text-slate-800 dark:text-white font-mono mt-0.5 block">40%</span>
             </div>
             <div class="bg-slate-50/80 dark:bg-slate-800/60 rounded-2xl py-2 px-1 text-center border border-slate-100/80 dark:border-slate-800 flex flex-col justify-center">
-              <span class="text-[9.5px] text-slate-400 font-medium">Precip</span>
+              <span class="text-[9.5px] text-slate-400 font-medium">${t('precipitation', 'Precip')}</span>
               <span class="text-xs font-bold text-slate-800 dark:text-white font-mono mt-0.5 block">5.1 mm</span>
             </div>
             <div class="bg-slate-50/80 dark:bg-slate-800/60 rounded-2xl py-2 px-1 text-center border border-slate-100/80 dark:border-slate-800 flex flex-col justify-center">
-              <span class="text-[9.5px] text-slate-400 font-medium">Pressure</span>
+              <span class="text-[9.5px] text-slate-400 font-medium">${t('pressure', 'Pressure')}</span>
               <span class="text-xs font-bold text-slate-800 dark:text-white font-mono mt-0.5 block">1013 hPa</span>
             </div>
             <div class="bg-slate-50/80 dark:bg-slate-800/60 rounded-2xl py-2 px-1 text-center border border-slate-100/80 dark:border-slate-800 flex flex-col justify-center">
-              <span class="text-[9.5px] text-slate-400 font-medium">Wind</span>
+              <span class="text-[9.5px] text-slate-400 font-medium">${t('wind', 'Wind')}</span>
               <span class="text-xs font-bold text-slate-800 dark:text-white font-mono mt-0.5 block">14 km/h</span>
             </div>
           </div>
@@ -137,42 +137,42 @@ export function createFieldOverviewDashboard({
           ${widgetSettings.pressure_meter ? `
             <div class="bg-white dark:bg-slate-900 rounded-3xl p-3.5 shadow-sm border border-emerald-900/5 dark:border-slate-800 space-y-1">
               <div class="flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                <span>Pressure</span>
+                <span>${t('pressure', 'Pressure')}</span>
                 <span class="w-2 h-2 rounded-full ${pressure > 3.0 ? 'bg-rose-500 animate-ping' : 'bg-emerald-500'}"></span>
               </div>
               <div class="flex items-baseline gap-1 mt-1">
                 <span class="text-2xl font-black font-mono text-slate-900 dark:text-white">${pressure}</span>
                 <span class="text-xs font-mono text-slate-500">Bar</span>
               </div>
-              <span class="text-[10px] text-slate-400 font-mono block">Piezo-Resistive</span>
+              <span class="text-[10px] text-slate-400 font-mono block">${t('piezo_resistive', 'Piezo-Resistive')}</span>
             </div>
           ` : ''}
 
           ${widgetSettings.vitality_gauge ? `
             <div class="bg-white dark:bg-slate-900 rounded-3xl p-3.5 shadow-sm border border-emerald-900/5 dark:border-slate-800 space-y-1">
               <div class="flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                <span>Canopy Vitality</span>
+                <span>${t('canopy_vitality', 'Canopy Vitality')}</span>
                 <span class="text-[10px] text-emerald-600 font-mono font-bold">NDVI 0.76</span>
               </div>
               <div class="flex items-baseline gap-1 mt-1">
                 <span class="text-2xl font-black font-mono text-[#0E5431] dark:text-emerald-400">84%</span>
-                <span class="text-xs font-mono text-slate-500">Optimum</span>
+                <span class="text-xs font-mono text-slate-500">${t('optimum', 'Optimum')}</span>
               </div>
-              <span class="text-[10px] text-slate-400 font-mono block">76-Band Chemometrics</span>
+              <span class="text-[10px] text-slate-400 font-mono block">${t('chemometrics_76band', '76-Band Chemometrics')}</span>
             </div>
           ` : ''}
 
           ${widgetSettings.water_ledger ? `
             <div class="col-span-2 sm:col-span-1 bg-white dark:bg-slate-900 rounded-3xl p-3.5 shadow-sm border border-emerald-900/5 dark:border-slate-800 space-y-1">
               <div class="flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                <span>Daily Volume</span>
+                <span>${t('daily_volume', 'Daily Volume')}</span>
                 <span class="text-[10px] text-blue-600 font-mono font-bold">${activeFlow} L/hr</span>
               </div>
               <div class="flex items-baseline gap-1 mt-1">
                 <span class="text-2xl font-black font-mono text-blue-600 dark:text-blue-400">${consumedLiters.toLocaleString()}</span>
-                <span class="text-xs font-mono text-slate-500">Liters</span>
+                <span class="text-xs font-mono text-slate-500">${t('liters', 'Liters')}</span>
               </div>
-              <span class="text-[10px] text-slate-400 font-mono block">6 Gates Cumulative</span>
+              <span class="text-[10px] text-slate-400 font-mono block">${t('gates_cumulative', '6 Gates Cumulative')}</span>
             </div>
           ` : ''}
         </div>
@@ -188,9 +188,9 @@ export function createFieldOverviewDashboard({
         <div class="space-y-2.5">
           <div class="flex items-center justify-between px-1">
             <h3 class="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Core Precision Modules
+              ${t('core_precision_modules', 'Core Precision Modules')}
             </h3>
-            <span class="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold">4 Active Hubs</span>
+            <span class="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold">${t('active_hubs', '4 Active Hubs')}</span>
           </div>
 
           <div class="grid grid-cols-4 gap-2">
@@ -203,7 +203,7 @@ export function createFieldOverviewDashboard({
               <div class="w-11 h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-500/20 flex items-center justify-center text-[#0E5431] dark:text-emerald-300">
                 ${icon('soil', 'w-5 h-5')}
               </div>
-              <span class="text-[10px] font-bold text-slate-800 dark:text-slate-200 leading-tight">Soil 8-in-1</span>
+              <span class="text-[10px] font-bold text-slate-800 dark:text-slate-200 leading-tight">${t('cat_soil', 'Soil 8-in-1')}</span>
             </button>
 
             <!-- Drip Hub -->
@@ -215,7 +215,7 @@ export function createFieldOverviewDashboard({
               <div class="w-11 h-11 rounded-2xl bg-blue-50 dark:bg-blue-950/60 border border-blue-500/20 flex items-center justify-center text-blue-600">
                 ${icon('droplet', 'w-5 h-5')}
               </div>
-              <span class="text-[10px] font-bold text-slate-800 dark:text-slate-200 leading-tight">Drip Hub</span>
+              <span class="text-[10px] font-bold text-slate-800 dark:text-slate-200 leading-tight">${t('cat_drip', 'Drip Hub')}</span>
             </button>
 
             <!-- Spectroscopy -->
@@ -227,7 +227,7 @@ export function createFieldOverviewDashboard({
               <div class="w-11 h-11 rounded-2xl bg-teal-50 dark:bg-teal-950/60 border border-teal-500/20 flex items-center justify-center text-teal-700 dark:text-teal-300">
                 ${icon('spectroscopy', 'w-5 h-5')}
               </div>
-              <span class="text-[10px] font-bold text-slate-800 dark:text-slate-200 leading-tight">Spectro</span>
+              <span class="text-[10px] font-bold text-slate-800 dark:text-slate-200 leading-tight">${t('cat_spectro', 'Spectro')}</span>
             </button>
 
             <!-- Synergy / AI Insights -->
@@ -239,7 +239,7 @@ export function createFieldOverviewDashboard({
               <div class="w-11 h-11 rounded-2xl bg-amber-50 dark:bg-amber-950/60 border border-amber-500/20 flex items-center justify-center text-amber-600">
                 ${icon('synergy', 'w-5 h-5')}
               </div>
-              <span class="text-[10px] font-bold text-slate-800 dark:text-slate-200 leading-tight">Synergy</span>
+              <span class="text-[10px] font-bold text-slate-800 dark:text-slate-200 leading-tight">${t('cat_synergy', 'Synergy')}</span>
             </button>
           </div>
         </div>
@@ -255,15 +255,15 @@ export function createFieldOverviewDashboard({
         <div class="space-y-3">
           <div class="flex items-center justify-between px-1">
             <h3 class="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Field Zones & Irrigation States
+              ${t('field_zones_irrigation_states', 'Field Zones & Irrigation States')}
             </h3>
             <div class="flex items-center gap-2">
-              <span class="text-[10px] text-slate-400 font-mono">${openValvesCount} Gates Active</span>
+              <span class="text-[10px] text-slate-400 font-mono">${openValvesCount} ${t('gates_active', 'Gates Active')}</span>
               <button 
                 type="button" 
                 id="btn-overview-manage-zones"
                 class="px-2.5 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 text-[#0E5431] dark:text-emerald-300 text-[11px] font-bold transition flex items-center gap-1 border border-emerald-600/20 active:scale-95 cursor-pointer"
-                title="Manage Zones & Crops"
+                title="${t('manage_zones_and_crops', 'Manage Zones & Crops')}"
               >
                 ${icon('plus', 'w-3 h-3')}
                 <span>${t('quick_add_zone', '+ Add Zone')}</span>
@@ -298,7 +298,7 @@ export function createFieldOverviewDashboard({
                           <span class="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold ${
                             isOpen ? 'bg-emerald-100 text-[#0E5431]' : 'bg-slate-100 text-slate-500'
                           }">
-                            ${isOpen ? 'VALVE ON' : 'IDLE'}
+                            ${isOpen ? t('valve_on', 'VALVE ON') : t('valve_idle', 'IDLE')}
                           </span>
                         </div>
                         <p class="text-[10px] text-slate-400 mt-0.5">${plot.stage || 'Vegetative & Root Bulking'}</p>
@@ -318,13 +318,13 @@ export function createFieldOverviewDashboard({
                       }"
                     >
                       ${isOpen ? icon('pause', 'w-3 h-3') : icon('play', 'w-3 h-3')}
-                      <span>${isOpen ? 'Close' : 'Irrigate'}</span>
+                      <span>${isOpen ? t('valve_close', 'Close') : t('valve_irrigate', 'Irrigate')}</span>
                     </button>
                   </div>
 
                   <!-- Soil Moisture Progress Bar -->
                   <div class="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px]">
-                    <span class="text-slate-500">Root-zone VWC:</span>
+                    <span class="text-slate-500">${t('root_zone_vwc', 'Root-zone VWC:')}</span>
                     <div class="flex items-center gap-2">
                       <div class="w-24 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                         <div class="h-full bg-[#0E5431] rounded-full" style="width: 70%"></div>
@@ -345,7 +345,7 @@ export function createFieldOverviewDashboard({
               <div class="w-6 h-6 rounded-full bg-emerald-700 text-white flex items-center justify-center">
                 ${icon('plus', 'w-3.5 h-3.5')}
               </div>
-              <span>${t('add_new_zone', '+ Add New Zone to Database')}</span>
+              <span>${t('add_new_zone_db', '+ Add New Zone to Database')}</span>
             </button>
           </div>
         </div>

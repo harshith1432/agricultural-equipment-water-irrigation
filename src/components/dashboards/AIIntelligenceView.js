@@ -60,32 +60,32 @@ export function createAIIntelligenceView({
 
           <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-white/15 border border-white/20 text-emerald-100 flex items-center gap-1">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
-            <span>Live Fusion</span>
+            <span>${t('live_fusion')}</span>
           </span>
         </div>
 
         <!-- Multi-Modal Data Ingestion Matrix -->
         <div class="grid grid-cols-4 gap-2 pt-2 border-t border-emerald-700/40 text-center">
           <div class="bg-white/10 rounded-2xl p-2 flex flex-col items-center">
-            <span class="text-[9px] text-emerald-200">Soil Moisture</span>
+            <span class="text-[9px] text-emerald-200 truncate w-full">${t('param_moisture')}</span>
             <span class="text-sm font-black font-mono mt-0.5 text-white">42.2%</span>
             <span class="text-[8px] text-emerald-300">LABART 8-in-1</span>
           </div>
 
           <div class="bg-white/10 rounded-2xl p-2 flex flex-col items-center">
-            <span class="text-[9px] text-emerald-200">Canopy Vitality</span>
+            <span class="text-[9px] text-emerald-200 truncate w-full">${t('canopy_vitality')}</span>
             <span class="text-sm font-black font-mono mt-0.5 text-white">84 / 100</span>
             <span class="text-[8px] text-emerald-300">VIS-NIR Spec</span>
           </div>
 
           <div class="bg-white/10 rounded-2xl p-2 flex flex-col items-center">
-            <span class="text-[9px] text-emerald-200">Vapor Deficit</span>
+            <span class="text-[9px] text-emerald-200 truncate w-full">${t('vapor_pressure_deficit')}</span>
             <span class="text-sm font-black font-mono mt-0.5 text-white">1.25 kPa</span>
             <span class="text-[8px] text-emerald-300">Open-Meteo</span>
           </div>
 
           <div class="bg-white/10 rounded-2xl p-2 flex flex-col items-center">
-            <span class="text-[9px] text-emerald-200">Water Given</span>
+            <span class="text-[9px] text-emerald-200 truncate w-full">${t('flow_today')}</span>
             <span class="text-sm font-black font-mono mt-0.5 text-white">1,845 L</span>
             <span class="text-[8px] text-emerald-300">Drip Hub</span>
           </div>
@@ -94,7 +94,7 @@ export function createAIIntelligenceView({
         <!-- Synergy Active Badge -->
         <div class="bg-emerald-950/60 rounded-2xl p-2.5 border border-emerald-600/30 flex items-center gap-2 text-xs text-emerald-200">
           ${icon('shieldCheck', 'w-4 h-4 text-emerald-400 shrink-0')}
-          <span>${t('ai_synergy')} • ${pendingRecs.length} Action Needed</span>
+          <span>${t('ai_synergy')} • ${pendingRecs.length} ${t('actions_needed')}</span>
         </div>
       </div>
 
@@ -104,7 +104,7 @@ export function createAIIntelligenceView({
       <!-- 3. Actionable Smart Advice Cards with 1-Tap Execution & Dismiss -->
       <div class="space-y-3">
         <h3 class="text-xs font-black uppercase tracking-wider text-slate-500 px-1">
-          Autonomous Actionable Recommendations
+          ${t('autonomous_recommendations')}
         </h3>
 
         <!-- Recommendation 1: Smart Irrigation Pulse -->
@@ -116,8 +116,8 @@ export function createAIIntelligenceView({
                   ${icon('droplet', 'w-5 h-5')}
                 </div>
                 <div>
-                  <h4 class="text-xs font-bold text-slate-900 dark:text-white">Relieve Sub-surface Water Stress</h4>
-                  <p class="text-[11px] text-slate-500">Zone 2 Tomato canopy requires 450L root pulse</p>
+                  <h4 class="text-xs font-bold text-slate-900 dark:text-white">${t('water_stress_confirmed')}</h4>
+                  <p class="text-[11px] text-slate-500">Zone 2 Tomato canopy • 450L root pulse</p>
                 </div>
               </div>
 
@@ -139,7 +139,7 @@ export function createAIIntelligenceView({
                   data-action="DISMISS"
                   class="advice-dismiss-btn px-3 py-1.5 rounded-full text-xs font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition"
                 >
-                  Dismiss
+                  ${t('rec_dismiss')}
                 </button>
                 <button 
                   type="button" 
@@ -153,7 +153,7 @@ export function createAIIntelligenceView({
                   ${executedActions.has('rec-pulse-zone2') ? 'disabled' : ''}
                 >
                   ${executedActions.has('rec-pulse-zone2') ? icon('check', 'w-3.5 h-3.5 text-emerald-600') : icon('play', 'w-3.5 h-3.5')}
-                  <span>${executedActions.has('rec-pulse-zone2') ? 'Executed' : t('ai_execute')}</span>
+                  <span>${executedActions.has('rec-pulse-zone2') ? t('rec_executed') : t('ai_execute')}</span>
                 </button>
               </div>
             </div>
@@ -169,7 +169,7 @@ export function createAIIntelligenceView({
                   ${icon('sprout', 'w-5 h-5')}
                 </div>
                 <div>
-                  <h4 class="text-xs font-bold text-slate-900 dark:text-white">Precision NPK Fertigation Dosage</h4>
+                  <h4 class="text-xs font-bold text-slate-900 dark:text-white">${t('fertilizer_prescr')}</h4>
                   <p class="text-[11px] text-slate-500">Inject 14 kg/acre liquid Urea via Venturi bypass</p>
                 </div>
               </div>
@@ -192,7 +192,7 @@ export function createAIIntelligenceView({
                   data-action="DISMISS"
                   class="advice-dismiss-btn px-3 py-1.5 rounded-full text-xs font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition"
                 >
-                  Dismiss
+                  ${t('rec_dismiss')}
                 </button>
                 <button 
                   type="button" 
@@ -206,7 +206,7 @@ export function createAIIntelligenceView({
                   ${executedActions.has('rec-urea-doser') ? 'disabled' : ''}
                 >
                   ${executedActions.has('rec-urea-doser') ? icon('check', 'w-3.5 h-3.5 text-emerald-600') : icon('calendar', 'w-3.5 h-3.5')}
-                  <span>${executedActions.has('rec-urea-doser') ? 'Scheduled' : t('ai_schedule')}</span>
+                  <span>${executedActions.has('rec-urea-doser') ? t('rec_executed') : t('ai_schedule')}</span>
                 </button>
               </div>
             </div>
@@ -222,7 +222,7 @@ export function createAIIntelligenceView({
                   ${icon('shieldCheck', 'w-5 h-5')}
                 </div>
                 <div>
-                  <h4 class="text-xs font-bold text-slate-900 dark:text-white">Pre-Symptomatic Mildew Shield</h4>
+                  <h4 class="text-xs font-bold text-slate-900 dark:text-white">${t('decision_disease')}</h4>
                   <p class="text-[11px] text-slate-500">Apply Bacillus subtilis organic bio-spray</p>
                 </div>
               </div>
@@ -237,7 +237,7 @@ export function createAIIntelligenceView({
             </p>
 
             <div class="flex items-center justify-between pt-1 flex-wrap gap-2">
-              <span class="text-[10px] font-mono text-slate-400">Wind: 12 km/h • Optimum Window</span>
+              <span class="text-[10px] font-mono text-slate-400">Wind: 12 km/h • ${t('optimum')}</span>
               <div class="flex items-center gap-2">
                 <button 
                   type="button" 
@@ -245,7 +245,7 @@ export function createAIIntelligenceView({
                   data-action="DISMISS"
                   class="advice-dismiss-btn px-3 py-1.5 rounded-full text-xs font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition"
                 >
-                  Dismiss
+                  ${t('rec_dismiss')}
                 </button>
                 <button 
                   type="button" 
@@ -259,7 +259,7 @@ export function createAIIntelligenceView({
                   ${executedActions.has('rec-bio-spray') ? 'disabled' : ''}
                 >
                   ${executedActions.has('rec-bio-spray') ? icon('check', 'w-3.5 h-3.5 text-emerald-600') : icon('shield', 'w-3.5 h-3.5')}
-                  <span>${executedActions.has('rec-bio-spray') ? 'Logged Spray' : 'Log Treatment'}</span>
+                  <span>${executedActions.has('rec-bio-spray') ? t('rec_executed') : t('ai_execute')}</span>
                 </button>
               </div>
             </div>

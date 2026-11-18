@@ -87,13 +87,13 @@ export function createSoilAnalysisView({
   function getReadableModeLabel(mode) {
     switch (mode) {
       case CONNECTION_MODES.USB_TYPE_C:
-        return 'USB-C Probe';
+        return t('mode_usb');
       case CONNECTION_MODES.BLUETOOTH_BLE:
-        return 'Bluetooth BLE';
+        return t('mode_ble');
       case CONNECTION_MODES.WIFI_CLOUD:
-        return 'Cloud Ingest';
+        return t('wifi_cloud');
       default:
-        return 'Auto Detect';
+        return t('auto_detection_active');
     }
   }
 
@@ -193,9 +193,9 @@ export function createSoilAnalysisView({
             <div class="min-w-0">
               <h3 class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5 truncate">
                 ${icon('soil', 'w-4 h-4 text-[#0E5431] shrink-0')}
-                <span class="truncate">8-Parameter Digital Matrix</span>
+                <span class="truncate">${t('soil_matrix_title')}</span>
               </h3>
-              <p class="text-[10px] text-slate-500 truncate">Modbus RTU 5-Prong Subsurface Probe</p>
+              <p class="text-[10px] text-slate-500 truncate">${t('soil_matrix_sub')}</p>
             </div>
 
             <button 
@@ -204,7 +204,7 @@ export function createSoilAnalysisView({
               class="px-3 py-1.5 rounded-full bg-[#0E5431] hover:bg-[#083820] text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition shrink-0 active:scale-95"
             >
               ${icon('refresh', 'w-3.5 h-3.5')}
-              <span>Read Sensor</span>
+              <span>${t('read_sensor')}</span>
             </button>
           </div>
 
@@ -217,7 +217,7 @@ export function createSoilAnalysisView({
                 <span class="text-2xl font-black text-slate-900 dark:text-white font-mono">${p.temperatureC.toFixed(1)}</span>
                 <span class="text-xs text-slate-500 font-bold">°C</span>
               </div>
-              <span class="text-[9px] text-slate-400 mt-1 truncate">Target: 15–24°C</span>
+              <span class="text-[9px] text-slate-400 mt-1 truncate">${t('optimum')}: 15–24°C</span>
             </div>
 
             <!-- 2. Moisture % VWC -->
@@ -227,7 +227,7 @@ export function createSoilAnalysisView({
                 <span class="text-2xl font-black text-emerald-900 dark:text-emerald-200 font-mono">${p.moistureVwc.toFixed(1)}</span>
                 <span class="text-xs text-emerald-700 font-bold">%</span>
               </div>
-              <span class="text-[9px] text-emerald-600 dark:text-emerald-400 mt-1 truncate">Opt: ${activeCrop.moistureVwc.optimalMin}–${activeCrop.moistureVwc.optimalMax}%</span>
+              <span class="text-[9px] text-emerald-600 dark:text-emerald-400 mt-1 truncate">${t('optimum')}: ${activeCrop.moistureVwc.optimalMin}–${activeCrop.moistureVwc.optimalMax}%</span>
             </div>
 
             <!-- 3. Conductivity (EC) -->
@@ -247,7 +247,7 @@ export function createSoilAnalysisView({
                 <span class="text-2xl font-black text-amber-900 dark:text-amber-200 font-mono">${p.ph.toFixed(1)}</span>
                 <span class="text-xs text-amber-700 font-bold">pH</span>
               </div>
-              <span class="text-[9px] text-amber-600 dark:text-amber-400 mt-1 truncate">Opt: ${activeCrop.ph.optimalMin}–${activeCrop.ph.optimalMax}</span>
+              <span class="text-[9px] text-amber-600 dark:text-amber-400 mt-1 truncate">${t('optimum')}: ${activeCrop.ph.optimalMin}–${activeCrop.ph.optimalMax}</span>
             </div>
 
             <!-- 5. Nitrogen (N) -->
@@ -257,7 +257,7 @@ export function createSoilAnalysisView({
                 <span class="text-2xl font-black text-slate-900 dark:text-white font-mono">${p.nitrogenMgKg}</span>
                 <span class="text-xs text-slate-500 font-bold">mg/kg</span>
               </div>
-              <span class="text-[9px] text-slate-400 mt-1 truncate">Opt: ${activeCrop.nitrogen.optimal} mg/kg</span>
+              <span class="text-[9px] text-slate-400 mt-1 truncate">${t('optimum')}: ${activeCrop.nitrogen.optimal} mg/kg</span>
             </div>
 
             <!-- 6. Phosphorus (P) -->
@@ -267,7 +267,7 @@ export function createSoilAnalysisView({
                 <span class="text-2xl font-black text-slate-900 dark:text-white font-mono">${p.phosphorusMgKg}</span>
                 <span class="text-xs text-slate-500 font-bold">mg/kg</span>
               </div>
-              <span class="text-[9px] text-slate-400 mt-1 truncate">Opt: ${activeCrop.phosphorus.optimal} mg/kg</span>
+              <span class="text-[9px] text-slate-400 mt-1 truncate">${t('optimum')}: ${activeCrop.phosphorus.optimal} mg/kg</span>
             </div>
 
             <!-- 7. Potassium (K) -->
@@ -277,7 +277,7 @@ export function createSoilAnalysisView({
                 <span class="text-2xl font-black text-slate-900 dark:text-white font-mono">${p.potassiumMgKg}</span>
                 <span class="text-xs text-slate-500 font-bold">mg/kg</span>
               </div>
-              <span class="text-[9px] text-slate-400 mt-1 truncate">Opt: ${activeCrop.potassium.optimal} mg/kg</span>
+              <span class="text-[9px] text-slate-400 mt-1 truncate">${t('optimum')}: ${activeCrop.potassium.optimal} mg/kg</span>
             </div>
 
             <!-- 8. Fertility Index -->
@@ -287,7 +287,7 @@ export function createSoilAnalysisView({
                 <span class="text-2xl font-black text-slate-900 dark:text-white font-mono">${p.fertilityMgKg}</span>
                 <span class="text-xs text-slate-500 font-bold">mg/kg</span>
               </div>
-              <span class="text-[9px] text-slate-400 mt-1 truncate">Comprehensive</span>
+              <span class="text-[9px] text-slate-400 mt-1 truncate">${t('status_live_active')}</span>
             </div>
           </div>
         </div>
@@ -296,43 +296,43 @@ export function createSoilAnalysisView({
         <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 shadow-sm border border-emerald-900/5 dark:border-slate-800 space-y-3 overflow-hidden">
           <h3 class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
             ${icon('shieldCheck', 'w-4 h-4 text-[#0E5431] shrink-0')}
-            <span>Farmer-Friendly Agronomic Summary</span>
+            <span>${t('soil_summary_title')}</span>
           </h3>
 
           <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
             <div class="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 flex flex-col min-w-0 overflow-hidden">
-              <span class="text-[10px] text-slate-500 truncate">Nitrogen Condition:</span>
-              <span class="font-bold text-slate-800 dark:text-white mt-0.5 truncate">${interp.nitrogenCondition}</span>
+              <span class="text-[10px] text-slate-500 truncate">${t('cond_nitrogen_label')}:</span>
+              <span class="font-bold text-slate-800 dark:text-white mt-0.5 truncate">${t('cond_' + (interp.nitrogenCondition || 'moderate').toLowerCase())}</span>
             </div>
 
             <div class="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 flex flex-col min-w-0 overflow-hidden">
-              <span class="text-[10px] text-slate-500 truncate">Phosphorus Condition:</span>
-              <span class="font-bold text-slate-800 dark:text-white mt-0.5 truncate">${interp.phosphorusCondition}</span>
+              <span class="text-[10px] text-slate-500 truncate">${t('cond_phosphorus_label')}:</span>
+              <span class="font-bold text-slate-800 dark:text-white mt-0.5 truncate">${t('cond_' + (interp.phosphorusCondition || 'high').toLowerCase())}</span>
             </div>
 
             <div class="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 flex flex-col min-w-0 overflow-hidden">
-              <span class="text-[10px] text-slate-500 truncate">Potassium Condition:</span>
-              <span class="font-bold text-slate-800 dark:text-white mt-0.5 truncate">${interp.potassiumCondition}</span>
+              <span class="text-[10px] text-slate-500 truncate">${t('cond_potassium_label')}:</span>
+              <span class="font-bold text-slate-800 dark:text-white mt-0.5 truncate">${t('cond_' + (interp.potassiumCondition || 'moderate').toLowerCase())}</span>
             </div>
 
             <div class="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 flex flex-col min-w-0 overflow-hidden">
-              <span class="text-[10px] text-slate-500 truncate">Soil pH:</span>
-              <span class="font-bold text-amber-700 dark:text-amber-300 mt-0.5 truncate">${interp.phCondition} (${p.ph.toFixed(1)})</span>
+              <span class="text-[10px] text-slate-500 truncate">${t('cond_ph_label')}:</span>
+              <span class="font-bold text-amber-700 dark:text-amber-300 mt-0.5 truncate">${t('cond_' + (interp.phCondition || 'alkaline').toLowerCase())} (${p.ph.toFixed(1)})</span>
             </div>
 
             <div class="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 flex flex-col min-w-0 overflow-hidden">
-              <span class="text-[10px] text-slate-500 truncate">Moisture Level:</span>
-              <span class="font-bold text-blue-700 dark:text-blue-300 mt-0.5 truncate">${interp.moistureCondition} (${p.moistureVwc.toFixed(1)}%)</span>
+              <span class="text-[10px] text-slate-500 truncate">${t('cond_moisture_label')}:</span>
+              <span class="font-bold text-blue-700 dark:text-blue-300 mt-0.5 truncate">${t('cond_' + (interp.moistureCondition || 'saturated').toLowerCase())} (${p.moistureVwc.toFixed(1)}%)</span>
             </div>
 
             <div class="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 flex flex-col min-w-0 overflow-hidden">
-              <span class="text-[10px] text-slate-500 truncate">Target Crop:</span>
+              <span class="text-[10px] text-slate-500 truncate">${t('cond_target_crop_label')}:</span>
               <span class="font-bold text-[#0E5431] dark:text-emerald-300 mt-0.5 truncate">${activeCrop.name}</span>
             </div>
           </div>
 
           <div class="p-2.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-xs text-[#0E5431] dark:text-emerald-200">
-            <span class="font-bold">Agronomic Insight:</span>
+            <span class="font-bold">${t('agronomic_insight')}:</span>
             <span>${activeCrop.notes}</span>
           </div>
         </div>
