@@ -20,11 +20,11 @@ export const DICTIONARY = {
   en: {
     // Navigation items
     nav_home: 'Home',
-    nav_irrigation: 'Drip Hub',
-    nav_spectroscopy: 'Spectroscopy',
-    nav_environment: 'Weather & Temp',
-    nav_soil: 'Soil 8-in-1',
-    nav_ai: 'AI Insights',
+    nav_irrigation: 'Drip',
+    nav_spectroscopy: 'Spectro',
+    nav_environment: 'Weather',
+    nav_soil: 'Soil',
+    nav_ai: 'AI',
     nav_settings: 'Settings',
 
     // Headers & Common

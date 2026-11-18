@@ -36,14 +36,14 @@ export function createNavigationDock({
 
   function render() {
     navContainer.innerHTML = `
-      <div class="pointer-events-auto max-w-md w-full mx-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-emerald-900/10 dark:border-slate-800 rounded-3xl shadow-[0_10px_35px_rgba(14,84,49,0.15)] px-2 py-1.5 flex items-center justify-between gap-1 overflow-x-auto no-scrollbar">
+      <div class="pointer-events-auto max-w-md w-full mx-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-emerald-900/10 dark:border-slate-800 rounded-3xl shadow-[0_10px_35px_rgba(14,84,49,0.15)] px-1.5 py-1.5 flex items-center justify-around gap-0.5 overflow-hidden">
         ${NAV_ITEMS.map(item => {
           const isActive = currentActive === item.id;
           return `
             <button 
               type="button" 
               data-nav-id="${item.id}"
-              class="nav-dock-btn flex-1 min-w-[50px] min-h-[52px] py-1 px-1 rounded-2xl flex flex-col items-center justify-center transition-all duration-200 relative ${
+              class="nav-dock-btn flex-1 min-w-0 max-w-[52px] min-h-[48px] py-1 px-0.5 rounded-2xl flex flex-col items-center justify-center transition-all duration-200 relative overflow-hidden ${
                 isActive 
                   ? 'text-[#0E5431] font-bold bg-emerald-50 dark:bg-emerald-950/40 shadow-sm' 
                   : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 hover:bg-slate-100/60 dark:hover:bg-slate-800/60'
@@ -53,7 +53,7 @@ export function createNavigationDock({
               <div class="transition-transform duration-200 ${isActive ? 'scale-110' : ''}">
                 ${icon(item.iconName, isActive ? 'w-5 h-5 text-[#0E5431]' : 'w-5 h-5 text-slate-500 dark:text-slate-400')}
               </div>
-              <span class="text-[9.5px] tracking-tight mt-0.5 whitespace-nowrap leading-none ${isActive ? 'text-[#0E5431] font-bold' : 'text-slate-500'}">
+              <span class="text-[8px] font-medium tracking-tight mt-0.5 truncate w-full text-center leading-tight ${isActive ? 'text-[#0E5431] font-bold dark:text-emerald-400' : 'text-slate-500'}">
                 ${t(item.labelKey)}
               </span>
               ${isActive ? `<span class="w-1.5 h-1.5 rounded-full bg-[#0E5431] absolute bottom-0.5"></span>` : ''}

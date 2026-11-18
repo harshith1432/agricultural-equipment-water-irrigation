@@ -36,10 +36,14 @@ export function createEnvironmentMonitorView() {
 
   async function loadReading() {
     try {
+      if (!tempHumiditySensorUSB.isConnected) {
+        await tempHumiditySensorUSB.connect({ mode: connectionMode, autoFallback: true });
+      }
       currentReading = await tempHumiditySensorUSB.readData({ forceSource: null });
-      render();
     } catch (e) {
       console.warn("Temp read error:", e);
+    } finally {
+      render();
     }
   }
 
@@ -399,6 +403,7 @@ export function createEnvironmentMonitorView() {
 
   onLocaleChange(() => render());
 
+  render();
   loadReading();
   return container;
 }

@@ -47,10 +47,14 @@ export function createSoilAnalysisView({
 
   async function loadReading() {
     try {
-      currentReading = await labartSoilSensorUSB.readData({ cropType: selectedCropKey });
-      render();
+      if (!labartSoilSensorUSB.isConnected) {
+        await labartSoilSensorUSB.connect({ mode: connectionMode, autoFallback: true });
+      }
+      currentReading = await labartSoilSensorUSB.readData({ cropKey: selectedCropKey });
     } catch (e) {
       console.warn("Soil read error:", e);
+    } finally {
+      render();
     }
   }
 
@@ -71,7 +75,16 @@ export function createSoilAnalysisView({
   }
 
   function render() {
-    const p = currentReading?.parameters || {
+    const p = currentReading?.parameters || (currentReading?.raw ? {
+      temperatureC: currentReading.raw.temperature_c ?? 12.5,
+      moistureVwc: currentReading.raw.moisture_vwc ?? 42.2,
+      ecUsCm: currentReading.raw.ec_us_cm ?? 1378,
+      ph: currentReading.raw.ph ?? 7.9,
+      nitrogenMgKg: currentReading.raw.nitrogen_mg_kg ?? 68,
+      phosphorusMgKg: currentReading.raw.phosphorus_mg_kg ?? 96,
+      potassiumMgKg: currentReading.raw.potassium_mg_kg ?? 220,
+      fertilityMgKg: currentReading.raw.fertility_mg_kg ?? 757
+    } : null) || {
       temperatureC: 12.5,
       moistureVwc: 42.2,
       ecUsCm: 1378,
@@ -82,14 +95,21 @@ export function createSoilAnalysisView({
       fertilityMgKg: 757
     };
 
-    const interp = currentReading?.interpretation || {
+    const interp = currentReading?.interpretation?.npk ? {
+      nitrogenCondition: currentReading.interpretation.npk?.nitrogen?.status || 'Moderate',
+      phosphorusCondition: currentReading.interpretation.npk?.phosphorus?.status || 'High',
+      potassiumCondition: currentReading.interpretation.npk?.potassium?.status || 'Moderate',
+      phCondition: currentReading.interpretation.ph?.status || 'Alkaline',
+      moistureCondition: currentReading.interpretation.moisture?.status || 'Saturated',
+      overallAgronomicStatus: `Score: ${currentReading.interpretation.agronomicScore ?? 85}/100 • ${currentReading.interpretation.moisture?.advisory || 'Balanced'}`
+    } : (currentReading?.interpretation || {
       nitrogenCondition: 'Moderate',
       phosphorusCondition: 'High',
       potassiumCondition: 'Moderate',
       phCondition: 'Alkaline',
       moistureCondition: 'Saturated',
       overallAgronomicStatus: 'Caution: Elevated pH & Moisture Saturated'
-    };
+    });
 
     const activeCrop = CROP_THRESHOLDS[selectedCropKey] || CROP_THRESHOLDS.POTATO;
 
@@ -457,6 +477,7 @@ export function createSoilAnalysisView({
 
   onLocaleChange(() => render());
 
+  render();
   loadReading();
   return container;
 }
