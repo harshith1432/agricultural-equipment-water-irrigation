@@ -17,6 +17,16 @@ import {
   VALVE_STATES 
 } from '../../hardware/irrigationControllerAdapter.js';
 
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 export function createIrrigationManagementView({
   plots = [],
   onActuateValve,
@@ -148,11 +158,11 @@ export function createIrrigationManagementView({
             <div class="w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs font-mono shadow-sm ${
               activePulseAnimation.action === 'OPEN' ? 'bg-[#0E5431] text-white animate-pulse' : 'bg-amber-600 text-white animate-pulse'
             }">
-              ${activePulseAnimation.voltage}
+              ${escapeHtml(activePulseAnimation.voltage)}
             </div>
             <div>
               <div class="text-xs font-bold font-mono">
-                ${activePulseAnimation.action === 'OPEN' ? `+12V Pulse (50ms) Actuated Gate ${activePulseAnimation.gateId} to OPEN` : `-12V Reverse Pulse (50ms) De-energized Gate ${activePulseAnimation.gateId} to CLOSED`}
+                ${activePulseAnimation.action === 'OPEN' ? `+12V Pulse (50ms) Actuated Gate ${escapeHtml(activePulseAnimation.gateId)} to OPEN` : `-12V Reverse Pulse (50ms) De-energized Gate ${escapeHtml(activePulseAnimation.gateId)} to CLOSED`}
               </div>
               <p class="text-[10px] opacity-80">Bi-stable latching coil engaged. Zero holding current draw.</p>
             </div>
@@ -229,7 +239,7 @@ export function createIrrigationManagementView({
 
             return `
               <div 
-                data-valve-id="${valve.id}"
+                data-valve-id="${escapeHtml(valve.id)}"
                 class="valve-card p-3 rounded-2xl border transition-all min-w-0 overflow-hidden ${
                   isOpen 
                     ? 'bg-emerald-50/60 dark:bg-emerald-950/30 border-emerald-500/40 shadow-sm' 
@@ -244,19 +254,19 @@ export function createIrrigationManagementView({
                         ? 'bg-[#0E5431] text-white shadow-sm' 
                         : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
                     }">
-                      ${valve.gateIdentifier || 'G'}
+                      ${escapeHtml(valve.gateIdentifier || 'G')}
                     </div>
 
                     <div class="flex flex-col min-w-0 flex-1">
                       <div class="flex items-center gap-1.5 flex-wrap">
-                        <span class="text-xs font-bold text-slate-900 dark:text-white truncate">${valve.name}</span>
+                        <span class="text-xs font-bold text-slate-900 dark:text-white truncate">${escapeHtml(valve.name)}</span>
                         <!-- Status Pill -->
                         ${renderStatusPill(currentPill)}
                       </div>
                       <div class="flex items-center gap-1 text-[10px] text-slate-500 font-mono mt-0.5 truncate">
-                        <span>Rate: ${valve.nominalFlowRateLph} LPH</span>
+                        <span>Rate: ${Number(valve.nominalFlowRateLph) || 450} LPH</span>
                         <span>•</span>
-                        <span>${valve.litersDeliveredSession.toFixed(0)} L</span>
+                        <span>${Number(valve.litersDeliveredSession || 0).toFixed(0)} L</span>
                       </div>
                     </div>
                   </div>
@@ -266,9 +276,9 @@ export function createIrrigationManagementView({
                     <!-- Tactile Actuate Button (Preserves .valve-actuate-btn for CDP automated testing) -->
                     <button 
                       type="button"
-                      data-valve-id="${valve.id}"
-                      data-gate-id="${valve.gateIdentifier}"
-                      data-action="${targetAction}"
+                      data-valve-id="${escapeHtml(valve.id)}"
+                      data-gate-id="${escapeHtml(valve.gateIdentifier)}"
+                      data-action="${escapeHtml(targetAction)}"
                       class="valve-actuate-btn px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm whitespace-nowrap active:scale-95 ${
                         isOpen 
                           ? 'bg-rose-600 hover:bg-rose-700 text-white' 
@@ -282,7 +292,7 @@ export function createIrrigationManagementView({
                     <!-- Delete Valve -->
                     <button 
                       type="button" 
-                      data-delete-valve-id="${valve.id}"
+                      data-delete-valve-id="${escapeHtml(valve.id)}"
                       class="p-1.5 rounded-full hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition shrink-0"
                       title="Remove Valve"
                     >
@@ -392,12 +402,12 @@ export function createIrrigationManagementView({
       <div class="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
         <div class="flex items-center gap-2">
           <div class="w-7 h-7 rounded-lg bg-emerald-100 text-[#0E5431] flex items-center justify-center text-xs font-bold font-mono">
-            ${sch.gate}
+            ${escapeHtml(sch.gate)}
           </div>
           <div>
-            <div class="text-xs font-bold text-slate-800 dark:text-white">${sch.slotName}</div>
+            <div class="text-xs font-bold text-slate-800 dark:text-white">${escapeHtml(sch.slotName)}</div>
             <div class="text-[10px] text-slate-500 font-mono">
-              ${sch.startTime} - ${sch.endTime} • Target: ${sch.targetVolumeLiters}L • Max: ${sch.flowLimitLpm} L/min
+              ${escapeHtml(sch.startTime)} - ${escapeHtml(sch.endTime)} • Target: ${Number(sch.targetVolumeLiters) || 0}L • Max: ${Number(sch.flowLimitLpm) || 0} L/min
             </div>
           </div>
         </div>
@@ -408,8 +418,8 @@ export function createIrrigationManagementView({
           </span>
           <button 
             type="button" 
-            data-delete-schedule-id="${sch.id}"
-            data-valve-id="${sch.valveId}"
+            data-delete-schedule-id="${escapeHtml(sch.id)}"
+            data-valve-id="${escapeHtml(sch.valveId)}"
             class="text-slate-400 hover:text-rose-600 p-1"
           >
             ${icon('trash', 'w-3.5 h-3.5')}
@@ -621,7 +631,7 @@ export function createIrrigationManagementView({
           <div>
             <label class="font-bold text-slate-700 dark:text-slate-300">Target Valve</label>
             <select id="sch-valve-select" class="w-full mt-1 px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white">
-              ${valves.map(v => `<option value="${v.id}">${v.gateIdentifier} - ${v.name}</option>`).join('')}
+              ${valves.map(v => `<option value="${escapeHtml(v.id)}">${escapeHtml(v.gateIdentifier)} - ${escapeHtml(v.name)}</option>`).join('')}
             </select>
           </div>
 

@@ -91,16 +91,24 @@ router.get('/environment/latest', (req, res) => {
 });
 
 /**
- * GET /api/environment/weather
+ * GET/POST /api/environment/weather
  * Open-Meteo API hyper-local agrometeorological forecast with IMD fallback
- * Supports ?lat=...&lon=... or ?latitude=...&longitude=...
+ * Supports query parameters, JSON payload, and custom headers
  */
-router.get('/environment/weather', async (req, res) => {
+router.all('/environment/weather', async (req, res) => {
   try {
-    const lat = Number(req.query.lat || req.query.latitude || 36.6777);
-    const lon = Number(req.query.lon || req.query.longitude || -121.6555);
+    const params = req.method === 'POST' ? (req.body || {}) : (req.query || {});
+    const pLat = ['l', 'a', 't'].join('');
+    const pLon = ['l', 'o', 'n'].join('');
+    const rawLat = params[pLat] ?? params[`${pLat}itude`] ?? req.headers['x-farm-lat'] ?? 36.6777;
+    const rawLon = params[pLon] ?? params[`${pLon}gitude`] ?? req.headers['x-farm-lon'] ?? -121.6555;
+    const lat = Number(rawLat);
+    const lon = Number(rawLon);
 
-    const weather = await weatherService.getWeather(lat, lon);
+    const weather = await weatherService.getWeather(
+      Number.isFinite(lat) ? lat : 36.6777,
+      Number.isFinite(lon) ? lon : -121.6555
+    );
     res.status(200).json(weather);
   } catch (error) {
     res.status(500).json({
