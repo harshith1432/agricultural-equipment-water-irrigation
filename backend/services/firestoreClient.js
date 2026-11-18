@@ -7,8 +7,21 @@
  */
 
 import { execSync } from 'child_process';
-import { getApps, initializeApp, cert, applicationDefault } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+
+let adminApp = null;
+let adminFirestore = null;
+
+async function loadFirebaseAdmin() {
+  if (!adminApp) {
+    try {
+      adminApp = await import('firebase-admin/app');
+      adminFirestore = await import('firebase-admin/firestore');
+    } catch {
+      // Optional in test or serverless environments without cloud credentials
+    }
+  }
+  return { adminApp, adminFirestore };
+}
 
 export class FirestoreClient {
   constructor() {
@@ -27,11 +40,14 @@ export class FirestoreClient {
   /**
    * Automatically initialize Firebase Admin SDK if service account credentials are provided
    */
-  initAdminSdk() {
+  async initAdminSdk() {
     try {
-      const apps = getApps();
+      const { adminApp: appModule, adminFirestore: firestoreModule } = await loadFirebaseAdmin();
+      if (!appModule || !firestoreModule) return;
+
+      const apps = appModule.getApps();
       if (apps.length > 0) {
-        this.adminDb = getFirestore(apps[0]);
+        this.adminDb = firestoreModule.getFirestore(apps[0]);
         this.isConnected = true;
         this.authProvider = "Firebase Admin SDK";
         return;
@@ -47,11 +63,11 @@ export class FirestoreClient {
           const decoded = Buffer.from(credStr, 'base64').toString('utf-8');
           serviceAccount = JSON.parse(decoded);
         }
-        const app = initializeApp({
-          credential: cert(serviceAccount),
+        const app = appModule.initializeApp({
+          credential: appModule.cert(serviceAccount),
           projectId: serviceAccount.project_id || this.projectId
         });
-        this.adminDb = getFirestore(app);
+        this.adminDb = firestoreModule.getFirestore(app);
         this.isConnected = true;
         this.authProvider = "Firebase Admin SDK (Service Account)";
         console.log(`[FirestoreClient] Initialized Firebase Admin SDK for ${this.projectId}`);
@@ -60,11 +76,11 @@ export class FirestoreClient {
 
       // Check for GOOGLE_APPLICATION_CREDENTIALS
       if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-        const app = initializeApp({
-          credential: applicationDefault(),
+        const app = appModule.initializeApp({
+          credential: appModule.applicationDefault(),
           projectId: this.projectId
         });
-        this.adminDb = getFirestore(app);
+        this.adminDb = firestoreModule.getFirestore(app);
         this.isConnected = true;
         this.authProvider = "Firebase Admin SDK (Application Default)";
         console.log(`[FirestoreClient] Initialized Firebase Admin SDK via Application Default`);
@@ -73,14 +89,14 @@ export class FirestoreClient {
 
       // Check for discrete environment variables
       if (process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
-        const app = initializeApp({
-          credential: cert({
+        const app = appModule.initializeApp({
+          credential: appModule.cert({
             projectId: this.projectId,
             clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
             privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
           })
         });
-        this.adminDb = getFirestore(app);
+        this.adminDb = firestoreModule.getFirestore(app);
         this.isConnected = true;
         this.authProvider = "Firebase Admin SDK (Credentials)";
         return;

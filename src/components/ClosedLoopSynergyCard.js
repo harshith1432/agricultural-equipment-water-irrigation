@@ -9,8 +9,8 @@ export function createClosedLoopSynergySection(recommendations = [], onAction) {
   const container = document.createElement('section');
   container.className = "w-full";
 
-  const pendingRecs = recommendations.filter(r => r.status === 'PENDING');
-  const pastRecs = recommendations.filter(r => r.status !== 'PENDING').slice(0, 3);
+  const pendingRecs = (recommendations || []).filter(r => r?.status === 'PENDING');
+  const pastRecs = (recommendations || []).filter(r => r?.status && r.status !== 'PENDING').slice(0, 3);
 
   if (recommendations.length === 0) {
     return container; // Empty if no recommendations

@@ -27,7 +27,7 @@ export function createPlatformGovernanceView({
 
   const renderContent = () => {
     const activeValves = plots.filter(p => p.valve?.state === 'OPEN').length;
-    const pendingRecs = recommendations.filter(r => r.status === 'PENDING').length;
+    const pendingRecs = (recommendations || []).filter(r => r?.status === 'PENDING').length;
     const consumedLiters = telemetryData.consumedLitersToday || 1845;
     const pressure = telemetryData.mainlinePressureBar || 2.42;
 

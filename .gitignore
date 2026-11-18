@@ -19,10 +19,13 @@ backend/.env.*
 !*.example.*
 !backend/.env.example
 *service-account*.json
+*adminsdk*.json
+*firebase-adminsdk*.json
 *.pem
 *.key
 
 # Android Native Build & Local Config
+.idea/
 .gradle/
 local.properties
 android/.gradle/

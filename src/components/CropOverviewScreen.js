@@ -354,7 +354,7 @@ export function createCropOverviewScreen({
           <div>
             <div class="text-[10px] text-slate-400 font-mono">Vitality Score</div>
             <div class="text-base font-extrabold text-lime-400 font-mono">
-              ${latestScanAnalysis ? latestScanAnalysis.vitalityScore.toFixed(0) : "86"} / 100
+              ${latestScanAnalysis?.vitalityScore ? Math.round(latestScanAnalysis.vitalityScore) : "86"} / 100
             </div>
           </div>
           <button type="button" class="tts-speak-btn p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300" data-text="Crop Vitality is 86 out of 100. Plant foliage is healthy with high photosynthetic efficiency." title="Read aloud">
@@ -367,7 +367,7 @@ export function createCropOverviewScreen({
           <div>
             <div class="text-[10px] text-slate-400 font-mono">Nitrogen Status</div>
             <div class="text-base font-extrabold text-white font-mono">
-              ${latestScanAnalysis ? latestScanAnalysis.nitrogenPrescription.status : "Optimal"}
+              ${latestScanAnalysis?.nitrogenPrescription?.status || (latestScanAnalysis?.nitrogenPrescriptionKg > 0 ? `${latestScanAnalysis.nitrogenPrescriptionKg} kg/ac` : "Optimal")}
             </div>
           </div>
           <button type="button" class="tts-speak-btn p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300" data-text="Nitrogen levels are balanced. No supplemental urea required today." title="Read aloud">

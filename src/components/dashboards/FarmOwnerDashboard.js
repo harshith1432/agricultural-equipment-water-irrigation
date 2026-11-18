@@ -61,7 +61,7 @@ export function createFarmOwnerDashboard({
   const parcelHealthScore = Math.max(60, 100 - (stressCount * 12));
 
   // Pending Synergy recommendations
-  const pendingRecs = actionRecommendations.filter(r => r.status === 'PENDING');
+  const pendingRecs = (actionRecommendations || []).filter(r => r?.status === 'PENDING');
 
   container.innerHTML = `
     <!-- Top Executive Banner -->
