@@ -314,7 +314,7 @@ export function createCropZoneManagerModal({
                           Target VWC: ${p.targetVwcMin || 20}%–${p.targetVwcMax || 35}%
                         </span>
                         <span class="px-2 py-0.5 rounded-md bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 font-mono">
-                          ${gateId}
+                          ${escapeHtml(gateId)}
                         </span>
                         <span class="px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300">
                           Soil: ${escapeHtml(p.soilType || 'Clay Loam')}
@@ -329,7 +329,7 @@ export function createCropZoneManagerModal({
                       <button 
                         type="button" 
                         data-action="select-plot" 
-                        data-id="${p.id}"
+                        data-id="${escapeHtml(p.id)}"
                         class="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-[#0E5431] text-[11px] font-semibold transition"
                         title="Select this zone as active"
                       >
@@ -340,7 +340,7 @@ export function createCropZoneManagerModal({
                     <button 
                       type="button" 
                       data-action="edit-zone" 
-                      data-id="${p.id}"
+                      data-id="${escapeHtml(p.id)}"
                       class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 flex items-center justify-center transition"
                       title="${t('edit_zone', 'Edit Zone')}"
                     >
@@ -350,8 +350,8 @@ export function createCropZoneManagerModal({
                     <button 
                       type="button" 
                       data-action="delete-zone" 
-                      data-id="${p.id}"
-                      data-number="${p.plotNumber || ''}"
+                      data-id="${escapeHtml(p.id)}"
+                      data-number="${escapeHtml(p.plotNumber || '')}"
                       data-crop="${escapeHtml(p.crop || 'Crop')}"
                       class="w-8 h-8 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-300 flex items-center justify-center transition"
                       title="${t('delete_zone', 'Delete Zone')}"
@@ -647,7 +647,7 @@ export function createCropZoneManagerModal({
                     <button 
                       type="button" 
                       data-action="edit-crop" 
-                      data-id="${crop.id}"
+                      data-id="${escapeHtml(crop.id)}"
                       class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 flex items-center justify-center transition"
                       title="${t('edit_crop', 'Edit Crop')}"
                     >
@@ -657,7 +657,7 @@ export function createCropZoneManagerModal({
                     <button 
                       type="button" 
                       data-action="delete-crop" 
-                      data-id="${crop.id}"
+                      data-id="${escapeHtml(crop.id)}"
                       data-name="${escapeHtml(crop.name)}"
                       class="w-8 h-8 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-300 flex items-center justify-center transition"
                       title="${t('delete_crop', 'Delete Crop')}"

@@ -143,9 +143,9 @@ export function createSoilAnalysisView({
         <!-- 1. Sleek Forest Green Header Card (NO huge 3-button switcher, compact 3-dots button) -->
         <div class="bg-gradient-to-br from-[#0E5431] to-[#0A3D23] text-white rounded-3xl p-4 sm:p-5 shadow-lg border border-emerald-800/40 space-y-3 overflow-hidden">
           <div class="flex items-center justify-between gap-2">
-            <div class="min-w-0">
-              <h2 class="text-base font-bold tracking-tight truncate">${t('soil_title')}</h2>
-              <p class="text-[11px] text-emerald-200/80 truncate">${t('soil_subtitle')}</p>
+            <div class="min-w-0 flex-1">
+              <h2 class="text-sm sm:text-base font-bold tracking-tight truncate">${t('soil_title')}</h2>
+              <p class="text-[10px] text-emerald-200/80 truncate">${t('soil_subtitle')}</p>
             </div>
 
             <!-- Header Controls: Compact Auto-Detected Status Badge & 3-Dots Settings Button -->

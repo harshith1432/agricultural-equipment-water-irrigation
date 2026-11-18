@@ -43,6 +43,7 @@ export function createBottomNavBar({
   }
 
   function getLabel(tab) {
+    if (tab.id === 'synergy') return 'AI';
     try {
       const translated = t(tab.labelKey);
       if (translated && !translated.startsWith('nav_') && translated.length <= 8) return translated;
@@ -76,12 +77,12 @@ export function createBottomNavBar({
               aria-selected="${isActive ? 'true' : 'false'}"
             >
               <!-- Icon Container -->
-              <div class="transition-transform duration-200 relative ${isActive ? 'scale-110 -translate-y-0.5' : 'group-hover:scale-105'}">
-                ${icon(tab.icon, isActive ? 'w-4.5 h-4.5 text-[#0E5431] dark:text-emerald-300' : 'w-4.5 h-4.5 text-slate-500 dark:text-slate-400')}
+              <div class="transition-transform duration-200 relative flex items-center justify-center w-5 h-5 ${isActive ? 'scale-110 -translate-y-0.5' : 'group-hover:scale-105'}">
+                ${icon(tab.icon, isActive ? 'w-5 h-5 text-[#0E5431] dark:text-emerald-300' : 'w-5 h-5 text-slate-500 dark:text-slate-400')}
                 
                 <!-- Badge Counter (e.g. pending recommendation alert) -->
                 ${badgeCount > 0 ? `
-                  <span class="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] px-0.5 rounded-full bg-amber-500 text-slate-950 font-mono font-black text-[8px] flex items-center justify-center shadow-sm ring-1 ring-white">
+                  <span class="absolute -top-1.5 -right-2 min-w-[15px] h-[15px] px-1 rounded-full bg-amber-500 text-slate-950 font-mono font-black text-[9px] flex items-center justify-center shadow-sm ring-1 ring-white z-10">
                     ${badgeCount > 9 ? '9+' : badgeCount}
                   </span>
                 ` : ''}

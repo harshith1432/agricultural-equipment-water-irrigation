@@ -82,8 +82,8 @@ export function createEnvironmentMonitorView() {
             ${icon('thermometer', 'w-4 h-4')}
           </div>
           <div class="min-w-0">
-            <h3 class="text-xs font-bold text-slate-800 dark:text-white truncate">Climate & Weather Sensor</h3>
-            <p class="text-[10px] text-slate-500 font-mono truncate">Dual-Source Auto-Sync</p>
+            <h3 class="text-xs font-bold text-slate-800 dark:text-white truncate">Weather & Climate</h3>
+            <p class="text-[10px] text-slate-500 font-mono truncate">Dual-Source Sync</p>
           </div>
         </div>
 
@@ -133,21 +133,21 @@ export function createEnvironmentMonitorView() {
 
         <!-- 4 Metrics Row (Humidity, Precipitation, Pressure, Wind) -->
         <div class="grid grid-cols-4 gap-1.5 pt-3 border-t border-emerald-700/40 text-center">
-          <div class="bg-white/10 rounded-2xl py-2 px-1 min-w-0 overflow-hidden">
-            <div class="text-[9.5px] text-emerald-200 font-medium truncate">Humidity</div>
-            <div class="text-xs sm:text-sm font-black font-mono mt-0.5 truncate">${rh.toFixed(0)}%</div>
+          <div class="bg-white/10 rounded-2xl py-2 px-0.5 min-w-0 overflow-hidden">
+            <div class="text-[9px] text-emerald-200 font-medium truncate">Humidity</div>
+            <div class="text-[11px] sm:text-xs font-black font-mono mt-0.5 truncate">${rh.toFixed(0)}%</div>
           </div>
-          <div class="bg-white/10 rounded-2xl py-2 px-1 min-w-0 overflow-hidden">
-            <div class="text-[9.5px] text-emerald-200 font-medium truncate">Precip</div>
-            <div class="text-xs sm:text-sm font-black font-mono mt-0.5 truncate">0.0 mm</div>
+          <div class="bg-white/10 rounded-2xl py-2 px-0.5 min-w-0 overflow-hidden">
+            <div class="text-[9px] text-emerald-200 font-medium truncate">Precip</div>
+            <div class="text-[11px] sm:text-xs font-black font-mono mt-0.5 truncate">0.0 mm</div>
           </div>
-          <div class="bg-white/10 rounded-2xl py-2 px-1 min-w-0 overflow-hidden">
-            <div class="text-[9.5px] text-emerald-200 font-medium truncate">Pressure</div>
-            <div class="text-xs sm:text-sm font-black font-mono mt-0.5 truncate">1013 hPa</div>
+          <div class="bg-white/10 rounded-2xl py-2 px-0.5 min-w-0 overflow-hidden">
+            <div class="text-[9px] text-emerald-200 font-medium truncate">Pressure</div>
+            <div class="text-[11px] sm:text-xs font-black font-mono mt-0.5 truncate">1013 hPa</div>
           </div>
-          <div class="bg-white/10 rounded-2xl py-2 px-1 min-w-0 overflow-hidden">
-            <div class="text-[9.5px] text-emerald-200 font-medium truncate">Wind</div>
-            <div class="text-xs sm:text-sm font-black font-mono mt-0.5 truncate">12 km/h</div>
+          <div class="bg-white/10 rounded-2xl py-2 px-0.5 min-w-0 overflow-hidden">
+            <div class="text-[9px] text-emerald-200 font-medium truncate">Wind</div>
+            <div class="text-[11px] sm:text-xs font-black font-mono mt-0.5 truncate">12 km/h</div>
           </div>
         </div>
 

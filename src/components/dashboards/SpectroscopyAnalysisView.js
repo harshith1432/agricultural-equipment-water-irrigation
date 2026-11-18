@@ -110,8 +110,8 @@ export function createSpectroscopyAnalysisView({
               ${icon('layers', 'w-4 h-4')}
             </div>
             <div class="min-w-0">
-              <h3 class="text-xs font-bold text-slate-800 dark:text-white truncate">Spectrometer Driver</h3>
-              <p class="text-[10px] text-slate-500 font-mono truncate">Multi-Mode VIS-NIR 350–1100nm</p>
+              <h3 class="text-xs font-bold text-slate-800 dark:text-white truncate">Leaf Spectrometer</h3>
+              <p class="text-[10px] text-slate-500 font-mono truncate">350–1100nm Driver</p>
             </div>
           </div>
 
