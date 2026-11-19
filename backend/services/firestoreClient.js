@@ -381,13 +381,19 @@ export class FirestoreClient {
     const url = this.buildSafeFirestoreUrl(docPath, { 'updateMask.fieldPaths': safeFieldPaths });
     if (!url) return false;
 
+    // Strict origin and hostname defense against SSRF (CWE-918)
+    const targetUrl = new URL(url);
+    if (targetUrl.origin !== 'https://firestore.googleapis.com' || targetUrl.hostname !== 'firestore.googleapis.com') {
+      return false;
+    }
+
     try {
       const firestoreFields = {};
       for (const [key, val] of Object.entries(fields)) {
         firestoreFields[key] = this.toFirestoreValue(val);
       }
 
-      const response = await fetch(url, {
+      const response = await fetch(targetUrl.href, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,

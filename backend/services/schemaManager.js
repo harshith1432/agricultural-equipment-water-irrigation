@@ -801,7 +801,7 @@ class SchemaManager {
         }, { merge: true });
       }
     } catch (err) {
-      console.error(`[SchemaManager] Error provisioning farm chamber ${farmId}:`, err.message);
+      console.error('[SchemaManager] Error provisioning farm chamber:', String(farmId), err.message);
     }
   }
 
