@@ -522,13 +522,35 @@ export const DICTIONARY = {
     "ai_rec2_desc": "Red edge reflectance (NDRE 0.28) and soil available Nitrogen (68 mg/kg) fall below tuber expansion thresholds.",
     "venturi_doser_line": "Venturi Doser • Line G1",
     "field_zones_active": "Field Zones ({count} Active)",
-    "field_zones_live_db": "Live DB"
+    "field_zones_live_db": "Live DB",
+    "rec_irrigation_optimal_growth": "Irrigation is recommended to ensure optimal growth",
+    "rec_leaf_stress_confirmed": "Plot {plot} leaf stress (LWI {lwi}, Vitality {vitality}%) confirmed by {vwc}% FDR soil moisture (Target: >{target}%).",
+    "unit_kg_urea": "kg Urea",
+    "unit_lpm": "L/min",
+    "unit_lph": "LPH",
+    "unit_minute_short": "min",
+    "sonoma_parcels": "Sonoma Parcels",
+    "active_zones": "Active Zones",
+    "languages_label": "Languages",
+    "theme_creamy_agri": "Forest Cream (Agricultural Default)",
+    "theme_lush_emerald": "Lush Emerald (High Contrast Green)",
+    "theme_sunlight": "Sunlight Gold (Outdoor High Ambient)",
+    "theme_dark_soil": "Dark Soil (Night Low-Luminance)",
+    "menu_calibration_sub": "White PTFE & Dark zeroing",
+    "menu_telemetry_sim_sub": "Simulate Modbus RS485 & MQTT",
+    "menu_governance_sub": "Audit logs & valve actuation history",
+    "live_db": "Live DB",
+    "flow_rate": "Rate",
+    "gate_label": "GATE",
+    "pulse_actuated_gate_open": "+12V Pulse (50ms) Actuated Gate {gate} to OPEN",
+    "pulse_actuated_gate_close": "-12V Reverse Pulse (50ms) De-energized Gate {gate} to CLOSED",
+    "role_admin": "Farm Admin"
   },
   "kn": {
-    "nav_home": "ಮುಖಪುಟ",
+    "nav_home": "ಮುಖ",
     "nav_irrigation": "ಹನಿ ನೀರು",
-    "nav_spectroscopy": "ಎಲೆ ಸ್ಕ್ಯಾನ್",
-    "nav_environment": "ಹವಾಮಾನ",
+    "nav_spectroscopy": "ಎಲೆ",
+    "nav_environment": "ಹವಾ",
     "nav_soil": "ಮಣ್ಣು",
     "nav_soil_climate": "ಮಣ್ಣು & ಹವೆ",
     "nav_ai": "AI ಸಲಹೆ",
@@ -982,7 +1004,29 @@ export const DICTIONARY = {
     "ai_rec2_desc": "ಕೆಂಪು ಅಂಚಿನ ಪ್ರತಿಫಲನ (NDRE 0.28) ಮತ್ತು ಲಭ್ಯವಿರುವ ಸಾರಜನಕವು (68 mg/kg) ಗೆಡ್ಡೆ ವಿಸ್ತರಣಾ ಮಿತಿಗಿಂತ ಕಡಿಮೆಯಾಗಿದೆ.",
     "venturi_doser_line": "ವೆಂಚುರಿ ಡೋಸರ್ • ಲೈನ್ G1",
     "field_zones_active": "ಫೀಲ್ಡ್ ವಲಯಗಳು ({count} ಸಕ್ರಿಯ)",
-    "field_zones_live_db": "ಲೈವ್ DB"
+    "field_zones_live_db": "ಲೈವ್ DB",
+    "rec_irrigation_optimal_growth": "ಸೂಕ್ತ ಬೆಳವಣಿಗೆಯನ್ನು ಖಚಿತಪಡಿಸಿಕೊಳ್ಳಲು ನೀರಾವರಿ ಶಿಫಾರಸು ಮಾಡಲಾಗಿದೆ",
+    "rec_leaf_stress_confirmed": "ಪ್ಲಾಟ್ {plot} ಎಲೆಗಳ ಒತ್ತಡ (LWI {lwi}, ಚೈತನ್ಯ {vitality}%) {vwc}% FDR ಮಣ್ಣಿನ ತೇವಾಂಶದಿಂದ ದೃಢಪಟ್ಟಿದೆ (ಗುರಿ: >{target}%).",
+    "unit_kg_urea": "ಕೆಜಿ ಯೂರಿಯಾ",
+    "unit_lpm": "ಲೀ/ನಿಮಿಷ",
+    "unit_lph": "ಲೀ/ಗಂಟೆ",
+    "unit_minute_short": "ನಿಮಿಷ",
+    "sonoma_parcels": "ಸೋನೋಮಾ ಪಾರ್ಸೆಲ್‌ಗಳು",
+    "active_zones": "ಸಕ್ರಿಯ ವಲಯಗಳು",
+    "languages_label": "ಭಾಷೆಗಳು",
+    "theme_creamy_agri": "ಅರಣ್ಯ ಕ್ರೀಮ್ (ಕೃಷಿ ಡೀಫಾಲ್ಟ್)",
+    "theme_lush_emerald": "ಹಚ್ಚ ಹಸಿರು (ಹೆಚ್ಚಿನ ಕಾಂಟ್ರಾಸ್ಟ್)",
+    "theme_sunlight": "ಸೂರ್ಯನ ಬೆಳಕು ಗೋಲ್ಡ್ (ಹೊರಾಂಗಣ ಹೈ ಆಂಬಿಯೆಂಟ್)",
+    "theme_dark_soil": "ಗಾಢ ಮಣ್ಣು (ರಾತ್ರಿ ಮೋಡ್)",
+    "menu_calibration_sub": "ಬಿಳಿ PTFE ಮತ್ತು ಡಾರ್ಕ್ ಝೀರೋಯಿಂಗ್",
+    "menu_telemetry_sim_sub": "Modbus RS485 & MQTT ಸಿಮ್ಯುಲೇಶನ್",
+    "menu_governance_sub": "ಆಡಿಟ್ ಲಾಗ್‌ಗಳು ಮತ್ತು ವಾಲ್ವ್ ಇತಿಹಾಸ",
+    "live_db": "ಲೈವ್ DB",
+    "flow_rate": "ದರ",
+    "gate_label": "ಗೇಟ್",
+    "pulse_actuated_gate_open": "+12V ಪಲ್ಸ್ (50ms) ಗೇಟ್ {gate} ಅನ್ನು ತೆರೆಯಲಾಗಿದೆ",
+    "pulse_actuated_gate_close": "-12V ರಿವರ್ಸ್ ಪಲ್ಸ್ (50ms) ಗೇಟ್ {gate} ಅನ್ನು ಮುಚ್ಚಲಾಗಿದೆ",
+    "role_admin": "ಕೃಷಿ ನಿರ್ವಾಹಕ"
   },
   "hi": {
     "nav_home": "होम",
@@ -1442,7 +1486,29 @@ export const DICTIONARY = {
     "ai_rec2_desc": "लाल किनारे परावर्तन (NDRE 0.28) और उपलब्ध नाइट्रोजन (68 मिलीग्राम/किग्रा) कंद विस्तार सीमा से नीचे हैं।",
     "venturi_doser_line": "वेंचुरी डोजर • लाइन G1",
     "field_zones_active": "फील्ड ज़ोन ({count} सक्रिय)",
-    "field_zones_live_db": "लाइव DB"
+    "field_zones_live_db": "लाइव DB",
+    "rec_irrigation_optimal_growth": "इष्टतम विकास सुनिश्चित करने के लिए सिंचाई की सिफारिश की जाती है",
+    "rec_leaf_stress_confirmed": "प्लॉट {plot} पत्ती तनाव (LWI {lwi}, जीवन शक्ति {vitality}%) {vwc}% एफडीआर मिट्टी की नमी से पुष्ट (लक्ष्य: >{target}%).",
+    "unit_kg_urea": "किग्रा यूरिया",
+    "unit_lpm": "ली/मिनट",
+    "unit_lph": "ली/घंटा",
+    "unit_minute_short": "मिनट",
+    "sonoma_parcels": "सोनोमा पार्सल",
+    "active_zones": "सक्रिय क्षेत्र",
+    "languages_label": "भाषाएं",
+    "theme_creamy_agri": "फॉरेस्ट क्रीम (कृषि डिफ़ॉल्ट)",
+    "theme_lush_emerald": "हरा पन्ना (उच्च कंट्रास्ट)",
+    "theme_sunlight": "सनलाइट गोल्ड (आउटडोर हाई एंबियंट)",
+    "theme_dark_soil": "काली मिट्टी (नाइट मोड)",
+    "menu_calibration_sub": "व्हाइट PTFE व डार्क ज़ीरोइंग",
+    "menu_telemetry_sim_sub": "Modbus RS485 और MQTT का अनुकरण करें",
+    "menu_governance_sub": "ऑडिट लॉग और वाल्व संचालन इतिहास",
+    "live_db": "लाइव DB",
+    "flow_rate": "दर",
+    "gate_label": "गेट",
+    "pulse_actuated_gate_open": "+12V पल्स (50ms) ने गेट {gate} को चालू किया",
+    "pulse_actuated_gate_close": "-12V रिवर्स पल्स (50ms) ने गेट {gate} को बंद किया",
+    "role_admin": "फार्म व्यवस्थापक"
   },
   "te": {
     "nav_home": "హోమ్",
@@ -1902,7 +1968,29 @@ export const DICTIONARY = {
     "ai_rec2_desc": "రెడ్ ఎడ్జ్ రిఫ్లెక్టెన్స్ (NDRE 0.28) మరియు లభ్యమయ్యే నత్రజని (68 mg/kg) దుంప విస్తరణ పరిమితి కంటే తక్కువగా ఉన్నాయి.",
     "venturi_doser_line": "వెంచురీ డోజర్ • లైన్ G1",
     "field_zones_active": "ఫీల్డ్ జోన్లు ({count} క్రియాశీలం)",
-    "field_zones_live_db": "లైవ్ DB"
+    "field_zones_live_db": "లైవ్ DB",
+    "rec_irrigation_optimal_growth": "సరైన పెరుగుదలను నిర్ధారించడానికి నీటిపారుదల సిఫార్సు చేయబడింది",
+    "rec_leaf_stress_confirmed": "ప్లాట్ {plot} ఆకు ఒత్తిడి (LWI {lwi}, శక్తి {vitality}%) {vwc}% FDR నేల తేమ ద్వారా ధృవీకరించబడింది (లక్ష్యం: >{target}%).",
+    "unit_kg_urea": "కిలోల యూరియా",
+    "unit_lpm": "లీ/నిమి",
+    "unit_lph": "ಲೀ/ಗಂಟೆ",
+    "unit_minute_short": "నిమి",
+    "sonoma_parcels": "సోనోమా పార్సెల్స్",
+    "active_zones": "యాక్టివ్ జోన్లు",
+    "languages_label": "భాషలు",
+    "theme_creamy_agri": "ఫారెస్ట్ క్రీమ్ (వ్యవసాయ డిఫాల్ట్)",
+    "theme_lush_emerald": "పచ్చని ఎమరాల్డ్ (హై కాంట్రాస్ట్)",
+    "theme_sunlight": "సూర్యకాంతి గోల్డ్ (అవుట్‌డోర్ హై యాంబియంట్)",
+    "theme_dark_soil": "నల్ల నేల (రాత్రి మోడ్)",
+    "menu_calibration_sub": "వైట్ PTFE & డార్క్ జీరోయింగ్",
+    "menu_telemetry_sim_sub": "Modbus RS485 & MQTT సిమ్యులేట్ చేయండి",
+    "menu_governance_sub": "ఆడిట్ లాగ్‌లు & వాల్వ్ హిస్టరీ",
+    "live_db": "లైವ್ DB",
+    "flow_rate": "రేటు",
+    "gate_label": "గేట్",
+    "pulse_actuated_gate_open": "+12V పల్స్ (50ms) గేట్ {gate} తెరిచింది",
+    "pulse_actuated_gate_close": "-12V రివర్స్ పల్స్ (50ms) గేಟ್ {gate} మూసివేసింది",
+    "role_admin": "వ్యవసాయ నిర్వాహకుడు"
   },
   "ta": {
     "nav_home": "முகப்பு",
@@ -2362,7 +2450,29 @@ export const DICTIONARY = {
     "ai_rec2_desc": "சிவப்பு விளிம்பு பிரதிபலிப்பு (NDRE 0.28) மற்றும் கிடைக்கும் நைட்ரஜன் (68 மி.கி/கிலோ) கிழங்கு வளர்ச்சி வரம்பிற்குக் கீழே உள்ளது.",
     "venturi_doser_line": "வென்ச்சுரி டோசர் • வரி G1",
     "field_zones_active": "கள மண்டலங்கள் ({count} செயலில்)",
-    "field_zones_live_db": "நேரலை DB"
+    "field_zones_live_db": "நேரலை DB",
+    "rec_irrigation_optimal_growth": "உகந்த வளர்ச்சியை உறுதி செய்ய பாசனம் பரிந்துரைக்கப்படுகிறது",
+    "rec_leaf_stress_confirmed": "பிளாட் {plot} இலை மன அழுத்தம் (LWI {lwi}, வீரியம் {vitality}%) {vwc}% FDR மண் ஈரப்பதத்தால் உறுதிப்படுத்தப்பட்டது (இலக்கு: >{target}%).",
+    "unit_kg_urea": "கிலோ யூரியா",
+    "unit_lpm": "லி/நிமி",
+    "unit_lph": "லி/மணி",
+    "unit_minute_short": "நிமி",
+    "sonoma_parcels": "சோனோமா பார்சல்கள்",
+    "active_zones": "செயலில் உள்ள மண்டலங்கள்",
+    "languages_label": "மொழிகள்",
+    "theme_creamy_agri": "வன கிரீம் (வேளாண் இயல்புநிலை)",
+    "theme_lush_emerald": "செழிப்பான மரகதம் (உயர் மாறுபாடு)",
+    "theme_sunlight": "சூரிய ஒளி தங்கம் (வெளிப்புற உயர் ஒளி)",
+    "theme_dark_soil": "கருப்பு மண் (இரவு பயன்முறை)",
+    "menu_calibration_sub": "வெள்ளை PTFE & இருண்ட பூஜ்ஜியமாக்கல்",
+    "menu_telemetry_sim_sub": "Modbus RS485 & MQTT உருவகப்படுத்துதல்",
+    "menu_governance_sub": "தணிக்கை பதிவுகள் & வால்வு வரலாறு",
+    "live_db": "நேரலை DB",
+    "flow_rate": "விகிதம்",
+    "gate_label": "கேட்",
+    "pulse_actuated_gate_open": "+12V துடிப்பு (50ms) கேட் {gate} திறக்கப்பட்டது",
+    "pulse_actuated_gate_close": "-12V தலைகீழ் துடிப்பு (50ms) கேட் {gate} மூடப்பட்டது",
+    "role_admin": "பண்ணை நிர்வாகி"
   },
   "ml": {
     "nav_home": "ഹോം",
@@ -2822,7 +2932,29 @@ export const DICTIONARY = {
     "ai_rec2_desc": "റെഡ് എഡ്ജ് റിഫ്ലെക്റ്റൻസ് (NDRE 0.28), ലഭ്യമായ നൈട്രജൻ (68 mg/kg) കിഴങ്ങ് വളർച്ചാ പരിധിക്ക് താഴെയാണ്.",
     "venturi_doser_line": "വെഞ്ചുറി ഡോസർ • ലൈൻ G1",
     "field_zones_active": "ഫീൽഡ് സോണുകൾ ({count} സജീവം)",
-    "field_zones_live_db": "തത്സമയ DB"
+    "field_zones_live_db": "തത്സമയ DB",
+    "rec_irrigation_optimal_growth": "മികച്ച വളർച്ച ഉറപ്പാക്കാൻ നനയ്ക്കൽ ശുപാർശ ചെയ്യുന്നു",
+    "rec_leaf_stress_confirmed": "പ്ലോട്ട് {plot} ഇലകളുടെ സമ്മർദ്ദം (LWI {lwi}, ചൈതന്യം {vitality}%) {vwc}% FDR മണ്ണിലെ ഈർപ്പത്താൽ സ്ഥിരീകരിച്ചു (ലക്ഷ്യം: >{target}%).",
+    "unit_kg_urea": "കിലോഗ്രാം യൂറിയ",
+    "unit_lpm": "ലി/മിനിറ്റ്",
+    "unit_lph": "ലി/മണിക്കൂർ",
+    "unit_minute_short": "മിനിറ്റ്",
+    "sonoma_parcels": "സോനോമ പാഴ്സലുകൾ",
+    "active_zones": "സജീവ മേഖലകൾ",
+    "languages_label": "ഭാഷകൾ",
+    "theme_creamy_agri": "ഫോറസ്റ്റ് ക്രീം (കാർഷിക സ്ഥിരസ്ഥിതി)",
+    "theme_lush_emerald": "എമറാൾഡ് ഗ്രീൻ (ഹൈ കോൺട്രാസ്റ്റ്)",
+    "theme_sunlight": "സൺലൈറ്റ് ഗോൾഡ് (ഔട്ട്ഡോർ ഹൈ ആംബിയന്റ്)",
+    "theme_dark_soil": "കറുത്ത മണ്ണ് (നൈറ്റ് മോഡ്)",
+    "menu_calibration_sub": "വൈറ്റ് PTFE & ഡാർക്ക് സീറോയിംഗ്",
+    "menu_telemetry_sim_sub": "Modbus RS485 & MQTT സിമുലേഷൻ",
+    "menu_governance_sub": "ഓഡിറ്റ് ലോഗുകളും വാൽവ് ചരിത്രവും",
+    "live_db": "തത്സമയ DB",
+    "flow_rate": "നിരക്ക്",
+    "gate_label": "ഗേറ്റ്",
+    "pulse_actuated_gate_open": "+12V പൾസ് (50ms) ഗേറ്റ് {gate} തുറന്നു",
+    "pulse_actuated_gate_close": "-12V റിവേഴ്സ് പൾസ് (50ms) ഗേറ്റ് {gate} അടച്ചു",
+    "role_admin": "ഫാം അഡ്മിൻ"
   },
   "mr": {
     "nav_home": "मुख्यपृष्ठ",
@@ -3282,7 +3414,29 @@ export const DICTIONARY = {
     "ai_rec2_desc": "लाल किनार परावर्तन (NDRE 0.28) आणि उपलब्ध नायट्रोजन (68 mg/kg) कंद विस्तार मर्यादेपेक्षा कमी आहे.",
     "venturi_doser_line": "व्हेंचुरी डोसिंग • लाईन G1",
     "field_zones_active": "फील्ड झोन ({count} सक्रिय)",
-    "field_zones_live_db": "थेट DB"
+    "field_zones_live_db": "थेट DB",
+    "rec_irrigation_optimal_growth": "इष्टतम वाढीसाठी सिंचनाची शिफारस केली जाते",
+    "rec_leaf_stress_confirmed": "प्लॉट {plot} पानांचा ताण (LWI {lwi}, चैतन्य {vitality}%) {vwc}% FDR मातीतील ओलाव्याद्वारे पुष्टी (लक्ष्य: >{target}%).",
+    "unit_kg_urea": "किलो युरिया",
+    "unit_lpm": "ली/मि",
+    "unit_lph": "ली/तास",
+    "unit_minute_short": "मि",
+    "sonoma_parcels": "सोनोमा पार्सल",
+    "active_zones": "सक्रिय झोन",
+    "languages_label": "भाषा",
+    "theme_creamy_agri": "फॉरेस्ट क्रीम (कृषी डीफॉल्ट)",
+    "theme_lush_emerald": "हिरवे पाचू (हाय कॉन्ट्रास्ट)",
+    "theme_sunlight": "सनलाइट गोल्ड (आउटडोअर हाय अ‍ॅम्बियंट)",
+    "theme_dark_soil": "काळी माती (नाईट मोड)",
+    "menu_calibration_sub": "पांढरे PTFE आणि डार्क झिरोइंग",
+    "menu_telemetry_sim_sub": "Modbus RS485 आणि MQTT सिम्युलेट करा",
+    "menu_governance_sub": "ऑडिट नोंदी आणि वाल्व इतिहास",
+    "live_db": "थेट DB",
+    "flow_rate": "दर",
+    "gate_label": "गेट",
+    "pulse_actuated_gate_open": "+12V पल्स (50ms) द्वारे गेट {gate} उघडले",
+    "pulse_actuated_gate_close": "-12V रिव्हर्स पल्स (50ms) द्वारे गेट {gate} बंद केले",
+    "role_admin": "शेत प्रशासक"
   },
   "es": {
     "nav_home": "Inicio",
@@ -3742,7 +3896,29 @@ export const DICTIONARY = {
     "ai_rec2_desc": "La reflectancia del borde rojo (NDRE 0.28) y el Nitrógeno del suelo (68 mg/kg) caen por debajo del umbral de engrosamiento.",
     "venturi_doser_line": "Dosificador Venturi • Línea G1",
     "field_zones_active": "Zonas de Campo ({count} Activas)",
-    "field_zones_live_db": "BD en Vivo"
+    "field_zones_live_db": "BD en Vivo",
+    "rec_irrigation_optimal_growth": "Se recomienda el riego para garantizar un crecimiento óptimo",
+    "rec_leaf_stress_confirmed": "Estrés foliar en parcela {plot} (LWI {lwi}, Vitalidad {vitality}%) confirmado por humedad FDR del {vwc}% (Objetivo: >{target}%).",
+    "unit_kg_urea": "kg de Urea",
+    "unit_lpm": "L/min",
+    "unit_lph": "L/h",
+    "unit_minute_short": "min",
+    "sonoma_parcels": "Parcelas de Sonoma",
+    "active_zones": "Zonas Activas",
+    "languages_label": "Idiomas",
+    "theme_creamy_agri": "Crema Bosque (Estándar Agrícola)",
+    "theme_lush_emerald": "Esmeralda Intenso (Alto Contraste)",
+    "theme_sunlight": "Dorado Solar (Alto Brillo Exterior)",
+    "theme_dark_soil": "Suelo Oscuro (Modo Nocturno)",
+    "menu_calibration_sub": "PTFE blanco y calibración en oscuridad",
+    "menu_telemetry_sim_sub": "Simular Modbus RS485 y MQTT",
+    "menu_governance_sub": "Registros de auditoría e historial de válvulas",
+    "live_db": "BD en Vivo",
+    "flow_rate": "Caudal",
+    "gate_label": "COMPUERTA",
+    "pulse_actuated_gate_open": "Pulso de +12V (50ms) abrió la Compuerta {gate}",
+    "pulse_actuated_gate_close": "Pulso inverso de -12V (50ms) cerró la Compuerta {gate}",
+    "role_admin": "Admin de Finca"
   }
 };
 
@@ -3850,4 +4026,40 @@ export function t(key, fallback = '') {
 export function onLocaleChange(callback) {
   listeners.add(callback);
   return () => listeners.delete(callback);
+}
+
+
+/**
+ * Resolves user roles into localized titles.
+ */
+export function getRoleName(role) {
+  if (!role) return t('role_farm_owner', 'Farm Owner');
+  const normalized = String(role).toLowerCase().replace(/[\s_-]+/g, '');
+  if (normalized.includes('agronomist')) return t('role_agronomist', 'Agronomist');
+  if (normalized.includes('tech') || normalized.includes('operator')) return t('role_field_tech', 'Field Tech');
+  if (normalized.includes('admin') || normalized.includes('super')) return t('role_admin', 'Farm Admin');
+  return t('role_farm_owner', 'Farm Owner');
+}
+
+/**
+ * Formats structured AI synergy trigger reasons into localized copy.
+ */
+export function formatTriggerReason(reason) {
+  if (!reason) return '';
+  const str = String(reason).trim();
+  if (/irrigation is recommended to ensure optimal growth/i.test(str)) {
+    return t('rec_irrigation_optimal_growth');
+  }
+  const match = str.match(/Plot\s+(\d+)\s+leaf stress\s*\(LWI\s*([\d.]+),\s*Vitality\s*([\d.]+)%\)\s*confirmed by\s*([\d.]+)%\s*FDR soil moisture\s*\(Target:\s*>([\d.]+)%\)/i);
+  if (match) {
+    const [, plot, lwi, vitality, vwc, target] = match;
+    let template = t('rec_leaf_stress_confirmed');
+    return template
+      .replace('{plot}', plot)
+      .replace('{lwi}', lwi)
+      .replace('{vitality}', vitality)
+      .replace('{vwc}', vwc)
+      .replace('{target}', target);
+  }
+  return str;
 }

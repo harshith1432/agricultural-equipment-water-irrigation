@@ -4,7 +4,7 @@
  * confirmed by multi-depth FDR soil telemetry.
  */
 import { ttsEngine } from '../audio/voiceReadoutTTS.js';
-import { t, onLocaleChange, getCropName } from '../utils/i18n.js';
+import { t, onLocaleChange, getCropName, formatTriggerReason } from '../utils/i18n.js';
 
 function escapeHtml(str) {
   if (str === null || str === undefined) return '';
@@ -60,7 +60,7 @@ export function createClosedLoopSynergySection(recommendations = [], onAction) {
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 mb-1 flex-wrap min-w-0">
                   <span class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-[#0E5431] text-white">
-                    GATE ${escapeHtml(rec.gateId || 'G' + rec.plotNumber)}
+                    ${t('gate_label', 'GATE')} ${escapeHtml(rec.gateId || 'G' + rec.plotNumber)}
                   </span>
                   <span class="text-xs font-bold text-slate-900 dark:text-white truncate">${escapeHtml(getCropName(rec.crop))} (${t('zone_label', 'Zone')} ${escapeHtml(rec.plotNumber)})</span>
                   <span class="text-[10px] font-mono font-bold text-amber-800 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/60 px-2 py-0.5 rounded-md border border-amber-400/30 shrink-0">
@@ -68,13 +68,13 @@ export function createClosedLoopSynergySection(recommendations = [], onAction) {
                   </span>
                 </div>
                 <p class="text-xs sm:text-sm text-slate-700 dark:text-slate-200 mt-1 font-medium">
-                  ${escapeHtml(rec.triggerReason)}
+                  ${escapeHtml(formatTriggerReason(rec.triggerReason))}
                 </p>
                 <div class="flex flex-wrap items-center gap-2 sm:gap-3 text-[11px] font-mono text-slate-500 dark:text-slate-400 mt-2">
-                  <span>${t('proposed_pulse')}: <strong class="text-[#0E5431] dark:text-emerald-400">${Number(rec.suggestedDurationMinutes) || 25} min ${t('latching_12v')}</strong></span>
+                  <span>${t('proposed_pulse')} <strong class="text-[#0E5431] dark:text-emerald-400">${Number(rec.suggestedDurationMinutes) || 25} ${t('unit_minute_short', 'min')} ${t('latching_12v')}</strong></span>
                   <span>•</span>
-                  <span>${t('estimated_volume')}: <strong class="text-blue-600 dark:text-blue-300">~${Math.round((Number(rec.suggestedDurationMinutes) || 25) * 8.5)} ${t('liters')}</strong></span>
-                  ${rec.nitrogenPrescriptionKg > 0 ? `<span>•</span><span class="text-amber-700 dark:text-amber-300">${t('fertilizer_prescr')}: ${Number(rec.nitrogenPrescriptionKg)} kg Urea</span>` : ''}
+                  <span>${t('estimated_volume')} <strong class="text-blue-600 dark:text-blue-300">~${Math.round((Number(rec.suggestedDurationMinutes) || 25) * 8.5)} ${t('liters')}</strong></span>
+                  ${rec.nitrogenPrescriptionKg > 0 ? `<span>•</span><span class="text-amber-700 dark:text-amber-300">${t('fertilizer_prescr')} ${Number(rec.nitrogenPrescriptionKg)} ${t('unit_kg_urea', 'kg Urea')}</span>` : ''}
                 </div>
               </div>
 
@@ -94,9 +94,9 @@ export function createClosedLoopSynergySection(recommendations = [], onAction) {
                 </button>
 
                 <!-- Approve Button -->
-                <button data-rec-id="${escapeHtml(rec.id)}" data-action="APPROVE" class="rec-action-btn min-h-[44px] px-4 sm:px-5 py-2 rounded-xl text-xs font-bold text-white bg-[#0E5431] hover:bg-[#083820] shadow-sm transition active:scale-95 flex items-center gap-1.5 shrink-0 whitespace-nowrap cursor-pointer">
-                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                  ${t('approve_actuate')}
+                <button data-rec-id="${escapeHtml(rec.id)}" data-action="APPROVE" class="rec-action-btn min-h-[44px] px-3.5 sm:px-5 py-2 rounded-xl text-xs font-bold text-white bg-[#0E5431] hover:bg-[#083820] shadow-sm transition active:scale-95 flex items-center justify-center gap-1.5 w-full sm:w-auto cursor-pointer">
+                  <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                  <span class="truncate">${t('approve_actuate')}</span>
                 </button>
               </div>
             </div>

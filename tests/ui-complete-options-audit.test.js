@@ -703,7 +703,16 @@ export function registerUICompleteOptionsAuditTests() {
       expect(Boolean(resetBtn)).toBe(true);
       resetBtn.click();
 
-      // 3. Save Layout button
+      // 3. Close & Cancel buttons
+      const closeXBtn = modal.querySelector('#modal-close-btn');
+      expect(Boolean(closeXBtn)).toBe(true);
+      expect(closeXBtn.getBoundingClientRect().width).toBeGreaterThan(0);
+
+      const cancelBtn = modal.querySelector('#modal-cancel-btn');
+      expect(Boolean(cancelBtn)).toBe(true);
+      expect(cancelBtn.getBoundingClientRect().width).toBeGreaterThan(0);
+
+      // 4. Save Layout button
       const saveBtn = modal.querySelector('#modal-save-btn');
       expect(Boolean(saveBtn)).toBe(true);
       saveBtn.click();
@@ -738,7 +747,12 @@ export function registerUICompleteOptionsAuditTests() {
         expect(mqttSimulator.weatherMode).toBe(modes[idx]);
       });
 
-      // 3. Close panel button
+      // 3. Header Close Button
+      const closeXBtn = simModal.querySelector('#sim-close-btn');
+      expect(Boolean(closeXBtn)).toBe(true);
+      expect(closeXBtn.getBoundingClientRect().width).toBeGreaterThan(0);
+
+      // 4. Close panel button
       const doneBtn = simModal.querySelector('#sim-done-btn');
       expect(Boolean(doneBtn)).toBe(true);
       doneBtn.click();
@@ -787,7 +801,16 @@ export function registerUICompleteOptionsAuditTests() {
       expect(step2Btn.textContent).toContain('White Disc');
       await step2Btn.click();
 
-      // Step 3: Complete & Return to field
+      // Step 3: Header close and cancel buttons
+      const calibCloseBtn = calModal.querySelector('#calib-close-btn');
+      expect(Boolean(calibCloseBtn)).toBe(true);
+      expect(calibCloseBtn.getBoundingClientRect().width).toBeGreaterThan(0);
+
+      const calibCancelBtn = calModal.querySelector('#calib-cancel-btn');
+      expect(Boolean(calibCancelBtn)).toBe(true);
+      expect(calibCancelBtn.getBoundingClientRect().width).toBeGreaterThan(0);
+
+      // Complete & Return to field
       const doneBtn = calModal.querySelector('#calib-done-btn');
       expect(Boolean(doneBtn)).toBe(true);
       doneBtn.click();

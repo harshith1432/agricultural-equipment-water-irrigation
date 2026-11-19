@@ -24,28 +24,28 @@ export function createEnterpriseAdminModal({ onClose, onGlobalEmergencyStop }) {
     <div class="relative w-full max-w-5xl my-auto bg-[#F7F4EB] text-[#1E462A] rounded-3xl border border-[#E2D9CB] shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
       
       <!-- Header Bar -->
-      <div class="bg-[#1E462A] text-white px-6 py-5 flex items-center justify-between border-b border-emerald-900/40 shrink-0">
-        <div class="flex items-center gap-3.5">
-          <div class="w-11 h-11 rounded-2xl bg-[#10B981] flex items-center justify-center text-white shadow-lg ring-4 ring-emerald-400/20">
-            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+      <div class="bg-[#1E462A] text-white px-4 sm:px-6 py-4 sm:py-5 flex items-center justify-between gap-3 border-b border-emerald-900/40 shrink-0">
+        <div class="flex items-center gap-3 sm:gap-3.5 min-w-0 flex-1">
+          <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-[#10B981] flex items-center justify-center text-white shadow-lg ring-4 ring-emerald-400/20 shrink-0">
+            <svg class="w-5 h-5 sm:w-6 sm:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
               <path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v4M12 14v4M16 14v4"/>
             </svg>
           </div>
-          <div>
-            <div class="flex items-center gap-2">
-              <h2 class="text-lg sm:text-xl font-extrabold tracking-tight text-white font-sans">
+          <div class="min-w-0 flex-1">
+            <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <h2 class="text-base sm:text-xl font-extrabold tracking-tight text-white font-sans truncate">
                 Enterprise Executive Hub
               </h2>
-              <span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+              <span class="px-2 sm:px-2.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shrink-0">
                 ENTREPRENEUR TIER
               </span>
             </div>
-            <p class="text-xs text-emerald-100/70 font-medium">Multi-tenant agronomy network & global hydraulic governance</p>
+            <p class="text-[11px] sm:text-xs text-emerald-100/70 font-medium truncate">Multi-tenant agronomy network & global hydraulic governance</p>
           </div>
         </div>
 
         <!-- Close Modal Button -->
-        <button id="admin-close-btn" class="min-w-[48px] min-h-[48px] flex items-center justify-center rounded-2xl bg-white/10 hover:bg-white/20 text-white transition cursor-pointer" title="Close Executive Dashboard" aria-label="Close">
+        <button id="admin-close-btn" class="min-w-[40px] min-h-[40px] sm:min-w-[48px] sm:min-h-[48px] flex items-center justify-center rounded-2xl bg-white/10 hover:bg-white/20 text-white transition cursor-pointer shrink-0" title="Close Executive Dashboard" aria-label="Close">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
       </div>

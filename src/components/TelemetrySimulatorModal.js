@@ -16,8 +16,8 @@ export function createTelemetrySimulatorModal({ onClose }) {
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
 
-        <div class="flex items-center gap-3 mb-5">
-          <div class="w-10 h-10 rounded-xl bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-blue-400">
+        <div class="flex items-center gap-3 mb-5 pr-12 min-w-0">
+          <div class="w-10 h-10 rounded-xl bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-blue-400 shrink-0">
             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
               <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
@@ -25,9 +25,9 @@ export function createTelemetrySimulatorModal({ onClose }) {
               <line x1="12" y1="20" x2="12.01" y2="20"/>
             </svg>
           </div>
-          <div>
-            <h3 class="text-base sm:text-lg font-bold text-white">IoT Hardware & Telemetry Simulator</h3>
-            <p class="text-xs text-slate-400">FDR multi-depth soil probes, mainline pressure, and weather modes</p>
+          <div class="min-w-0 flex-1">
+            <h3 class="text-base sm:text-lg font-bold text-white truncate leading-tight">IoT Hardware & Telemetry Simulator</h3>
+            <p class="text-xs text-slate-400 truncate mt-0.5">FDR multi-depth soil probes, mainline pressure, and weather modes</p>
           </div>
         </div>
 

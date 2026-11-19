@@ -119,19 +119,32 @@ export function createDashboardSettingsModal({ onClose, onSettingsChanged }) {
       <div class="relative w-full max-w-md my-auto bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-3xl border border-emerald-900/10 dark:border-slate-800 shadow-2xl overflow-hidden transition-all duration-300">
         
         <!-- Header -->
-        <div class="bg-gradient-to-br from-[#0E5431] to-[#0A3D23] text-white p-5 pb-4 relative">
-          <button id="modal-close-btn" class="absolute top-4 right-4 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-2xl bg-white/10 hover:bg-white/20 text-white transition cursor-pointer" title="Close" aria-label="Close Customization Modal">
-            ${icon('x', 'w-4 h-4 text-white')}
-          </button>
+        <div class="bg-gradient-to-br from-[#0E5431] to-[#0A3D23] text-white p-4 sm:p-5 relative">
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex items-center gap-2.5 min-w-0 flex-1">
+              <div class="w-9 h-9 rounded-2xl bg-white/15 flex items-center justify-center text-emerald-300 shrink-0">
+                ${icon('sliders', 'w-5 h-5')}
+              </div>
+              <div class="min-w-0 flex-1 pr-1">
+                <h2 class="text-sm sm:text-base font-bold text-white tracking-tight leading-tight break-words">
+                  ${t('customize_bento_title', 'Dashboard Bento Customizer')}
+                </h2>
+                <p class="text-[11px] text-emerald-200/80 leading-tight mt-0.5 break-words">
+                  ${t('customize_bento_desc', 'Configure visible cards on your farm overview')}
+                </p>
+              </div>
+            </div>
 
-          <div class="flex items-center gap-2.5">
-            <div class="w-9 h-9 rounded-2xl bg-white/15 flex items-center justify-center text-emerald-300">
-              ${icon('sliders', 'w-5 h-5')}
-            </div>
-            <div>
-              <h2 class="text-base font-bold text-white tracking-tight">${t('customize_bento_title', 'Dashboard Bento Customizer')}</h2>
-              <p class="text-[11px] text-emerald-200/80">${t('customize_bento_desc', 'Configure visible cards on your farm overview')}</p>
-            </div>
+            <!-- Close Button cleanly aligned on the right in the flex layout -->
+            <button 
+              type="button" 
+              id="modal-close-btn" 
+              class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 text-white flex items-center justify-center transition border border-white/20 shadow-sm shrink-0" 
+              title="${t('cancel', 'Close')}" 
+              aria-label="Close Customization Modal"
+            >
+              ${icon('x', 'w-4 h-4 text-white')}
+            </button>
           </div>
 
           <div class="mt-3 pt-2 border-t border-emerald-700/50 flex items-center justify-between text-xs text-emerald-200">
@@ -144,9 +157,9 @@ export function createDashboardSettingsModal({ onClose, onSettingsChanged }) {
 
         <!-- Live Bento Layout Mini-Preview Grid -->
         <div class="px-5 pt-3 pb-2 bg-slate-50 dark:bg-slate-950/50 border-b border-slate-200 dark:border-slate-800">
-          <div class="flex items-center justify-between text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-            <span>Bento Layout Preview</span>
-            <span class="text-emerald-600 font-bold">${activeCount} of 8 Active</span>
+          <div class="flex items-center justify-between gap-2 text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider mb-1.5 min-w-0">
+            <span class="truncate">Bento Layout Preview</span>
+            <span class="text-emerald-600 font-bold shrink-0">${activeCount} of 8 Active</span>
           </div>
           <div class="grid grid-cols-4 gap-1 p-1.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-inner">
             <div class="col-span-4 h-5 rounded-lg text-[9px] font-bold flex items-center justify-center transition-all ${currentSettings.weather_hero ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 opacity-40'}">

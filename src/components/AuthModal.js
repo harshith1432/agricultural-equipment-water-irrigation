@@ -50,8 +50,8 @@ export function createAuthModal({ initialMode = 'SIGN_IN', onClose, onAuthSucces
           </button>
 
           <!-- Brand Emblem -->
-          <div class="flex items-center gap-3">
-            <div class="w-12 h-12 rounded-2xl bg-[#10B981] flex items-center justify-center text-white shadow-lg shadow-emerald-950/40 ring-4 ring-emerald-400/20">
+          <div class="flex items-center gap-3 pr-12 min-w-0">
+            <div class="w-12 h-12 rounded-2xl bg-[#10B981] flex items-center justify-center text-white shadow-lg shadow-emerald-950/40 ring-4 ring-emerald-400/20 shrink-0">
               <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
                 <path d="M12 2a10 10 0 0 1 10 10c0 5.523-4.477 10-10 10S2 17.523 2 12a10 10 0 0 1 10-10Z"/>
                 <path d="m9 12 2 2 4-4"/>
@@ -59,9 +59,9 @@ export function createAuthModal({ initialMode = 'SIGN_IN', onClose, onAuthSucces
                 <path d="M12 16v2"/>
               </svg>
             </div>
-            <div>
-              <span class="text-[11px] font-mono tracking-widest uppercase text-emerald-300 font-bold">AgriSpectra Access</span>
-              <h2 class="text-xl font-extrabold tracking-tight text-white">
+            <div class="min-w-0 flex-1">
+              <span class="text-[11px] font-mono tracking-widest uppercase text-emerald-300 font-bold block truncate">AgriSpectra Access</span>
+              <h2 class="text-lg sm:text-xl font-extrabold tracking-tight text-white leading-tight break-words">
                 ${mode === 'SIGN_IN' ? 'Welcome Back, Grower' : (mode === 'SIGN_UP' ? 'Create Farm Workspace' : 'Reset Farm Access')}
               </h2>
             </div>

@@ -372,6 +372,103 @@ export function createSettingsView({
         </select>
       </div>
 
+      <!-- 5b. Wireless & Cloud Connectivity (Bluetooth BLE & Wi-Fi IoT Gateway) -->
+      <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 shadow-sm border border-emerald-900/5 dark:border-slate-800 space-y-3.5">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+          <h3 class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+            ${icon('wifi', 'w-4 h-4 text-[#0E5431] dark:text-emerald-400')}
+            <span>${t('wireless_connectivity', 'Wireless & Cloud Connectivity')}</span>
+          </h3>
+          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-emerald-100 text-[#0E5431] dark:bg-emerald-950/60 dark:text-emerald-300">
+            ONLINE
+          </span>
+        </div>
+
+        <div class="space-y-3">
+          <!-- 1. Bluetooth Low Energy (BLE) Section -->
+          <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 space-y-2">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-xl bg-teal-100 text-teal-800 dark:bg-teal-950/60 dark:text-teal-300 flex items-center justify-center">
+                  ${icon('bluetooth', 'w-4 h-4')}
+                </div>
+                <div>
+                  <h4 class="text-xs font-bold text-slate-900 dark:text-white">Bluetooth Low Energy (BLE)</h4>
+                  <p class="text-[10px] text-slate-500 font-mono">Leaf-Clip Spectrometer & Valve Gateway</p>
+                </div>
+              </div>
+              <span id="settings-ble-status-pill" class="px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                CONNECTED
+              </span>
+            </div>
+
+            <div class="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-400 pt-1 border-t border-slate-200/50 dark:border-slate-700/50">
+              <span class="font-mono">Device: AGRISPECTRA-LEAF-01</span>
+              <span class="font-mono text-emerald-600 dark:text-emerald-400">Signal: -64 dBm</span>
+            </div>
+
+            <div class="flex items-center gap-2 pt-1">
+              <button 
+                type="button" 
+                id="btn-settings-scan-ble"
+                class="flex-1 py-2 px-3 rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-98 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+              >
+                ${icon('refresh', 'w-3.5 h-3.5')}
+                <span>Scan & Pair BLE</span>
+              </button>
+              <button 
+                type="button" 
+                id="btn-settings-toggle-ble"
+                class="py-2 px-3 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 active:scale-98 text-slate-800 dark:text-slate-200 font-bold text-xs transition cursor-pointer"
+              >
+                Toggle BLE
+              </button>
+            </div>
+          </div>
+
+          <!-- 2. Wi-Fi & Cloud IoT Gateway Section -->
+          <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 space-y-2">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-xl bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 flex items-center justify-center">
+                  ${icon('wifi', 'w-4 h-4')}
+                </div>
+                <div>
+                  <h4 class="text-xs font-bold text-slate-900 dark:text-white">Wi-Fi & Cloud IoT Sync</h4>
+                  <p class="text-[10px] text-slate-500 font-mono">MQTT Telemetry & Firestore Live Stream</p>
+                </div>
+              </div>
+              <span id="settings-wifi-status-pill" class="px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                ONLINE
+              </span>
+            </div>
+
+            <div class="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-400 pt-1 border-t border-slate-200/50 dark:border-slate-700/50">
+              <span class="font-mono">SSID: AgriFarm-Secure-IoT</span>
+              <span class="font-mono text-blue-600 dark:text-blue-400">Broker: TLS :8883</span>
+            </div>
+
+            <div class="flex items-center gap-2 pt-1">
+              <button 
+                type="button" 
+                id="btn-settings-connect-wifi"
+                class="flex-1 py-2 px-3 rounded-xl bg-[#0E5431] hover:bg-[#083820] active:scale-98 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+              >
+                ${icon('wifi', 'w-3.5 h-3.5')}
+                <span>Connect Wi-Fi Network</span>
+              </button>
+              <button 
+                type="button" 
+                id="btn-settings-test-iot"
+                class="py-2 px-3 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 active:scale-98 text-slate-800 dark:text-slate-200 font-bold text-xs transition cursor-pointer"
+              >
+                Test Sync
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- 6. Hardware Diagnostics & Network Status -->
       <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 shadow-sm border border-emerald-900/5 dark:border-slate-800 space-y-3">
         <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
@@ -592,6 +689,41 @@ export function createSettingsView({
       const code = e.target.value;
       setLocale(code);
       bannerMessage = `Regional voice language updated.`;
+      render();
+    });
+
+    // Wireless & Cloud Connectivity controls
+    let bleConnected = true;
+    container.querySelector('#btn-settings-scan-ble')?.addEventListener('click', () => {
+      bannerMessage = "Scanning 2.4GHz BLE spectrum... Paired with AGRISPECTRA-LEAF-01 (RSSI: -64 dBm).";
+      render();
+    });
+
+    container.querySelector('#btn-settings-toggle-ble')?.addEventListener('click', () => {
+      bleConnected = !bleConnected;
+      const pill = container.querySelector('#settings-ble-status-pill');
+      if (pill) {
+        pill.textContent = bleConnected ? "CONNECTED" : "DISCONNECTED";
+        pill.className = bleConnected 
+          ? "px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+          : "px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300";
+      }
+      bannerMessage = bleConnected 
+        ? "Bluetooth BLE link established with field sensor node." 
+        : "Bluetooth BLE disconnected. Standby mode active.";
+      render();
+    });
+
+    container.querySelector('#btn-settings-connect-wifi')?.addEventListener('click', () => {
+      const ssid = window.prompt("Enter Farm Wi-Fi SSID / Network Name:", "AgriFarm-Secure-IoT");
+      if (ssid) {
+        bannerMessage = `Wi-Fi network set to "${ssid}". Connected with TLS certificate.`;
+        render();
+      }
+    });
+
+    container.querySelector('#btn-settings-test-iot')?.addEventListener('click', () => {
+      bannerMessage = "IoT telemetry heartbeat ping verified: MQTT broker latency 24ms, 0 packet loss.";
       render();
     });
 

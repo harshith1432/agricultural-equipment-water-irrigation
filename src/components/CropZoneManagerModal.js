@@ -150,17 +150,17 @@ export function createCropZoneManagerModal({
         
         <!-- Header -->
         <div class="relative bg-gradient-to-r from-[#092B19] via-[#0E5431] to-[#146B40] text-white p-4 sm:p-5 flex-shrink-0">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2.5">
-              <div class="w-10 h-10 rounded-2xl bg-emerald-400/20 border border-emerald-300/30 flex items-center justify-center text-emerald-300 shadow-sm">
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2.5 min-w-0 flex-1">
+              <div class="w-10 h-10 rounded-2xl bg-emerald-400/20 border border-emerald-300/30 flex items-center justify-center text-emerald-300 shadow-sm shrink-0">
                 ${icon('sprout', 'w-5 h-5')}
               </div>
-              <div>
-                <h2 class="text-base sm:text-lg font-black tracking-tight flex items-center gap-2">
-                  <span>${t('manage_zones_and_crops', 'Manage Zones & Crops')}</span>
-                  <span class="px-2 py-0.5 rounded-full text-[10px] font-mono bg-emerald-500/30 text-emerald-200 border border-emerald-400/30">LIVE DB</span>
+              <div class="min-w-0 flex-1">
+                <h2 class="text-sm sm:text-base md:text-lg font-black tracking-tight flex flex-wrap items-center gap-1.5 sm:gap-2">
+                  <span class="truncate">${t('manage_zones_and_crops', 'Manage Zones & Crops')}</span>
+                  <span class="px-2 py-0.5 rounded-full text-[10px] font-mono bg-emerald-500/30 text-emerald-200 border border-emerald-400/30 shrink-0">LIVE DB</span>
                 </h2>
-                <p class="text-[11px] text-emerald-200/80 font-medium">
+                <p class="text-[10px] sm:text-[11px] text-emerald-200/80 font-medium truncate">
                   ${t('menu_crop_zone_manager_sub', 'Real-time database plots & crop catalog')}
                 </p>
               </div>
@@ -169,7 +169,7 @@ export function createCropZoneManagerModal({
             <button 
               type="button" 
               id="btn-cz-close" 
-              class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition active:scale-95"
+              class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition active:scale-95 shrink-0"
               title="${t('cancel', 'Close')}"
             >
               ${icon('x', 'w-4 h-4')}

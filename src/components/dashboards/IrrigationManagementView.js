@@ -115,34 +115,34 @@ export function createIrrigationManagementView({
 
         <!-- Flow Meter Stats Grid -->
         <div class="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-emerald-700/40">
-          <div class="bg-white/10 rounded-2xl p-2.5 flex flex-col min-w-0">
-            <span class="text-[10px] text-emerald-200/90 font-medium leading-tight min-h-[24px] flex items-center">${t('flow_rate_live')}</span>
-            <div class="flex items-baseline gap-1 mt-1 whitespace-nowrap overflow-visible">
+          <div class="bg-white/10 rounded-2xl p-2.5 flex flex-col min-w-0 overflow-hidden">
+            <span class="text-[10px] text-emerald-200/90 font-medium leading-tight min-h-[24px] flex items-center truncate">${t('flow_rate_live')}</span>
+            <div class="flex flex-col mt-1 min-w-0">
               <span class="text-base sm:text-lg font-black text-white font-mono leading-none">${currentFlowLpm}</span>
-              <span class="text-[10px] text-emerald-300 font-bold shrink-0">L/min</span>
+              <span class="text-[9.5px] text-emerald-300 font-bold leading-tight mt-0.5 truncate">${t('unit_lpm', 'L/min')}</span>
             </div>
-            <div class="flex items-center gap-1 mt-1.5 text-[9px] text-emerald-300/90 whitespace-nowrap overflow-visible">
+            <div class="flex items-center gap-1 mt-1.5 text-[9px] text-emerald-300/90 truncate">
               <span class="w-1.5 h-1.5 rounded-full shrink-0 ${activeValvesCount > 0 ? 'bg-emerald-400 animate-ping' : 'bg-slate-400'}"></span>
-              <span class="font-medium">${activeValvesCount} ${t('valves_active', 'Active')}</span>
+              <span class="font-medium truncate">${activeValvesCount} ${t('valves_active', 'Active')}</span>
             </div>
           </div>
 
-          <div class="bg-white/10 rounded-2xl p-2.5 flex flex-col min-w-0">
-            <span class="text-[10px] text-emerald-200/90 font-medium leading-tight min-h-[24px] flex items-center">${t('flow_session')}</span>
-            <div class="flex items-baseline gap-1 mt-1 whitespace-nowrap overflow-visible">
+          <div class="bg-white/10 rounded-2xl p-2.5 flex flex-col min-w-0 overflow-hidden">
+            <span class="text-[10px] text-emerald-200/90 font-medium leading-tight min-h-[24px] flex items-center truncate">${t('flow_session')}</span>
+            <div class="flex flex-col mt-1 min-w-0">
               <span class="text-base sm:text-lg font-black text-white font-mono leading-none">${telemetry.totalLitersDeliveredAllTime.toFixed(0)}</span>
-              <span class="text-[10px] text-emerald-300 font-bold shrink-0">${t('liters', 'L')}</span>
+              <span class="text-[9.5px] text-emerald-300 font-bold leading-tight mt-0.5 truncate">${t('liters', 'L')}</span>
             </div>
-            <span class="text-[9px] text-emerald-300/90 mt-1.5 whitespace-nowrap overflow-visible font-mono">${t('latching_12v', '±12V Latch')}</span>
+            <span class="text-[9px] text-emerald-300/90 mt-1.5 truncate font-mono">${t('latching_12v', '±12V Latch')}</span>
           </div>
 
-          <div class="bg-white/10 rounded-2xl p-2.5 flex flex-col min-w-0">
-            <span class="text-[10px] text-emerald-200/90 font-medium leading-tight min-h-[24px] flex items-center">${t('flow_today')}</span>
-            <div class="flex items-baseline gap-1 mt-1 whitespace-nowrap overflow-visible">
+          <div class="bg-white/10 rounded-2xl p-2.5 flex flex-col min-w-0 overflow-hidden">
+            <span class="text-[10px] text-emerald-200/90 font-medium leading-tight min-h-[24px] flex items-center truncate">${t('flow_today')}</span>
+            <div class="flex flex-col mt-1 min-w-0">
               <span class="text-base sm:text-lg font-black text-white font-mono leading-none">${telemetry.totalLitersToday.toFixed(0)}</span>
-              <span class="text-[10px] text-emerald-300 font-bold shrink-0">${t('liters', 'L')}</span>
+              <span class="text-[9.5px] text-emerald-300 font-bold leading-tight mt-0.5 truncate">${t('liters', 'L')}</span>
             </div>
-            <span class="text-[9px] text-emerald-300/90 mt-1.5 whitespace-nowrap overflow-visible font-mono">${telemetry.mainlinePressureBar.toFixed(2)} ${t('bar_line', 'Bar Line')}</span>
+            <span class="text-[9px] text-emerald-300/90 mt-1.5 truncate font-mono">${telemetry.mainlinePressureBar.toFixed(2)} ${t('bar_line', 'Bar Line')}</span>
           </div>
         </div>
       </div>
@@ -162,7 +162,9 @@ export function createIrrigationManagementView({
             </div>
             <div>
               <div class="text-xs font-bold font-mono">
-                ${activePulseAnimation.action === 'OPEN' ? `+12V Pulse (50ms) Actuated Gate ${escapeHtml(activePulseAnimation.gateId)} to OPEN` : `-12V Reverse Pulse (50ms) De-energized Gate ${escapeHtml(activePulseAnimation.gateId)} to CLOSED`}
+                ${activePulseAnimation.action === 'OPEN' 
+                  ? t('pulse_actuated_gate_open', '+12V Pulse (50ms) Actuated Gate {gate} to OPEN').replace('{gate}', escapeHtml(activePulseAnimation.gateId)) 
+                  : t('pulse_actuated_gate_close', '-12V Reverse Pulse (50ms) De-energized Gate {gate} to CLOSED').replace('{gate}', escapeHtml(activePulseAnimation.gateId))}
               </div>
               <p class="text-[10px] opacity-80">${t('bistable_zero_current', 'Bi-stable latching coil engaged. Zero holding current draw.')}</p>
             </div>
@@ -189,7 +191,7 @@ export function createIrrigationManagementView({
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
                 }"
               >
-                ${dur}m
+                ${dur}${t('unit_minute_short', 'm')}
               </button>
             `).join('')}
 
@@ -203,7 +205,7 @@ export function createIrrigationManagementView({
                 class="w-12 bg-transparent text-xs font-mono font-bold text-center text-slate-800 dark:text-white focus:outline-none"
                 title="Custom Duration (Minutes)"
               />
-              <span class="text-[10px] text-slate-400 font-mono">min</span>
+              <span class="text-[10px] text-slate-400 font-mono">${t('unit_minute_short', 'min')}</span>
             </div>
           </div>
         </div>
@@ -264,9 +266,9 @@ export function createIrrigationManagementView({
                         ${renderStatusPill(currentPill)}
                       </div>
                       <div class="flex items-center gap-1 text-[10px] text-slate-500 font-mono mt-0.5 truncate min-w-0">
-                        <span class="truncate">Rate: ${Number(valve.nominalFlowRateLph) || 450} LPH</span>
+                        <span class="truncate">${t('flow_rate', 'Rate')}: ${Number(valve.nominalFlowRateLph) || 450} ${t('unit_lph', 'LPH')}</span>
                         <span>•</span>
-                        <span class="truncate">${Number(valve.litersDeliveredSession || 0).toFixed(0)} L</span>
+                        <span class="truncate">${Number(valve.litersDeliveredSession || 0).toFixed(0)} ${t('liters', 'L')}</span>
                       </div>
                     </div>
                   </div>

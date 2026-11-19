@@ -24,16 +24,16 @@ export function createCalibrationModal({ onClose, onComplete }) {
         </button>
 
         <!-- Header -->
-        <div class="flex items-center gap-3 mb-5">
-          <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+        <div class="flex items-center gap-3 mb-5 pr-12 min-w-0">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="3"/>
               <path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
             </svg>
           </div>
-          <div>
-            <h3 class="text-base sm:text-lg font-bold text-white">${t('calib_title', 'Leaf-Clip Spectrometer Calibration')}</h3>
-            <p class="text-xs text-slate-400">${t('calib_subtitle', 'Two-point optical normalization [350–1100 nm VIS-NIR]')}</p>
+          <div class="min-w-0 flex-1">
+            <h3 class="text-base sm:text-lg font-bold text-white truncate leading-tight">${t('calib_title', 'Leaf-Clip Spectrometer Calibration')}</h3>
+            <p class="text-xs text-slate-400 truncate mt-0.5">${t('calib_subtitle', 'Two-point optical normalization [350–1100 nm VIS-NIR]')}</p>
           </div>
         </div>
 
