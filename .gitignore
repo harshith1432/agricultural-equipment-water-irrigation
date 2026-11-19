@@ -21,6 +21,10 @@ backend/.env.*
 *service-account*.json
 *adminsdk*.json
 *firebase-adminsdk*.json
+client_secret*.json
+*client_secret*.json
+*credentials*.json
+google-services.json
 *.pem
 *.key
 

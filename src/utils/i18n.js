@@ -4018,9 +4018,25 @@ export function setLocale(localeCode) {
   }
 }
 
-export function t(key, fallback = '') {
+export function t(key, fallbackOrParams = '', params = {}) {
+  let fallback = '';
+  let vars = {};
+  if (typeof fallbackOrParams === 'object' && fallbackOrParams !== null) {
+    vars = fallbackOrParams;
+  } else {
+    fallback = fallbackOrParams || '';
+    if (typeof params === 'object' && params !== null) {
+      vars = params;
+    }
+  }
   const dict = DICTIONARY[currentLocale] || DICTIONARY.en;
-  return dict[key] || DICTIONARY.en[key] || fallback || key;
+  let str = dict[key] || DICTIONARY.en[key] || fallback || key;
+  if (typeof str === 'string' && Object.keys(vars).length > 0) {
+    Object.entries(vars).forEach(([k, v]) => {
+      str = str.replace(new RegExp(`\\{${k}\\}`, 'g'), v);
+    });
+  }
+  return str;
 }
 
 export function onLocaleChange(callback) {

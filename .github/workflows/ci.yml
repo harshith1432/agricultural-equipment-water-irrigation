@@ -99,6 +99,9 @@ jobs:
           VITE_FIREBASE_APP_ID: "1:160643566396:web:62dedea727308c050d6c39"
           VITE_FIREBASE_MEASUREMENT_ID: "G-VYL5W9P5NF"
           VITE_BACKEND_API_URL: "http://localhost:5050"
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID || '' }}
+          VITE_GOOGLE_CLIENT_SECRET: ${{ secrets.VITE_GOOGLE_CLIENT_SECRET || '' }}
+          VITE_GOOGLE_ANDROID_CLIENT_ID: ${{ secrets.VITE_GOOGLE_ANDROID_CLIENT_ID || '' }}
 
       - name: Validate Build Outputs & Capacitor Target
         run: |
