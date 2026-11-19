@@ -376,16 +376,8 @@ export class FirestoreClient {
     const token = this.getAccessToken();
     if (!token || !token.startsWith('ya29.')) return false;
 
-    // Filter and sanitize field paths to prevent parameter injection
-    const safeFieldPaths = Object.keys(fields).filter(key => /^[a-zA-Z0-9_]+$/.test(key));
-    const url = this.buildSafeFirestoreUrl(docPath, { 'updateMask.fieldPaths': safeFieldPaths });
+    const url = this.buildSafeFirestoreUrl(docPath);
     if (!url) return false;
-
-    // Strict origin and hostname defense against SSRF (CWE-918)
-    const targetUrl = new URL(url);
-    if (targetUrl.origin !== 'https://firestore.googleapis.com' || targetUrl.hostname !== 'firestore.googleapis.com') {
-      return false;
-    }
 
     try {
       const firestoreFields = {};
@@ -393,7 +385,7 @@ export class FirestoreClient {
         firestoreFields[key] = this.toFirestoreValue(val);
       }
 
-      const response = await fetch(targetUrl.href, {
+      const response = await fetch(url, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
