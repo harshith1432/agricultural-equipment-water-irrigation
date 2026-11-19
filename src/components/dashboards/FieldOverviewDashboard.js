@@ -121,7 +121,7 @@ export function createFieldOverviewDashboard({
           </div>
 
           <!-- Non-intrusive GPS verification prompt banner if not granted -->
-          ${(!isGPS && location.permissionStatus !== 'denied') ? `
+          ${(!isGPS && location.permissionState !== 'granted') ? `
             <div class="p-2.5 rounded-2xl bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-500/20 flex items-center justify-between gap-2 transition">
               <div class="flex items-center gap-2 min-w-0">
                 <div class="w-6 h-6 rounded-lg bg-[#0E5431] text-emerald-200 flex items-center justify-center shrink-0">

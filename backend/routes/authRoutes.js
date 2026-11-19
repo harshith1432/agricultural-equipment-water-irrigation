@@ -122,8 +122,9 @@ router.post('/register', sanitizeUserInput, async (req, res) => {
       });
     }
 
+    const secureRand = crypto.randomBytes(4).toString('hex');
     const userProfile = await schemaManager.saveUserRegistration({
-      uid: uid || `usr_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+      uid: uid || `usr_${Date.now()}_${secureRand}`,
       email: cleanEmail,
       displayName: displayName || cleanEmail.split('@')[0],
       role: role || 'Agronomist',

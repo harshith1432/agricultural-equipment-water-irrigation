@@ -9,6 +9,7 @@
 import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 
 let adminApp = null;
 let adminFirestore = null;
@@ -177,6 +178,37 @@ export class FirestoreClient {
   }
 
   /**
+   * Validate and construct a safe Firestore REST API URL
+   * Defends against Server-Side Request Forgery (SSRF - CWE-918)
+   */
+  buildSafeFirestoreUrl(relativePath, queryParams = {}) {
+    if (!relativePath || typeof relativePath !== 'string') return null;
+    const cleanPath = relativePath.replace(/^\/+|\/+$/g, '');
+    // Strict whitelist: only alphanumeric, underscore, hyphen, and slash path segments
+    if (!/^[a-zA-Z0-9_\-]+(\/[a-zA-Z0-9_\-]+)*$/.test(cleanPath)) {
+      return null;
+    }
+    const FIRESTORE_ORIGIN = 'https://firestore.googleapis.com';
+    const basePath = `/v1/projects/${encodeURIComponent(this.projectId)}/databases/(default)/documents/${cleanPath}`;
+    const safeUrl = new URL(basePath, FIRESTORE_ORIGIN);
+    if (safeUrl.origin !== FIRESTORE_ORIGIN) {
+      return null;
+    }
+    for (const [key, val] of Object.entries(queryParams)) {
+      if (Array.isArray(val)) {
+        for (const item of val) {
+          if (typeof item === 'string' && /^[a-zA-Z0-9_]+$/.test(item)) {
+            safeUrl.searchParams.append(key, item);
+          }
+        }
+      } else if (typeof val === 'string' && /^[a-zA-Z0-9_]+$/.test(val)) {
+        safeUrl.searchParams.append(key, val);
+      }
+    }
+    return safeUrl.toString();
+  }
+
+  /**
    * Fetch documents from a collection in Firestore
    */
   async getCollection(collectionPath) {
@@ -191,7 +223,8 @@ export class FirestoreClient {
     }
 
     const token = this.getAccessToken();
-    const url = `${this.baseUrl}/${collectionPath}`;
+    const url = this.buildSafeFirestoreUrl(collectionPath);
+    if (!url) return null;
     const headers = { 'Content-Type': 'application/json' };
     if (token && token.startsWith('ya29.')) {
       headers['Authorization'] = `Bearer ${token}`;
@@ -242,8 +275,10 @@ export class FirestoreClient {
     }
     const token = this.getAccessToken();
     if (!token) return false;
+    const url = this.buildSafeFirestoreUrl(docPath);
+    if (!url) return false;
     try {
-      const res = await fetch(`${this.baseUrl}/${docPath}`, {
+      const res = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       return res.ok;
@@ -270,8 +305,10 @@ export class FirestoreClient {
     }
     const token = this.getAccessToken();
     if (!token) return null;
+    const url = this.buildSafeFirestoreUrl(docPath);
+    if (!url) return null;
     try {
-      const res = await fetch(`${this.baseUrl}/${docPath}`, {
+      const res = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!res.ok) return null;
@@ -316,7 +353,8 @@ export class FirestoreClient {
         console.warn(`[FirestoreClient] Admin SDK addDocument error: ${err.message}`);
       }
     }
-    const docId = `doc_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    const secureHex = crypto.randomBytes(4).toString('hex');
+    const docId = `doc_${Date.now()}_${secureHex}`;
     const ok = await this.setDocument(`${collectionPath}/${docId}`, data, { merge: true });
     return { success: ok, id: docId };
   }
@@ -338,14 +376,18 @@ export class FirestoreClient {
     const token = this.getAccessToken();
     if (!token || !token.startsWith('ya29.')) return false;
 
-    const url = `${this.baseUrl}/${docPath}`;
+    // Filter and sanitize field paths to prevent parameter injection
+    const safeFieldPaths = Object.keys(fields).filter(key => /^[a-zA-Z0-9_]+$/.test(key));
+    const url = this.buildSafeFirestoreUrl(docPath, { 'updateMask.fieldPaths': safeFieldPaths });
+    if (!url) return false;
+
     try {
       const firestoreFields = {};
       for (const [key, val] of Object.entries(fields)) {
         firestoreFields[key] = this.toFirestoreValue(val);
       }
 
-      const response = await fetch(`${url}?updateMask.fieldPaths=${Object.keys(fields).join('&updateMask.fieldPaths=')}`, {
+      const response = await fetch(url, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,

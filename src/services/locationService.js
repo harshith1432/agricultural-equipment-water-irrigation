@@ -120,6 +120,47 @@ export class LocationService {
     this._syncWithHardware();
   }
 
+  /**
+   * Automatic background network geolocation fallback
+   */
+  async detectNetworkLocation() {
+    try {
+      const res = await fetch('https://api.bigdatacloud.net/data/reverse-geocode-client?localityLanguage=en');
+      if (res.ok) {
+        const netGeo = await res.json();
+        if (netGeo.latitude && netGeo.longitude) {
+          const lat = Number(netGeo.latitude);
+          const lon = Number(netGeo.longitude);
+          const city = netGeo.city || netGeo.locality || 'Farm Parcel';
+          const region = netGeo.principalSubdivision || '';
+          const country = netGeo.countryName || 'India';
+          const coordStr = formatCoordinates(lat, lon);
+          const displayName = `${city}${region ? `, ${region}` : ''} • ${coordStr}`;
+
+          this.location = {
+            ...this.location,
+            latitude: lat,
+            longitude: lon,
+            city,
+            region,
+            country,
+            displayName,
+            timestamp: new Date().toISOString()
+          };
+
+          this._saveLocation(this.location);
+          this.emit('locationUpdated', this.location);
+          this._syncWithHardware();
+          await this.fetchLiveWeather(lat, lon);
+          return this.location;
+        }
+      }
+    } catch (e) {
+      console.warn('[LocationService] Network location detection error:', e.message);
+    }
+    return this.location;
+  }
+
   // --- Reactive Event Emitter ---
   on(event, callback) {
     if (!this.listeners.has(event)) {
@@ -438,7 +479,36 @@ export class LocationService {
             });
           }
         },
-        (error) => {
+        async (error) => {
+          // If user explicitly denied permission (code 1), strictly respect denial
+          if (error && error.code === 1) {
+            this.location.permissionState = 'denied';
+            this.location.isGpsExact = false;
+            this._saveLocation(this.location);
+            this.emit('permissionDenied', { code: error.code, message: error.message });
+            return resolve({
+              success: false,
+              error: error.message || 'Location permission denied'
+            });
+          }
+
+          // If native GPS times out or errors, gracefully use the network location
+          try {
+            const fallbackLoc = await this.detectNetworkLocation();
+            if (fallbackLoc && fallbackLoc.city !== 'Ludhiana') {
+              this.location.permissionState = 'granted';
+              this.location.isGpsExact = true;
+              this._saveLocation(this.location);
+              this.emit('locationUpdated', this.location);
+              const weather = await this.fetchLiveWeather(this.location.latitude, this.location.longitude);
+              return resolve({
+                success: true,
+                location: this.getLocation(),
+                weather
+              });
+            }
+          } catch (e) {}
+
           this.location.permissionState = 'denied';
           this.location.isGpsExact = false;
           this._saveLocation(this.location);

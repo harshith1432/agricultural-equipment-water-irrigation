@@ -11,6 +11,7 @@
 import { firestoreClient } from './firestoreClient.js';
 import { enterpriseStore } from './enterpriseStore.js';
 import { centralStorage } from './centralStorage.js';
+import crypto from 'crypto';
 
 // Authoritative Default Farm Configuration
 const DEFAULT_FARMS = [
@@ -579,16 +580,16 @@ class SchemaManager {
         if (!this.verifiedTables.has(collectionName)) {
           const snap = await colRef.limit(1).get();
           if (snap.empty) {
-            console.log(`[SchemaManager] Table '${collectionName}' does not exist. Auto-creating table for user data...`);
+            console.log('[SchemaManager] Table does not exist. Auto-creating table for user data: %s', collectionName);
           }
           this.verifiedTables.add(collectionName);
         }
 
         await colRef.doc(docId).set(enrichedData, options);
-        console.log(`[SchemaManager] ✅ Saved user data to ${docPath} (merge: ${Boolean(options.merge)})`);
+        console.log('[SchemaManager] ✅ Saved user data to %s (merge: %s)', docPath, Boolean(options.merge));
         return { success: true, docPath, data: enrichedData };
       } catch (err) {
-        console.error(`[SchemaManager] Error saving to ${docPath}:`, err.message);
+        console.error('[SchemaManager] Error saving document to path %s: %s', docPath, err.message);
       }
     }
 
@@ -606,7 +607,8 @@ class SchemaManager {
       throw new Error("Invalid user registration data. 'uid' or 'email' is required.");
     }
 
-    const uid = userData.uid || `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const secureRand = crypto.randomBytes(4).toString('hex');
+    const uid = userData.uid || `usr_${Date.now()}_${secureRand}`;
     const email = String(userData.email || '').trim().toLowerCase();
     const displayName = userData.displayName || (email ? email.split('@')[0] : 'Farmer Operator');
     const role = userData.role || 'Agronomist';
@@ -761,7 +763,8 @@ class SchemaManager {
    * Ingest audit log
    */
   async saveAuditLog(auditData) {
-    const docId = `audit_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const secureAuditRand = crypto.randomBytes(4).toString('hex');
+    const docId = `audit_${Date.now()}_${secureAuditRand}`;
     const log = {
       id: docId,
       action: auditData.action || 'SECURITY_EVENT',

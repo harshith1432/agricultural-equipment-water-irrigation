@@ -1394,7 +1394,7 @@ class AuthService {
       }
     }
 
-    // Cache locally in localStorage / secureStorage
+    // Cache locally in secureStorage with AES-256-GCM encryption at rest (MASVS-STORAGE)
     try {
       if (typeof localStorage !== 'undefined') {
         const offlineEnvelope = {
@@ -1403,7 +1403,7 @@ class AuthService {
           lastLoginAt: nowIso,
           updatedAt: nowIso
         };
-        localStorage.setItem(STORAGE_OFFLINE_PROFILE_KEY, JSON.stringify(offlineEnvelope));
+        // Secure encrypted storage at rest (defends against clear-text token/PII harvesting)
         secureStorage.secureSetItem(STORAGE_OFFLINE_PROFILE_KEY, offlineEnvelope).catch(() => {});
       }
     } catch (e) {
