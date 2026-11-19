@@ -50,7 +50,7 @@ export function createNativeMobileAppView({
   onSynergyAction
 }) {
   const container = document.createElement('div');
-  container.className = "native-mobile-app w-full min-h-screen bg-[#F4F6F3] dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col relative overflow-x-hidden selection:bg-[#0E5431] selection:text-white";
+  container.className = "native-mobile-app w-full h-screen h-[100dvh] max-h-[100dvh] bg-[#F4F6F3] dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col relative overflow-hidden selection:bg-[#0E5431] selection:text-white";
 
   // Tab mapping for backward compatibility
   const TAB_ALIASES = {
@@ -73,6 +73,7 @@ export function createNativeMobileAppView({
 
   // 1. Top Network Connectivity Banner (Online Synced / Offline Cached / BLE Direct)
   const connectivityBanner = createNetworkConnectivityBanner();
+  connectivityBanner.element.classList.add('flex-shrink-0');
   container.appendChild(connectivityBanner.element);
 
   // 2. Create Top Header
@@ -98,11 +99,12 @@ export function createNativeMobileAppView({
     currentUser,
     onOpenAuthModal
   });
+  header.classList.add('flex-shrink-0');
   container.appendChild(header);
 
   // 3. Main scrollable body container
   const scrollBody = document.createElement('main');
-  scrollBody.className = "relative z-10 flex-1 w-full max-w-lg mx-auto px-3.5 pt-3 pb-40 overflow-y-auto no-scrollbar scroll-smooth";
+  scrollBody.className = "relative z-10 flex-1 w-full max-w-lg mx-auto px-3.5 pt-3 pb-36 overflow-y-auto overflow-x-hidden no-scrollbar scroll-smooth";
   container.appendChild(scrollBody);
 
   // 4. Create Floating Bottom Navigation Bar (6 Tabs)

@@ -28,7 +28,7 @@ export function createSettingsView({
   onOpenCalibration
 }) {
   const container = document.createElement('div');
-  container.className = "settings-view w-full space-y-4 pb-32 text-slate-800 dark:text-slate-100 select-none overflow-x-hidden";
+  container.className = "settings-view w-full space-y-4 pb-36 sm:pb-40 text-slate-800 dark:text-slate-100 select-none overflow-x-hidden";
 
   // Persistent settings state
   let farmTargets = {
@@ -85,19 +85,17 @@ export function createSettingsView({
     container.innerHTML = `
       <!-- User Profile Card -->
       <div class="bg-gradient-to-br from-[#0E5431] to-[#083820] text-white rounded-3xl p-5 shadow-lg border border-emerald-800/40 space-y-3">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-3">
+        <!-- Top Section: Avatar & Name + Role Badge on top/left, Profile button stacked/right -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="flex items-center gap-3 min-w-0 flex-1">
             <div class="w-12 h-12 rounded-full bg-emerald-700/80 border-2 border-emerald-400/50 flex items-center justify-center font-black text-lg text-white shadow-inner flex-shrink-0">
               ${(user.displayName || 'G').charAt(0).toUpperCase()}
             </div>
-            <div>
-              <div class="flex items-center gap-2">
-                <h2 class="text-base font-bold text-white tracking-tight">${user.displayName || 'Grower Dave'}</h2>
-                <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-400/20 text-emerald-300 border border-emerald-400/30">
-                  ${t('profile_role')}
-                </span>
-              </div>
-              <p class="text-xs text-emerald-200/80 font-mono mt-0.5">${user.email || 'offline.guest@agrispectra.local'}</p>
+            <div class="min-w-0 flex-1">
+              <h2 class="text-sm sm:text-base font-bold text-white tracking-tight">${user.displayName || 'Grower Dave'}</h2>
+              <span class="inline-flex items-center mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-400/20 text-emerald-300 border border-emerald-400/30 whitespace-nowrap">
+                ${t('profile_role')}
+              </span>
             </div>
           </div>
 
@@ -105,10 +103,15 @@ export function createSettingsView({
           <button 
             type="button" 
             id="settings-open-auth-btn"
-            class="min-h-[38px] px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white transition cursor-pointer"
+            class="w-full sm:w-auto min-h-[38px] px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white transition cursor-pointer flex items-center justify-center active:scale-95 text-center"
           >
             ${t('menu_profile')}
           </button>
+        </div>
+
+        <!-- Email on its own line: full width, clean, truncate -->
+        <div class="pt-1.5 border-t border-emerald-700/30">
+          <p class="text-xs text-emerald-200/90 font-mono truncate">${user.email || 'offline.guest@agrispectra.local'}</p>
         </div>
 
         <div class="pt-2 border-t border-emerald-700/40 flex items-center justify-between text-xs text-emerald-200">
@@ -130,12 +133,14 @@ export function createSettingsView({
 
       <!-- 0. Farmer Profile & Operational Scope Editor -->
       <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 shadow-sm border border-emerald-900/5 dark:border-slate-800 space-y-3">
-        <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-          <h3 class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-            ${icon('user', 'w-4 h-4 text-[#0E5431] dark:text-emerald-400')}
-            <span>${t('profile_details')}</span>
+        <div class="flex items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-800 flex-wrap">
+          <h3 class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5 min-w-0">
+            ${icon('user', 'w-4 h-4 text-[#0E5431] dark:text-emerald-400 shrink-0')}
+            <span class="truncate">${t('profile_details')}</span>
           </h3>
-          <span class="text-[10px] text-emerald-700 font-mono font-bold">${t('profile_role')}</span>
+          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-mono shrink-0 whitespace-nowrap">
+            ${t('profile_role')}
+          </span>
         </div>
 
         <div class="space-y-3 text-xs">
@@ -159,7 +164,7 @@ export function createSettingsView({
             />
           </div>
 
-          <div class="grid grid-cols-2 gap-2">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <div>
               <label class="font-bold text-slate-700 dark:text-slate-300 block mb-1">Farm / Parcel</label>
               <input 

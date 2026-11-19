@@ -23,7 +23,7 @@ export function createSoilAnalysisView({
   plot = null
 } = {}) {
   const container = document.createElement('div');
-  container.className = "soil-analysis-view w-full space-y-4 pb-28 text-slate-800 select-none overflow-x-hidden";
+  container.className = "soil-analysis-view w-full space-y-4 pb-36 sm:pb-40 text-slate-800 dark:text-slate-100 select-none overflow-x-hidden";
 
   let connectionMode = labartSoilSensorUSB.connectionMode || CONNECTION_MODES.USB_TYPE_C;
   let selectedCropKey = 'POTATO';
@@ -143,9 +143,9 @@ export function createSoilAnalysisView({
         <!-- 1. Sleek Forest Green Header Card (NO huge 3-button switcher, compact 3-dots button) -->
         <div class="bg-gradient-to-br from-[#0E5431] to-[#0A3D23] text-white rounded-3xl p-4 sm:p-5 shadow-lg border border-emerald-800/40 space-y-3 overflow-hidden">
           <div class="flex items-center justify-between gap-2">
-            <div class="min-w-0 flex-1">
-              <h2 class="text-sm sm:text-base font-bold tracking-tight truncate">${t('soil_title')}</h2>
-              <p class="text-[10px] text-emerald-200/80 truncate">${t('soil_subtitle')}</p>
+            <div class="min-w-0 flex-1 pr-1">
+              <h2 class="text-sm sm:text-base font-bold tracking-tight leading-snug break-words">${t('soil_title')}</h2>
+              <p class="text-[10px] text-emerald-200/80 leading-normal break-words mt-0.5">${t('soil_subtitle')}</p>
             </div>
 
             <!-- Header Controls: Compact Auto-Detected Status Badge & 3-Dots Settings Button -->
@@ -174,9 +174,9 @@ export function createSoilAnalysisView({
           </div>
 
           <!-- Crop Selector Dropdown (Compact, well-spaced) -->
-          <div class="flex items-center justify-between pt-2 border-t border-emerald-700/40">
-            <span class="text-xs text-emerald-100 font-medium">${t('crop_selector')}:</span>
-            <select id="soil-crop-select" class="min-h-[34px] px-3 py-1 rounded-xl bg-white/15 border border-white/25 text-xs font-bold text-white focus:outline-none cursor-pointer">
+          <div class="flex items-center justify-between pt-2 border-t border-emerald-700/40 flex-wrap gap-2">
+            <span class="text-xs text-emerald-100 font-medium shrink-0">${t('crop_selector')}:</span>
+            <select id="soil-crop-select" class="min-h-[34px] px-3 py-1 rounded-xl bg-white/15 border border-white/25 text-xs font-bold text-white focus:outline-none cursor-pointer flex-1 max-w-[220px]">
               <option value="POTATO" class="text-slate-900" ${selectedCropKey === 'POTATO' ? 'selected' : ''}>Potatoes (Scab pH Sensitive)</option>
               <option value="TOMATO" class="text-slate-900" ${selectedCropKey === 'TOMATO' ? 'selected' : ''}>Tomatoes (High K Feeder)</option>
               <option value="BELL_PEPPER" class="text-slate-900" ${selectedCropKey === 'BELL_PEPPER' ? 'selected' : ''}>Bell Peppers (Moisture Sensitive)</option>
@@ -189,19 +189,19 @@ export function createSoilAnalysisView({
 
         <!-- 2. The 8 Dynamic Tiles Matching Physical LABART 8-in-1 Device Interface -->
         <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 shadow-sm border border-emerald-900/5 dark:border-slate-800 space-y-3 overflow-hidden">
-          <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-            <div class="min-w-0">
-              <h3 class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5 truncate">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800 gap-2">
+            <div class="min-w-0 flex-1">
+              <h3 class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5 leading-snug break-words">
                 ${icon('soil', 'w-4 h-4 text-[#0E5431] shrink-0')}
-                <span class="truncate">${t('soil_matrix_title')}</span>
+                <span>${t('soil_matrix_title')}</span>
               </h3>
-              <p class="text-[10px] text-slate-500 truncate">${t('soil_matrix_sub')}</p>
+              <p class="text-[10px] text-slate-500 leading-normal break-words mt-0.5">${t('soil_matrix_sub')}</p>
             </div>
 
             <button 
               type="button" 
               id="btn-take-soil-reading"
-              class="px-3 py-1.5 rounded-full bg-[#0E5431] hover:bg-[#083820] text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition shrink-0 active:scale-95"
+              class="px-3 py-1.5 rounded-full bg-[#0E5431] hover:bg-[#083820] text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition shrink-0 active:scale-95 whitespace-nowrap"
             >
               ${icon('refresh', 'w-3.5 h-3.5')}
               <span>${t('read_sensor')}</span>
@@ -213,9 +213,9 @@ export function createSoilAnalysisView({
             <!-- 1. Temperature -->
             <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/80 flex flex-col min-w-0 overflow-hidden break-words">
               <span class="text-[10px] text-slate-500 font-medium truncate">${t('param_temp')}</span>
-              <div class="flex items-baseline gap-1 mt-1 truncate">
-                <span class="text-2xl font-black text-slate-900 dark:text-white font-mono">${p.temperatureC.toFixed(1)}</span>
-                <span class="text-xs text-slate-500 font-bold">°C</span>
+              <div class="flex items-baseline gap-1 mt-1 whitespace-nowrap overflow-visible">
+                <span class="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono leading-none">${p.temperatureC.toFixed(1)}</span>
+                <span class="text-xs text-slate-500 font-bold shrink-0">°C</span>
               </div>
               <span class="text-[9px] text-slate-400 mt-1 truncate">${t('optimum')}: 15–24°C</span>
             </div>
@@ -223,9 +223,9 @@ export function createSoilAnalysisView({
             <!-- 2. Moisture % VWC -->
             <div class="p-3 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-300 dark:border-emerald-800/40 flex flex-col min-w-0 overflow-hidden break-words">
               <span class="text-[10px] text-emerald-800 dark:text-emerald-300 font-medium truncate">${t('param_moisture')}</span>
-              <div class="flex items-baseline gap-1 mt-1 truncate">
-                <span class="text-2xl font-black text-emerald-900 dark:text-emerald-200 font-mono">${p.moistureVwc.toFixed(1)}</span>
-                <span class="text-xs text-emerald-700 font-bold">%</span>
+              <div class="flex items-baseline gap-1 mt-1 whitespace-nowrap overflow-visible">
+                <span class="text-xl sm:text-2xl font-black text-emerald-900 dark:text-emerald-200 font-mono leading-none">${p.moistureVwc.toFixed(1)}</span>
+                <span class="text-xs text-emerald-700 font-bold shrink-0">%</span>
               </div>
               <span class="text-[9px] text-emerald-600 dark:text-emerald-400 mt-1 truncate">${t('optimum')}: ${activeCrop.moistureVwc.optimalMin}–${activeCrop.moistureVwc.optimalMax}%</span>
             </div>
@@ -233,9 +233,9 @@ export function createSoilAnalysisView({
             <!-- 3. Conductivity (EC) -->
             <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/80 flex flex-col min-w-0 overflow-hidden break-words">
               <span class="text-[10px] text-slate-500 font-medium truncate">${t('param_ec')}</span>
-              <div class="flex items-baseline gap-1 mt-1 truncate">
-                <span class="text-2xl font-black text-slate-900 dark:text-white font-mono">${p.ecUsCm}</span>
-                <span class="text-xs text-slate-500 font-bold">µS/cm</span>
+              <div class="flex items-baseline gap-1 mt-1 whitespace-nowrap overflow-visible">
+                <span class="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono leading-none">${p.ecUsCm}</span>
+                <span class="text-xs text-slate-500 font-bold shrink-0">µS/cm</span>
               </div>
               <span class="text-[9px] text-slate-400 mt-1 truncate">Max: ${activeCrop.ecMax} µS/cm</span>
             </div>
@@ -243,9 +243,9 @@ export function createSoilAnalysisView({
             <!-- 4. pH -->
             <div class="p-3 rounded-2xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-300 dark:border-amber-800/40 flex flex-col min-w-0 overflow-hidden break-words">
               <span class="text-[10px] text-amber-800 dark:text-amber-300 font-medium truncate">${t('param_ph')}</span>
-              <div class="flex items-baseline gap-1 mt-1 truncate">
-                <span class="text-2xl font-black text-amber-900 dark:text-amber-200 font-mono">${p.ph.toFixed(1)}</span>
-                <span class="text-xs text-amber-700 font-bold">pH</span>
+              <div class="flex items-baseline gap-1 mt-1 whitespace-nowrap overflow-visible">
+                <span class="text-xl sm:text-2xl font-black text-amber-900 dark:text-amber-200 font-mono leading-none">${p.ph.toFixed(1)}</span>
+                <span class="text-xs text-amber-700 font-bold shrink-0">pH</span>
               </div>
               <span class="text-[9px] text-amber-600 dark:text-amber-400 mt-1 truncate">${t('optimum')}: ${activeCrop.ph.optimalMin}–${activeCrop.ph.optimalMax}</span>
             </div>
@@ -253,9 +253,9 @@ export function createSoilAnalysisView({
             <!-- 5. Nitrogen (N) -->
             <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/80 flex flex-col min-w-0 overflow-hidden break-words">
               <span class="text-[10px] text-slate-500 font-medium truncate">${t('param_nitrogen')}</span>
-              <div class="flex items-baseline gap-1 mt-1 truncate">
-                <span class="text-2xl font-black text-slate-900 dark:text-white font-mono">${p.nitrogenMgKg}</span>
-                <span class="text-xs text-slate-500 font-bold">mg/kg</span>
+              <div class="flex items-baseline gap-1 mt-1 whitespace-nowrap overflow-visible">
+                <span class="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono leading-none">${p.nitrogenMgKg}</span>
+                <span class="text-xs text-slate-500 font-bold shrink-0">mg/kg</span>
               </div>
               <span class="text-[9px] text-slate-400 mt-1 truncate">${t('optimum')}: ${activeCrop.nitrogen.optimal} mg/kg</span>
             </div>
@@ -263,9 +263,9 @@ export function createSoilAnalysisView({
             <!-- 6. Phosphorus (P) -->
             <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/80 flex flex-col min-w-0 overflow-hidden break-words">
               <span class="text-[10px] text-slate-500 font-medium truncate">${t('param_phosphorus')}</span>
-              <div class="flex items-baseline gap-1 mt-1 truncate">
-                <span class="text-2xl font-black text-slate-900 dark:text-white font-mono">${p.phosphorusMgKg}</span>
-                <span class="text-xs text-slate-500 font-bold">mg/kg</span>
+              <div class="flex items-baseline gap-1 mt-1 whitespace-nowrap overflow-visible">
+                <span class="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono leading-none">${p.phosphorusMgKg}</span>
+                <span class="text-xs text-slate-500 font-bold shrink-0">mg/kg</span>
               </div>
               <span class="text-[9px] text-slate-400 mt-1 truncate">${t('optimum')}: ${activeCrop.phosphorus.optimal} mg/kg</span>
             </div>
@@ -273,9 +273,9 @@ export function createSoilAnalysisView({
             <!-- 7. Potassium (K) -->
             <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/80 flex flex-col min-w-0 overflow-hidden break-words">
               <span class="text-[10px] text-slate-500 font-medium truncate">${t('param_potassium')}</span>
-              <div class="flex items-baseline gap-1 mt-1 truncate">
-                <span class="text-2xl font-black text-slate-900 dark:text-white font-mono">${p.potassiumMgKg}</span>
-                <span class="text-xs text-slate-500 font-bold">mg/kg</span>
+              <div class="flex items-baseline gap-1 mt-1 whitespace-nowrap overflow-visible">
+                <span class="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono leading-none">${p.potassiumMgKg}</span>
+                <span class="text-xs text-slate-500 font-bold shrink-0">mg/kg</span>
               </div>
               <span class="text-[9px] text-slate-400 mt-1 truncate">${t('optimum')}: ${activeCrop.potassium.optimal} mg/kg</span>
             </div>
@@ -283,9 +283,9 @@ export function createSoilAnalysisView({
             <!-- 8. Fertility Index -->
             <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/80 flex flex-col min-w-0 overflow-hidden break-words">
               <span class="text-[10px] text-slate-500 font-medium truncate">${t('param_fertility')}</span>
-              <div class="flex items-baseline gap-1 mt-1 truncate">
-                <span class="text-2xl font-black text-slate-900 dark:text-white font-mono">${p.fertilityMgKg}</span>
-                <span class="text-xs text-slate-500 font-bold">mg/kg</span>
+              <div class="flex items-baseline gap-1 mt-1 whitespace-nowrap overflow-visible">
+                <span class="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono leading-none">${p.fertilityMgKg}</span>
+                <span class="text-xs text-slate-500 font-bold shrink-0">mg/kg</span>
               </div>
               <span class="text-[9px] text-slate-400 mt-1 truncate">${t('status_live_active')}</span>
             </div>

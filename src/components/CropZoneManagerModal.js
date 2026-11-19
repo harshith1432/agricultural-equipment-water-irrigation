@@ -17,8 +17,14 @@
  */
 
 import { firestoreService, FARM_ID } from '../firebase/firestoreService.js';
+import { INITIAL_FARM_DATA, PRESEEDED_CROPS } from '../firebase/mockFirestore.js';
 import { icon } from '../utils/icons.js';
 import { t, onLocaleChange } from '../utils/i18n.js';
+
+function stripLeadingPlus(text) {
+  if (!text) return '';
+  return String(text).replace(/^\s*\+\s*/, '');
+}
 
 function escapeHtml(str) {
   if (str === null || str === undefined) return '';
@@ -75,9 +81,14 @@ export function createCropZoneManagerModal({
   let editingCropId = null;
   let deleteConfirmTarget = null; // { type: 'zone' | 'crop', id, name, plotNumber }
 
-  let plots = [];
-  let cropCatalog = [];
-  let currentSelectedPlotId = selectedPlotId;
+  let plots = Array.isArray(INITIAL_FARM_DATA?.plots) 
+    ? [...INITIAL_FARM_DATA.plots] 
+    : Object.values(INITIAL_FARM_DATA?.plots || {});
+
+  let cropCatalog = Array.isArray(PRESEEDED_CROPS)
+    ? [...PRESEEDED_CROPS]
+    : Object.values(PRESEEDED_CROPS || {});
+  let currentSelectedPlotId = selectedPlotId || (plots[0]?.id || null);
   let toastMessage = null;
   let isSaving = false;
 
@@ -97,7 +108,11 @@ export function createCropZoneManagerModal({
   function setupRealtimeListeners() {
     // 1. Subscribe to plots from firestoreService
     unsubscribePlots = firestoreService.subscribePlots((updatedPlots) => {
-      plots = Array.isArray(updatedPlots) ? updatedPlots : [];
+      if (Array.isArray(updatedPlots) && updatedPlots.length > 0) {
+        plots = updatedPlots;
+      } else if (!plots || plots.length === 0) {
+        plots = Object.values(INITIAL_FARM_DATA?.plots || {});
+      }
       if (!currentSelectedPlotId && plots.length > 0) {
         currentSelectedPlotId = plots[0].id;
       }
@@ -106,7 +121,11 @@ export function createCropZoneManagerModal({
 
     // 2. Subscribe to crop catalog
     unsubscribeCrops = firestoreService.subscribeCropCatalog((updatedCrops) => {
-      cropCatalog = Array.isArray(updatedCrops) ? updatedCrops : [];
+      if (Array.isArray(updatedCrops) && updatedCrops.length > 0) {
+        cropCatalog = updatedCrops;
+      } else if (!cropCatalog || cropCatalog.length === 0) {
+        cropCatalog = Object.values(PRESEEDED_CROPS || {});
+      }
       render();
     });
   }
@@ -162,7 +181,7 @@ export function createCropZoneManagerModal({
             <button 
               type="button" 
               id="tab-cz-zones"
-              class="flex-1 py-2 px-3 rounded-2xl text-xs font-bold transition flex items-center justify-center gap-2 ${
+              class="flex-1 py-2 px-2.5 sm:px-3 rounded-2xl text-xs font-bold transition flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap ${
                 activeTab === 'zones' 
                   ? 'bg-white text-[#0E5431] shadow-md shadow-emerald-950/20' 
                   : 'bg-white/10 text-emerald-100 hover:bg-white/15'
@@ -178,7 +197,7 @@ export function createCropZoneManagerModal({
             <button 
               type="button" 
               id="tab-cz-crops"
-              class="flex-1 py-2 px-3 rounded-2xl text-xs font-bold transition flex items-center justify-center gap-2 ${
+              class="flex-1 py-2 px-2.5 sm:px-3 rounded-2xl text-xs font-bold transition flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap ${
                 activeTab === 'crops' 
                   ? 'bg-white text-[#0E5431] shadow-md shadow-emerald-950/20' 
                   : 'bg-white/10 text-emerald-100 hover:bg-white/15'
@@ -238,20 +257,21 @@ export function createCropZoneManagerModal({
       <div class="space-y-3">
         <!-- Action Row -->
         <div class="flex items-center justify-between gap-2">
-          <div>
-            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          <div class="min-w-0 flex-1 pr-1.5">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 break-words leading-tight">
               ${t('field_zones_tab', 'Active Field Plots')}
             </h3>
-            <p class="text-[11px] text-slate-500">Directly synchronized with Cloud Firestore database</p>
+            <p class="text-[10px] text-slate-500 break-words leading-tight mt-0.5">Real-time Cloud Firestore</p>
           </div>
 
           <button 
             type="button" 
             id="btn-add-zone-view" 
-            class="px-3.5 py-1.5 rounded-full bg-[#0E5431] hover:bg-[#083820] text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm active:scale-95"
+            aria-label="+ Add New Zone"
+            class="px-3.5 py-1.5 rounded-full bg-[#0E5431] hover:bg-[#083820] text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm active:scale-95 shrink-0 whitespace-nowrap"
           >
             ${icon('plus', 'w-3.5 h-3.5')}
-            <span>${t('add_new_zone', '+ Add New Zone')}</span>
+            <span>${stripLeadingPlus(t('add_new_zone', 'Add New Zone'))}</span>
           </button>
         </div>
 
@@ -279,13 +299,13 @@ export function createCropZoneManagerModal({
                   ? 'border-[#0E5431] ring-2 ring-[#0E5431]/15' 
                   : 'border-slate-200 dark:border-slate-700 hover:border-emerald-600/30'
               }">
-                <div class="flex items-start justify-between gap-2.5 min-w-0">
+                <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3 min-w-0">
                   <div class="flex items-start gap-3 min-w-0 flex-1">
                     <div class="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-500/20 text-[#0E5431] dark:text-emerald-300 font-bold font-mono text-sm flex items-center justify-center flex-shrink-0 mt-0.5">
                       Z${p.plotNumber || '?'}
                     </div>
                     <div class="min-w-0 flex-1">
-                      <div class="flex items-center gap-2 flex-wrap min-w-0">
+                      <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
                         <h4 class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
                           ${escapeHtml(p.crop || 'Crop')}
                         </h4>
@@ -306,17 +326,17 @@ export function createCropZoneManagerModal({
                       </div>
 
                       <!-- Sub-badges -->
-                      <div class="flex items-center gap-2 mt-2 flex-wrap text-[10px] min-w-0">
-                        <span class="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-[#0E5431] dark:text-emerald-300 font-medium border border-emerald-600/10 truncate">
+                      <div class="flex items-center gap-1.5 sm:gap-2 mt-2 flex-wrap text-[10px] min-w-0">
+                        <span class="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-[#0E5431] dark:text-emerald-300 font-medium border border-emerald-600/10 whitespace-nowrap">
                           Stage: ${escapeHtml(p.stage || 'Vegetative')}
                         </span>
-                        <span class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700/60 text-slate-700 dark:text-slate-300 font-mono truncate">
+                        <span class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700/60 text-slate-700 dark:text-slate-300 font-mono whitespace-nowrap">
                           Target VWC: ${p.targetVwcMin || 20}%–${p.targetVwcMax || 35}%
                         </span>
-                        <span class="px-2 py-0.5 rounded-md bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 font-mono shrink-0">
+                        <span class="px-2 py-0.5 rounded-md bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 font-mono shrink-0 whitespace-nowrap">
                           ${escapeHtml(gateId)}
                         </span>
-                        <span class="px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 truncate">
+                        <span class="px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 whitespace-nowrap">
                           Soil: ${escapeHtml(p.soilType || 'Clay Loam')}
                         </span>
                       </div>
@@ -324,13 +344,13 @@ export function createCropZoneManagerModal({
                   </div>
 
                   <!-- Actions -->
-                  <div class="flex items-center gap-1 flex-shrink-0">
+                  <div class="flex items-center gap-1.5 flex-shrink-0 self-end sm:self-auto">
                     ${!isSelected ? `
                       <button 
                         type="button" 
                         data-action="select-plot" 
                         data-id="${escapeHtml(p.id)}"
-                        class="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-[#0E5431] text-[11px] font-semibold transition"
+                        class="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-emerald-50 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:text-[#0E5431] text-[11px] font-semibold transition whitespace-nowrap active:scale-95"
                         title="Select this zone as active"
                       >
                         Select
@@ -341,7 +361,7 @@ export function createCropZoneManagerModal({
                       type="button" 
                       data-action="edit-zone" 
                       data-id="${escapeHtml(p.id)}"
-                      class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 flex items-center justify-center transition"
+                      class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 flex items-center justify-center transition active:scale-95 shrink-0"
                       title="${t('edit_zone', 'Edit Zone')}"
                     >
                       ${icon('edit', 'w-3.5 h-3.5')}
@@ -353,7 +373,7 @@ export function createCropZoneManagerModal({
                       data-id="${escapeHtml(p.id)}"
                       data-number="${escapeHtml(p.plotNumber || '')}"
                       data-crop="${escapeHtml(p.crop || 'Crop')}"
-                      class="w-8 h-8 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-300 flex items-center justify-center transition"
+                      class="w-8 h-8 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-300 flex items-center justify-center transition active:scale-95 shrink-0"
                       title="${t('delete_zone', 'Delete Zone')}"
                     >
                       ${icon('trash', 'w-3.5 h-3.5')}
@@ -587,20 +607,21 @@ export function createCropZoneManagerModal({
       <div class="space-y-3">
         <!-- Action Row -->
         <div class="flex items-center justify-between gap-2">
-          <div>
-            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          <div class="min-w-0 flex-1 pr-1.5">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 break-words leading-tight">
               ${t('crop_catalog_tab', 'Crop Catalog (Agronomic Specs)')}
             </h3>
-            <p class="text-[11px] text-slate-500">Pre-seeded Indian & International crops + Custom farmer varieties</p>
+            <p class="text-[10px] text-slate-500 break-words leading-tight mt-0.5">Pre-seeded Indian & Global Varieties</p>
           </div>
 
           <button 
             type="button" 
             id="btn-add-crop-view" 
-            class="px-3.5 py-1.5 rounded-full bg-[#0E5431] hover:bg-[#083820] text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm active:scale-95"
+            aria-label="+ Add Custom Crop"
+            class="px-3.5 py-1.5 rounded-full bg-[#0E5431] hover:bg-[#083820] text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm active:scale-95 shrink-0 whitespace-nowrap"
           >
             ${icon('plus', 'w-3.5 h-3.5')}
-            <span>${t('add_custom_crop', '+ Add Custom Crop')}</span>
+            <span>${stripLeadingPlus(t('add_custom_crop', 'Add Custom Crop'))}</span>
           </button>
         </div>
 
@@ -609,13 +630,13 @@ export function createCropZoneManagerModal({
           ${cropCatalog.map(crop => {
             return `
               <div class="bg-white dark:bg-slate-800 rounded-2xl p-3.5 border border-slate-200 dark:border-slate-700 shadow-sm hover:border-emerald-600/30 transition min-w-0 overflow-hidden break-words">
-                <div class="flex items-start justify-between gap-2.5 min-w-0">
+                <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3 min-w-0">
                   <div class="flex items-start gap-3 min-w-0 flex-1">
                     <div class="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-500/20 text-[#0E5431] dark:text-emerald-300 font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
                       ${icon('sprout', 'w-5 h-5')}
                     </div>
                     <div class="min-w-0 flex-1">
-                      <div class="flex items-center gap-2 flex-wrap min-w-0">
+                      <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
                         <h4 class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
                           ${escapeHtml(crop.name)}
                         </h4>
@@ -628,14 +649,14 @@ export function createCropZoneManagerModal({
                       </div>
 
                       <!-- Agronomic Specs Badges -->
-                      <div class="flex items-center gap-2 mt-2 flex-wrap text-[10px] min-w-0">
-                        <span class="px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-mono truncate">
+                      <div class="flex items-center gap-1.5 sm:gap-2 mt-2 flex-wrap text-[10px] min-w-0">
+                        <span class="px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-mono whitespace-nowrap">
                           Optimal VWC: ${crop.optimalVwcMin || 20}%–${crop.optimalVwcMax || 35}%
                         </span>
-                        <span class="px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 font-mono truncate">
+                        <span class="px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 font-mono whitespace-nowrap">
                           pH: ${crop.optimalPhMin || 6.0}–${crop.optimalPhMax || 7.0}
                         </span>
-                        <span class="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-[#0E5431] dark:text-emerald-300 font-mono truncate">
+                        <span class="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-[#0E5431] dark:text-emerald-300 font-mono whitespace-nowrap">
                           N: ${crop.targetNitrogen || 100} kg/ha
                         </span>
                       </div>
@@ -643,12 +664,12 @@ export function createCropZoneManagerModal({
                   </div>
 
                   <!-- Actions -->
-                  <div class="flex items-center gap-1 flex-shrink-0">
+                  <div class="flex items-center gap-1.5 flex-shrink-0 self-end sm:self-auto">
                     <button 
                       type="button" 
                       data-action="edit-crop" 
                       data-id="${escapeHtml(crop.id)}"
-                      class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 flex items-center justify-center transition"
+                      class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 flex items-center justify-center transition active:scale-95 shrink-0"
                       title="${t('edit_crop', 'Edit Crop')}"
                     >
                       ${icon('edit', 'w-3.5 h-3.5')}
@@ -659,7 +680,7 @@ export function createCropZoneManagerModal({
                       data-action="delete-crop" 
                       data-id="${escapeHtml(crop.id)}"
                       data-name="${escapeHtml(crop.name)}"
-                      class="w-8 h-8 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-300 flex items-center justify-center transition"
+                      class="w-8 h-8 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-300 flex items-center justify-center transition active:scale-95 shrink-0"
                       title="${t('delete_crop', 'Delete Crop')}"
                     >
                       ${icon('trash', 'w-3.5 h-3.5')}

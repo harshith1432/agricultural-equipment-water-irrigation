@@ -33,7 +33,7 @@ export function createIrrigationManagementView({
   onEmergencyStop
 }) {
   const container = document.createElement('div');
-  container.className = "irrigation-management-view w-full space-y-4 pb-32 text-slate-800 dark:text-slate-100 select-none overflow-x-hidden";
+  container.className = "irrigation-management-view w-full space-y-4 pb-36 sm:pb-40 text-slate-800 dark:text-slate-100 select-none overflow-x-hidden";
 
   // Selected duration for manual open countdown (default 45 min for test compatibility)
   let selectedDurationMin = 45;
@@ -114,35 +114,35 @@ export function createIrrigationManagementView({
         </div>
 
         <!-- Flow Meter Stats Grid -->
-        <div class="grid grid-cols-3 gap-2.5 mt-4 pt-3 border-t border-emerald-700/40">
-          <div class="bg-white/10 rounded-2xl p-2.5 flex flex-col min-w-0 overflow-hidden">
-            <span class="text-[10px] text-emerald-200/80 font-medium truncate">${t('flow_rate_live')}</span>
-            <div class="flex items-baseline gap-1 mt-0.5 min-w-0 truncate">
-              <span class="text-xl font-black text-white font-mono truncate">${currentFlowLpm}</span>
-              <span class="text-[10px] text-emerald-300 shrink-0">L/min</span>
+        <div class="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-emerald-700/40">
+          <div class="bg-white/10 rounded-2xl p-2.5 flex flex-col min-w-0">
+            <span class="text-[10px] text-emerald-200/90 font-medium leading-tight min-h-[24px] flex items-center">${t('flow_rate_live')}</span>
+            <div class="flex items-baseline gap-1 mt-1 whitespace-nowrap overflow-visible">
+              <span class="text-base sm:text-lg font-black text-white font-mono leading-none">${currentFlowLpm}</span>
+              <span class="text-[10px] text-emerald-300 font-bold shrink-0">L/min</span>
             </div>
-            <div class="flex items-center gap-1 mt-1 text-[9px] text-emerald-300/80 min-w-0 truncate">
+            <div class="flex items-center gap-1 mt-1.5 text-[9px] text-emerald-300/90 whitespace-nowrap overflow-visible">
               <span class="w-1.5 h-1.5 rounded-full shrink-0 ${activeValvesCount > 0 ? 'bg-emerald-400 animate-ping' : 'bg-slate-400'}"></span>
-              <span class="truncate">${activeValvesCount} ${t('valves_active', 'Valves Active')}</span>
+              <span class="font-medium">${activeValvesCount} ${t('valves_active', 'Active')}</span>
             </div>
           </div>
 
-          <div class="bg-white/10 rounded-2xl p-2.5 flex flex-col min-w-0 overflow-hidden">
-            <span class="text-[10px] text-emerald-200/80 font-medium truncate">${t('flow_session')}</span>
-            <div class="flex items-baseline gap-1 mt-0.5 min-w-0 truncate">
-              <span class="text-xl font-black text-white font-mono truncate">${telemetry.totalLitersDeliveredAllTime.toFixed(0)}</span>
-              <span class="text-[10px] text-emerald-300 shrink-0">${t('liters', 'Liters')}</span>
+          <div class="bg-white/10 rounded-2xl p-2.5 flex flex-col min-w-0">
+            <span class="text-[10px] text-emerald-200/90 font-medium leading-tight min-h-[24px] flex items-center">${t('flow_session')}</span>
+            <div class="flex items-baseline gap-1 mt-1 whitespace-nowrap overflow-visible">
+              <span class="text-base sm:text-lg font-black text-white font-mono leading-none">${telemetry.totalLitersDeliveredAllTime.toFixed(0)}</span>
+              <span class="text-[10px] text-emerald-300 font-bold shrink-0">${t('liters', 'L')}</span>
             </div>
-            <span class="text-[9px] text-emerald-300/80 mt-1 truncate">${t('latching_12v', 'Latching ±12V')}</span>
+            <span class="text-[9px] text-emerald-300/90 mt-1.5 whitespace-nowrap overflow-visible font-mono">${t('latching_12v', '±12V Latch')}</span>
           </div>
 
-          <div class="bg-white/10 rounded-2xl p-2.5 flex flex-col min-w-0 overflow-hidden">
-            <span class="text-[10px] text-emerald-200/80 font-medium truncate">${t('flow_today')}</span>
-            <div class="flex items-baseline gap-1 mt-0.5 min-w-0 truncate">
-              <span class="text-xl font-black text-white font-mono truncate">${telemetry.totalLitersToday.toFixed(0)}</span>
-              <span class="text-[10px] text-emerald-300 shrink-0">${t('liters', 'Liters')}</span>
+          <div class="bg-white/10 rounded-2xl p-2.5 flex flex-col min-w-0">
+            <span class="text-[10px] text-emerald-200/90 font-medium leading-tight min-h-[24px] flex items-center">${t('flow_today')}</span>
+            <div class="flex items-baseline gap-1 mt-1 whitespace-nowrap overflow-visible">
+              <span class="text-base sm:text-lg font-black text-white font-mono leading-none">${telemetry.totalLitersToday.toFixed(0)}</span>
+              <span class="text-[10px] text-emerald-300 font-bold shrink-0">${t('liters', 'L')}</span>
             </div>
-            <span class="text-[9px] text-emerald-300/80 mt-1 truncate">${telemetry.mainlinePressureBar.toFixed(2)} ${t('bar_line', 'Bar Line')}</span>
+            <span class="text-[9px] text-emerald-300/90 mt-1.5 whitespace-nowrap overflow-visible font-mono">${telemetry.mainlinePressureBar.toFixed(2)} ${t('bar_line', 'Bar Line')}</span>
           </div>
         </div>
       </div>
@@ -259,7 +259,7 @@ export function createIrrigationManagementView({
 
                     <div class="flex flex-col min-w-0 flex-1">
                       <div class="flex items-center gap-1.5 flex-wrap min-w-0">
-                        <span class="text-xs font-bold text-slate-900 dark:text-white truncate">${escapeHtml(valve.name)}</span>
+                        <span class="text-xs font-bold text-slate-900 dark:text-white break-words leading-snug">${escapeHtml(valve.name)}</span>
                         <!-- Status Pill -->
                         ${renderStatusPill(currentPill)}
                       </div>

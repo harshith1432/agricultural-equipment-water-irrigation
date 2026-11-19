@@ -26,12 +26,25 @@ export function createSpectroscopyAnalysisView({
   latestScanAnalysis = null
 }) {
   const container = document.createElement('div');
-  container.className = "spectroscopy-analysis-view w-full space-y-4 pb-32 text-slate-800 dark:text-slate-100 select-none overflow-x-hidden";
+  container.className = "spectroscopy-analysis-view w-full space-y-4 pb-36 sm:pb-40 text-slate-800 dark:text-slate-100 select-none overflow-x-hidden";
 
   let connectionMode = spectrometerUSBAdapter.connectionMode || CONNECTION_MODES.USB_TYPE_C;
   let viewMode = 'simple'; // 'simple' | 'advanced'
   let currentScan = latestScanAnalysis || spectrometerUSBAdapter.lastScan;
   let pollingIntervalId = null;
+
+  function getReadableSpectroMode(mode) {
+    switch (mode) {
+      case CONNECTION_MODES.USB_TYPE_C:
+        return 'USB-C OTG';
+      case CONNECTION_MODES.BLUETOOTH_BLE:
+        return 'Bluetooth BLE';
+      case CONNECTION_MODES.WIFI_CLOUD:
+        return 'Wi-Fi Cloud Stream';
+      default:
+        return 'Auto-Detect';
+    }
+  }
 
   async function acquireScanSafely(options = {}) {
     try {
@@ -102,69 +115,49 @@ export function createSpectroscopyAnalysisView({
     };
 
     container.innerHTML = `
-      <!-- 1. Sleek Compact Auto-Detected Status Bar with Mode Pills -->
-      <div class="bg-white dark:bg-slate-900 rounded-3xl p-3.5 shadow-sm border border-emerald-900/5 dark:border-slate-800 space-y-2.5">
+      <!-- 1. Sleek Compact Auto-Detected Status Bar (NO huge 3-button switcher, compact 3-dots button) -->
+      <div class="bg-gradient-to-br from-[#0E5431] to-[#0A3D23] text-white rounded-3xl p-3.5 sm:p-4 shadow-sm border border-emerald-800/40 space-y-2.5 overflow-hidden">
+        <!-- Row 1: Title & Icon + 3-Dots Settings Button -->
         <div class="flex items-center justify-between gap-2">
-          <div class="flex items-center gap-2 min-w-0">
-            <div class="w-8 h-8 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-[#0E5431] dark:text-emerald-300 flex items-center justify-center shrink-0">
+          <div class="flex items-center gap-2.5 min-w-0 flex-1 pr-2">
+            <div class="w-8 h-8 rounded-2xl bg-white/15 text-emerald-100 flex items-center justify-center shrink-0">
               ${icon('layers', 'w-4 h-4')}
             </div>
-            <div class="min-w-0">
-              <h3 class="text-xs font-bold text-slate-800 dark:text-white truncate">${t('spectro_driver', 'Spectrometer Driver')}</h3>
-              <p class="text-[10px] text-slate-500 font-mono truncate">${t('spectro_driver_sub', 'Multi-Mode VIS-NIR 350–1100nm')}</p>
+            <div class="min-w-0 flex-1">
+              <h3 class="text-xs sm:text-sm font-bold text-white tracking-tight leading-snug truncate">${t('spectro_driver', 'Spectrometer Diagnostic')}</h3>
+              <p class="text-[10px] text-emerald-200/80 font-mono leading-tight truncate mt-0.5">${t('spectro_driver_sub', 'Multi-Mode VIS-NIR 350–1100nm')}</p>
             </div>
           </div>
 
-          <div class="flex items-center gap-1.5 shrink-0">
-            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold ${
-              isConnected ? 'bg-emerald-50 text-[#0E5431] border border-emerald-300' : 'bg-slate-100 text-slate-500'
-            } flex items-center gap-1 shadow-sm">
-              <span class="w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}"></span>
-              <span>${isConnected ? t('status_active', 'Active') : t('status_standby', 'Standby')}</span>
-            </span>
-            ${isCalibrated ? `
-              <span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                ${t('status_calibrated', 'Calibrated')}
-              </span>
-            ` : ''}
-          </div>
+          <!-- 3-Dots Settings Overflow Button -->
+          <button 
+            type="button" 
+            id="btn-spectro-settings"
+            class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 text-white flex items-center justify-center transition border border-white/20 shadow-sm shrink-0"
+            title="Spectrometer Hardware Settings"
+            aria-label="Spectrometer Settings"
+          >
+            ${icon('moreVertical', 'w-4 h-4')}
+          </button>
         </div>
 
-        <!-- 3-Way Connection Mode Switcher Pills -->
-        <div class="grid grid-cols-3 gap-1.5 p-1 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-700/50">
-          <button 
-            type="button" 
-            data-mode="${CONNECTION_MODES.USB_TYPE_C}"
-            class="mode-switch-btn py-1.5 px-2 rounded-xl text-[10.5px] font-bold transition flex items-center justify-center gap-1 ${
-              connectionMode === CONNECTION_MODES.USB_TYPE_C
-                ? 'bg-white dark:bg-slate-900 text-[#0E5431] dark:text-emerald-300 shadow-xs border border-emerald-500/20'
-                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
-            }"
+        <!-- Row 2: Auto-Detected Status Badges & Hardware Interface Pill -->
+        <div class="flex items-center gap-2 pt-1 border-t border-emerald-700/40 flex-wrap">
+          <!-- Auto-Detected Interface Pill -->
+          <div 
+            id="spectro-connection-pill"
+            class="px-2.5 py-1 rounded-full text-xs font-semibold bg-white/15 border border-white/20 text-emerald-100 flex items-center gap-1.5 shadow-sm"
+            title="Hardware Auto-Detected Interface"
           >
-            <span>${t('usb_otg', 'USB-C OTG')}</span>
-          </button>
-          <button 
-            type="button" 
-            data-mode="${CONNECTION_MODES.BLUETOOTH_BLE}"
-            class="mode-switch-btn py-1.5 px-2 rounded-xl text-[10.5px] font-bold transition flex items-center justify-center gap-1 ${
-              connectionMode === CONNECTION_MODES.BLUETOOTH_BLE
-                ? 'bg-white dark:bg-slate-900 text-[#0E5431] dark:text-emerald-300 shadow-xs border border-emerald-500/20'
-                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
-            }"
-          >
-            <span>${t('bluetooth', 'Bluetooth')}</span>
-          </button>
-          <button 
-            type="button" 
-            data-mode="${CONNECTION_MODES.WIFI_CLOUD}"
-            class="mode-switch-btn py-1.5 px-2 rounded-xl text-[10.5px] font-bold transition flex items-center justify-center gap-1 ${
-              connectionMode === CONNECTION_MODES.WIFI_CLOUD
-                ? 'bg-white dark:bg-slate-900 text-[#0E5431] dark:text-emerald-300 shadow-xs border border-emerald-500/20'
-                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
-            }"
-          >
-            <span>${t('wifi_cloud', 'Wi-Fi Cloud')}</span>
-          </button>
+            <span class="w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-slate-400'}"></span>
+            <span class="font-mono text-[11px]">${getReadableSpectroMode(connectionMode)}</span>
+          </div>
+
+          ${isCalibrated ? `
+            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-200 border border-blue-400/30">
+              ${t('status_calibrated', 'Calibrated')}
+            </span>
+          ` : ''}
         </div>
       </div>
 
@@ -415,6 +408,100 @@ export function createSpectroscopyAnalysisView({
 
       <!-- Calibration Wizard Modal Container -->
       <div id="calibration-modal-container" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"></div>
+
+      <!-- Spectro Settings & Manual Interface Modal -->
+      <div id="spectro-settings-modal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 max-w-sm w-full shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+          <div class="flex items-center justify-between border-b pb-2">
+            <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+              ${icon('settings', 'w-4 h-4 text-[#0E5431] dark:text-emerald-400')}
+              <span>Spectrometer Connection & Driver</span>
+            </h3>
+            <button type="button" id="close-spectro-settings" class="text-slate-400 hover:text-slate-600">
+              ${icon('x', 'w-4 h-4')}
+            </button>
+          </div>
+
+          <div class="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-500/20 space-y-1">
+            <span class="text-xs font-bold text-[#0E5431] dark:text-emerald-300 flex items-center gap-1">
+              ${icon('sparkles', 'w-3.5 h-3.5')}
+              Hardware Auto-Negotiation
+            </span>
+            <p class="text-[11px] text-emerald-800 dark:text-emerald-200/90 leading-relaxed">
+              Plug in via USB OTG or pair via Bluetooth; telemetry and spectral reflectance curves stream automatically with zero configuration drift.
+            </p>
+          </div>
+
+          <!-- Manual Interface Switcher Buttons -->
+          <div class="space-y-1.5">
+            <span class="text-xs font-bold text-slate-700 dark:text-slate-300">Manual Interface Override:</span>
+            <div class="grid grid-cols-3 gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl">
+              <button 
+                type="button" 
+                data-mode="${CONNECTION_MODES.USB_TYPE_C}"
+                class="mode-switch-btn py-1.5 px-1 rounded-xl text-xs font-bold flex flex-col items-center justify-center gap-1 transition ${
+                  connectionMode === CONNECTION_MODES.USB_TYPE_C 
+                    ? 'bg-[#0E5431] text-white shadow-sm' 
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                }"
+              >
+                ${icon('usb', 'w-3.5 h-3.5')}
+                <span class="text-[10px]">USB-C OTG</span>
+              </button>
+
+              <button 
+                type="button" 
+                data-mode="${CONNECTION_MODES.BLUETOOTH_BLE}"
+                class="mode-switch-btn py-1.5 px-1 rounded-xl text-xs font-bold flex flex-col items-center justify-center gap-1 transition ${
+                  connectionMode === CONNECTION_MODES.BLUETOOTH_BLE 
+                    ? 'bg-[#0E5431] text-white shadow-sm' 
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                }"
+              >
+                ${icon('bluetooth', 'w-3.5 h-3.5')}
+                <span class="text-[10px]">Bluetooth</span>
+              </button>
+
+              <button 
+                type="button" 
+                data-mode="${CONNECTION_MODES.WIFI_CLOUD}"
+                class="mode-switch-btn py-1.5 px-1 rounded-xl text-xs font-bold flex flex-col items-center justify-center gap-1 transition ${
+                  connectionMode === CONNECTION_MODES.WIFI_CLOUD 
+                    ? 'bg-[#0E5431] text-white shadow-sm' 
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                }"
+              >
+                ${icon('wifi', 'w-3.5 h-3.5')}
+                <span class="text-[10px]">Wi-Fi Cloud</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Hardware Specifications -->
+          <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 text-xs space-y-1 font-mono text-[11px] text-slate-600 dark:text-slate-300">
+            <div class="flex justify-between">
+              <span>Sensor:</span>
+              <span class="font-bold text-slate-800 dark:text-white">76-Band Linear Array</span>
+            </div>
+            <div class="flex justify-between">
+              <span>Bandwidth:</span>
+              <span class="font-bold text-slate-800 dark:text-white">350–1100 nm (FWHM 8nm)</span>
+            </div>
+            <div class="flex justify-between">
+              <span>Integration:</span>
+              <span class="font-bold text-slate-800 dark:text-white">20 ms Auto-Exposure</span>
+            </div>
+          </div>
+
+          <button 
+            type="button" 
+            id="confirm-spectro-settings-btn"
+            class="w-full py-2.5 rounded-full bg-[#0E5431] text-white text-xs font-bold hover:bg-[#083820] transition active:scale-95 shadow-sm"
+          >
+            Done
+          </button>
+        </div>
+      </div>
     `;
 
     attachEvents();
@@ -511,6 +598,18 @@ export function createSpectroscopyAnalysisView({
   }
 
   function attachEvents() {
+    // 3-Dots Spectro Settings Modal Controls
+    const settingsModal = container.querySelector('#spectro-settings-modal');
+    container.querySelector('#btn-spectro-settings')?.addEventListener('click', () => {
+      settingsModal?.classList.remove('hidden');
+    });
+    container.querySelector('#close-spectro-settings')?.addEventListener('click', () => {
+      settingsModal?.classList.add('hidden');
+    });
+    container.querySelector('#confirm-spectro-settings-btn')?.addEventListener('click', () => {
+      settingsModal?.classList.add('hidden');
+    });
+
     // Mode Switcher
     container.querySelectorAll('.mode-switch-btn').forEach(btn => {
       btn.addEventListener('click', () => {

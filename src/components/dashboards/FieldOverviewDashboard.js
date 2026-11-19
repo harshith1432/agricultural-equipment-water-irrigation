@@ -19,6 +19,11 @@ import { getDashboardWidgetSettings, createDashboardSettingsModal } from '../Das
 import { createPlotCanvas6Zone } from '../PlotCanvas6Zone.js';
 import { createClosedLoopSynergySection } from '../ClosedLoopSynergyCard.js';
 
+function stripLeadingPlus(text) {
+  if (!text) return '';
+  return String(text).replace(/^\s*\+\s*/, '');
+}
+
 export function createFieldOverviewDashboard({
   plots = [],
   selectedPlotId = 'plot-1',
@@ -340,12 +345,13 @@ export function createFieldOverviewDashboard({
             <button 
               type="button" 
               id="card-overview-add-zone"
+              aria-label="+ Add New Zone"
               class="w-full bg-emerald-50/60 dark:bg-slate-900/50 hover:bg-emerald-50 dark:hover:bg-slate-800 rounded-3xl p-3.5 border-2 border-dashed border-emerald-600/30 dark:border-emerald-500/20 text-[#0E5431] dark:text-emerald-300 transition flex items-center justify-center gap-2 font-bold text-xs active:scale-98 cursor-pointer shadow-xs"
             >
               <div class="w-6 h-6 rounded-full bg-emerald-700 text-white flex items-center justify-center">
                 ${icon('plus', 'w-3.5 h-3.5')}
               </div>
-              <span>${t('add_new_zone_db', '+ Add New Zone to Database')}</span>
+              <span>${stripLeadingPlus(t('add_new_zone_db', 'Add New Zone to Database'))}</span>
             </button>
           </div>
         </div>

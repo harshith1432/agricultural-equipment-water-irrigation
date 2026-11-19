@@ -26,7 +26,7 @@ export function createAIIntelligenceView({
   actionRecommendations = []
 }) {
   const container = document.createElement('div');
-  container.className = "ai-intelligence-view w-full space-y-4 pb-32 text-slate-800 dark:text-slate-100 select-none overflow-x-hidden";
+  container.className = "ai-intelligence-view w-full space-y-4 pb-36 sm:pb-40 text-slate-800 dark:text-slate-100 select-none overflow-x-hidden";
 
   // State of executed and dismissed recommendations
   const executedActions = new Set();
@@ -66,27 +66,27 @@ export function createAIIntelligenceView({
 
         <!-- Multi-Modal Data Ingestion Matrix -->
         <div class="grid grid-cols-4 gap-2 pt-2 border-t border-emerald-700/40 text-center">
-          <div class="bg-white/10 rounded-2xl p-2 flex flex-col items-center">
-            <span class="text-[9px] text-emerald-200 truncate w-full">${t('param_moisture')}</span>
-            <span class="text-sm font-black font-mono mt-0.5 text-white">42.2%</span>
+          <div class="bg-white/10 rounded-2xl p-2 flex flex-col items-center min-w-0">
+            <span class="text-[9px] text-emerald-100 font-medium leading-tight text-center break-words min-h-[22px] flex items-center justify-center w-full">${t('param_moisture')}</span>
+            <span class="text-sm font-black font-mono mt-0.5 text-white whitespace-nowrap">42.2%</span>
             <span class="text-[8px] text-emerald-300">LABART 8-in-1</span>
           </div>
 
-          <div class="bg-white/10 rounded-2xl p-2 flex flex-col items-center">
-            <span class="text-[9px] text-emerald-200 truncate w-full">${t('canopy_vitality')}</span>
-            <span class="text-sm font-black font-mono mt-0.5 text-white">84 / 100</span>
+          <div class="bg-white/10 rounded-2xl p-2 flex flex-col items-center min-w-0">
+            <span class="text-[9px] text-emerald-100 font-medium leading-tight text-center break-words min-h-[22px] flex items-center justify-center w-full">${t('canopy_vitality')}</span>
+            <span class="text-sm font-black font-mono mt-0.5 text-white whitespace-nowrap">84 / 100</span>
             <span class="text-[8px] text-emerald-300">VIS-NIR Spec</span>
           </div>
 
-          <div class="bg-white/10 rounded-2xl p-2 flex flex-col items-center">
-            <span class="text-[9px] text-emerald-200 truncate w-full">${t('vapor_pressure_deficit')}</span>
-            <span class="text-sm font-black font-mono mt-0.5 text-white">1.25 kPa</span>
+          <div class="bg-white/10 rounded-2xl p-2 flex flex-col items-center min-w-0">
+            <span class="text-[9px] text-emerald-100 font-medium leading-tight text-center break-words min-h-[22px] flex items-center justify-center w-full">${t('vapor_pressure_deficit')}</span>
+            <span class="text-sm font-black font-mono mt-0.5 text-white whitespace-nowrap">1.25 kPa</span>
             <span class="text-[8px] text-emerald-300">Open-Meteo</span>
           </div>
 
-          <div class="bg-white/10 rounded-2xl p-2 flex flex-col items-center">
-            <span class="text-[9px] text-emerald-200 truncate w-full">${t('flow_today')}</span>
-            <span class="text-sm font-black font-mono mt-0.5 text-white">1,845 L</span>
+          <div class="bg-white/10 rounded-2xl p-2 flex flex-col items-center min-w-0">
+            <span class="text-[9px] text-emerald-100 font-medium leading-tight text-center break-words min-h-[22px] flex items-center justify-center w-full">${t('flow_today')}</span>
+            <span class="text-sm font-black font-mono mt-0.5 text-white whitespace-nowrap">1,845 L</span>
             <span class="text-[8px] text-emerald-300">Drip Hub</span>
           </div>
         </div>
