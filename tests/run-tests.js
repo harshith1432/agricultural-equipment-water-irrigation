@@ -28,6 +28,10 @@ if (!globalThis.requestAnimationFrame) {
   globalThis.cancelAnimationFrame = (id) => clearTimeout(id);
 }
 
+if (!globalThis.navigator) {
+  globalThis.navigator = {};
+}
+
 import { runner } from './framework.js';
 import { registerChemometricsTests } from './chemometrics.test.js';
 import { registerSolenoidValveTests } from './solenoid-valves.test.js';

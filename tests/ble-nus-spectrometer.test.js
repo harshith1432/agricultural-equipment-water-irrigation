@@ -420,6 +420,7 @@ export function registerBleNusSpectrometerTests() {
       };
 
       let requestedOptions = null;
+      if (!globalThis.navigator) globalThis.navigator = {};
       const originalBluetooth = globalThis.navigator?.bluetooth;
       Object.defineProperty(globalThis.navigator, 'bluetooth', {
         value: {
@@ -448,14 +449,16 @@ export function registerBleNusSpectrometerTests() {
         expect(device.rxCharacteristic).toBe(mockRxChar);
         expect(requestedOptions.optionalServices).toContain(BLE_SERVICES.BLUENRG_SERVICE);
       } finally {
-        if (originalBluetooth !== undefined) {
-          Object.defineProperty(globalThis.navigator, 'bluetooth', {
-            value: originalBluetooth,
-            configurable: true,
-            writable: true
-          });
-        } else {
-          delete globalThis.navigator.bluetooth;
+        if (globalThis.navigator) {
+          if (originalBluetooth !== undefined) {
+            Object.defineProperty(globalThis.navigator, 'bluetooth', {
+              value: originalBluetooth,
+              configurable: true,
+              writable: true
+            });
+          } else {
+            delete globalThis.navigator.bluetooth;
+          }
         }
         device.disconnect();
       }
