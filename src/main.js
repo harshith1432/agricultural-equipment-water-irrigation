@@ -63,6 +63,7 @@ class AgriSpectraApp {
     }
     this.isSidebarOpen = true;
     this.selectedPlotId = localStorage.getItem('agrispectra_selected_plot') || "plot-1";
+    this.activeMobileTab = localStorage.getItem('agrispectra_mobile_tab') || 'dashboard';
 
     // Reactive State - populated when user is authenticated
     this.plots = this.currentUser ? Object.values(INITIAL_FARM_DATA.plots || {}) : [];
@@ -213,6 +214,7 @@ class AgriSpectraApp {
         this.actionRecommendations = [];
         this.irrigationLogs = [];
         this.latestScanAnalysis = null;
+        this.currentMobileApp = null;
       }
 
       this.render();
@@ -315,7 +317,23 @@ class AgriSpectraApp {
     this.isNative = Boolean(isNative || this.isNative);
     if (this.isNative || this.viewMode === 'mobile' || this.viewMode !== 'desktop') {
       this.viewMode = 'mobile';
+
+      // If mobile app is already mounted, update live data reactively without tearing down the DOM or scrolling
+      if (this.currentMobileApp && this.appEl.contains(this.currentMobileApp)) {
+        if (typeof this.currentMobileApp.updateData === 'function') {
+          this.currentMobileApp.updateData({
+            plots: this.plots,
+            actionRecommendations: this.actionRecommendations,
+            telemetryMetrics: this.telemetryMetrics,
+            selectedPlotId: this.selectedPlotId
+          });
+        }
+        return;
+      }
+
+      this.appEl.innerHTML = '';
       const mobileApp = createNativeMobileAppView({
+        initialTab: this.activeMobileTab || localStorage.getItem('agrispectra_mobile_tab') || 'dashboard',
         plots: this.plots,
         selectedPlotId: this.selectedPlotId,
         latestScanAnalysis: this.latestScanAnalysis,
@@ -323,9 +341,17 @@ class AgriSpectraApp {
         actionRecommendations: this.actionRecommendations,
         currentTheme: this.currentTheme,
         onThemeChange: (themeId) => this.setTheme(themeId),
+        onTabChange: (newTab) => {
+          this.activeMobileTab = newTab;
+          try { localStorage.setItem('agrispectra_mobile_tab', newTab); } catch (e) {}
+        },
         onSelectPlot: (plotId) => {
           this.selectedPlotId = plotId;
-          this.render();
+          if (this.currentMobileApp && typeof this.currentMobileApp.updateData === 'function') {
+            this.currentMobileApp.updateData({ selectedPlotId: plotId });
+          } else {
+            this.render();
+          }
         },
         onAcquireScan: (plotId) => this.handleAcquireScan(plotId),
         onActuateValve: (params) => this.handleActuateValve(params),
@@ -336,11 +362,15 @@ class AgriSpectraApp {
         onOpenEnterpriseAdmin: () => this.openEnterpriseAdminModal(),
         onOpenAuthModal: () => this.openAuthModal(),
         onReplayOnboarding: () => this.showOnboarding(),
-        onSignOut: () => this.handleSignOut(),
+        onSignOut: () => {
+          this.currentMobileApp = null;
+          this.handleSignOut();
+        },
         onSynergyAction: (recId, action) => this.handleSynergyAction(recId, action),
         currentUser: this.currentUser
       });
 
+      this.currentMobileApp = mobileApp;
       this.appEl.appendChild(mobileApp);
       return;
     }

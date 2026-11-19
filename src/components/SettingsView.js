@@ -109,6 +109,7 @@ export function createSettingsView({
     const isGoogleLinked = user.email && (user.email.includes('@gmail.com') || !user.isOffline);
     const activeLocaleCode = getLocale();
     const location = locationService.getLocation();
+    const isGPS = locationService.isGPSVerified();
 
     container.innerHTML = `
       <!-- User Profile Card -->
@@ -301,13 +302,13 @@ export function createSettingsView({
           </div>
 
           <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-            location.permissionStatus === 'granted'
+            (location.permissionState === 'granted' || isGPS)
               ? 'bg-emerald-50 text-[#0E5431] border border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800'
-              : location.permissionStatus === 'denied'
+              : location.permissionState === 'denied'
                 ? 'bg-rose-50 text-rose-700 border border-rose-300 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800'
                 : 'bg-amber-50 text-amber-700 border border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800'
           }">
-            ${location.permissionStatus === 'granted' ? t('gps_status_granted', 'Granted & Active') : location.permissionStatus === 'denied' ? t('gps_status_denied', 'Denied') : t('gps_status_prompt', 'Pending Verification')}
+            ${(location.permissionState === 'granted' || isGPS) ? t('gps_status_granted', 'Granted & Active') : location.permissionState === 'denied' ? t('gps_status_denied', 'Denied') : t('gps_status_prompt', 'Pending Verification')}
           </span>
         </div>
 
@@ -318,13 +319,13 @@ export function createSettingsView({
             <span class="text-xs font-mono font-bold text-slate-900 dark:text-white mt-1">
               ${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}
             </span>
-            <span class="text-[9px] text-slate-400 mt-0.5">${location.isGPS ? '🛰️ Live GPS Sensor' : 'Standard Farm Grid'}</span>
+            <span class="text-[9px] text-slate-400 mt-0.5">${(location.isGpsExact || isGPS) ? '🛰️ Live GPS Sensor' : 'Standard Farm Grid'}</span>
           </div>
 
           <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200/80 dark:border-slate-700/80 flex flex-col">
             <span class="text-[10px] text-slate-500 font-medium">${t('gps_accuracy', 'Accuracy')}</span>
             <span class="text-xs font-mono font-bold text-emerald-700 dark:text-emerald-300 mt-1">
-              ±${location.accuracy} meters
+              ±${Math.round(location.accuracy || 10)} meters
             </span>
             <span class="text-[9px] text-slate-400 mt-0.5">High-Precision Fix</span>
           </div>

@@ -47,7 +47,8 @@ export function createNativeMobileAppView({
   onOpenAuthModal,
   onReplayOnboarding,
   onSignOut,
-  onSynergyAction
+  onSynergyAction,
+  onTabChange
 }) {
   const container = document.createElement('div');
   container.className = "native-mobile-app w-full h-screen h-[100dvh] max-h-[100dvh] bg-[#F4F6F3] dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col relative overflow-hidden selection:bg-[#0E5431] selection:text-white";
@@ -64,7 +65,10 @@ export function createNativeMobileAppView({
     'climate': 'environment'
   };
 
-  let activeTab = TAB_ALIASES[initialTab] || initialTab || 'dashboard';
+  const savedTab = (() => {
+    try { return localStorage.getItem('agrispectra_mobile_tab'); } catch (e) { return null; }
+  })();
+  let activeTab = TAB_ALIASES[initialTab] || TAB_ALIASES[savedTab] || savedTab || initialTab || 'dashboard';
   let currentPlotId = selectedPlotId || "plot-1";
   const activePlots = (plots && plots.length > 0) ? plots : Object.values(INITIAL_FARM_DATA.plots || {});
 
@@ -78,7 +82,7 @@ export function createNativeMobileAppView({
     onSelectPlot: (plotId) => {
       currentPlotId = plotId;
       if (onSelectPlot) onSelectPlot(plotId);
-      renderActiveScreen();
+      renderActiveScreen({ resetScroll: false });
     },
     onEmergencyStop,
     onOpenSimModal,
@@ -87,7 +91,9 @@ export function createNativeMobileAppView({
     onOpenCropZoneManager,
     onNavigate: (targetView) => {
       activeTab = TAB_ALIASES[targetView] || targetView;
-      renderActiveScreen();
+      try { localStorage.setItem('agrispectra_mobile_tab', activeTab); } catch (e) {}
+      if (typeof onTabChange === 'function') onTabChange(activeTab);
+      renderActiveScreen({ resetScroll: true });
     },
     onThemeChange,
     currentTheme,
@@ -112,7 +118,9 @@ export function createNativeMobileAppView({
     },
     onTabChange: (targetTab) => {
       activeTab = TAB_ALIASES[targetTab] || targetTab;
-      renderActiveScreen();
+      try { localStorage.setItem('agrispectra_mobile_tab', activeTab); } catch (e) {}
+      if (typeof onTabChange === 'function') onTabChange(activeTab);
+      renderActiveScreen({ resetScroll: true });
     }
   });
   container.appendChild(bottomNav.element);
@@ -174,7 +182,8 @@ export function createNativeMobileAppView({
     }
   }
 
-  function renderActiveScreen() {
+  function renderActiveScreen({ resetScroll = false } = {}) {
+    const prevScroll = scrollBody.scrollTop;
     scrollBody.innerHTML = '';
     bottomNav.setActiveTab(activeTab);
 
@@ -190,11 +199,13 @@ export function createNativeMobileAppView({
             onSelectPlot: (plotId) => {
               currentPlotId = plotId;
               if (onSelectPlot) onSelectPlot(plotId);
-              renderActiveScreen();
+              renderActiveScreen({ resetScroll: false });
             },
             onNavigateTab: (targetTab) => {
               activeTab = TAB_ALIASES[targetTab] || targetTab;
-              renderActiveScreen();
+              try { localStorage.setItem('agrispectra_mobile_tab', activeTab); } catch (e) {}
+              if (typeof onTabChange === 'function') onTabChange(activeTab);
+              renderActiveScreen({ resetScroll: true });
             },
             onActuateValve,
             onOpenCropZoneManager,
@@ -304,17 +315,41 @@ export function createNativeMobileAppView({
       }
     }
 
-    // Scroll to top on navigation
-    scrollBody.scrollTop = 0;
+    // Preserve scroll position on data updates, only reset to top when user explicitly switches tabs
+    if (resetScroll) {
+      scrollBody.scrollTop = 0;
+    } else {
+      scrollBody.scrollTop = prevScroll;
+    }
   }
+
+  // Exposed update method for data subscriptions without destroying UI
+  container.updateData = function(newData = {}) {
+    if (newData.plots && Array.isArray(newData.plots)) {
+      activePlots = newData.plots;
+    }
+    if (newData.actionRecommendations && Array.isArray(newData.actionRecommendations)) {
+      actionRecommendations = newData.actionRecommendations;
+      const count = actionRecommendations.filter(r => r?.status === 'PENDING').length;
+      bottomNav.setBadge('synergy', count);
+      bottomNav.setBadge('ai', count);
+    }
+    if (newData.telemetryMetrics) {
+      telemetryMetrics = newData.telemetryMetrics;
+    }
+    if (newData.selectedPlotId) {
+      currentPlotId = newData.selectedPlotId;
+    }
+    renderActiveScreen({ resetScroll: false });
+  };
 
   // Subscribe to reactive locale changes to update active screen instantly
   onLocaleChange(() => {
-    renderActiveScreen();
+    renderActiveScreen({ resetScroll: false });
   });
 
   // Initial render
-  renderActiveScreen();
+  renderActiveScreen({ resetScroll: true });
 
   return container;
 }

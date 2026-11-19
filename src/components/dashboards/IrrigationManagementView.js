@@ -120,35 +120,35 @@ export function createIrrigationManagementView({
         </div>
 
         <!-- Flow Meter Stats Grid -->
-        <div class="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-emerald-700/40">
-          <div class="bg-white/10 rounded-2xl p-2.5 flex flex-col min-w-0 overflow-hidden">
-            <span class="text-[10px] text-emerald-200/90 font-medium leading-tight min-h-[24px] flex items-center truncate">${t('flow_rate_live')}</span>
+        <div class="grid grid-cols-3 gap-1.5 sm:gap-2 mt-4 pt-3 border-t border-emerald-700/40">
+          <div class="bg-white/10 rounded-2xl p-2 sm:p-2.5 flex flex-col min-w-0 overflow-hidden">
+            <span class="text-[9px] sm:text-[10px] text-emerald-200/90 font-semibold leading-tight min-h-[26px] flex items-center break-words whitespace-normal">${t('flow_rate_live', 'Live Flow')}</span>
             <div class="flex flex-col mt-1 min-w-0">
               <span class="text-base sm:text-lg font-black text-white font-mono leading-none">${currentFlowLpm}</span>
-              <span class="text-[9.5px] text-emerald-300 font-bold leading-tight mt-0.5 truncate">${t('unit_lpm', 'L/min')}</span>
+              <span class="text-[9px] text-emerald-300 font-bold leading-tight mt-0.5 truncate">${t('unit_lpm', 'L/min')}</span>
             </div>
-            <div class="flex items-center gap-1 mt-1.5 text-[9px] text-emerald-300/90 truncate">
+            <div class="flex items-center gap-1 mt-1.5 text-[8.5px] text-emerald-300/90 leading-tight">
               <span class="w-1.5 h-1.5 rounded-full shrink-0 ${activeValvesCount > 0 ? 'bg-emerald-400 animate-ping' : 'bg-slate-400'}"></span>
               <span class="font-medium truncate">${activeValvesCount} ${t('valves_active', 'Active')}</span>
             </div>
           </div>
 
-          <div class="bg-white/10 rounded-2xl p-2.5 flex flex-col min-w-0 overflow-hidden">
-            <span class="text-[10px] text-emerald-200/90 font-medium leading-tight min-h-[24px] flex items-center truncate">${t('flow_session')}</span>
+          <div class="bg-white/10 rounded-2xl p-2 sm:p-2.5 flex flex-col min-w-0 overflow-hidden">
+            <span class="text-[9px] sm:text-[10px] text-emerald-200/90 font-semibold leading-tight min-h-[26px] flex items-center break-words whitespace-normal">${t('flow_session', 'Session Volume')}</span>
             <div class="flex flex-col mt-1 min-w-0">
               <span class="text-base sm:text-lg font-black text-white font-mono leading-none">${telemetry.totalLitersDeliveredAllTime.toFixed(0)}</span>
-              <span class="text-[9.5px] text-emerald-300 font-bold leading-tight mt-0.5 truncate">${t('liters', 'L')}</span>
+              <span class="text-[9px] text-emerald-300 font-bold leading-tight mt-0.5 truncate">${t('liters', 'L')}</span>
             </div>
-            <span class="text-[9px] text-emerald-300/90 mt-1.5 truncate font-mono">${t('latching_12v', '±12V Latch')}</span>
+            <span class="text-[8.5px] text-emerald-300/90 mt-1.5 truncate font-mono">${t('latching_12v', '±12V Latch')}</span>
           </div>
 
-          <div class="bg-white/10 rounded-2xl p-2.5 flex flex-col min-w-0 overflow-hidden">
-            <span class="text-[10px] text-emerald-200/90 font-medium leading-tight min-h-[24px] flex items-center truncate">${t('flow_today')}</span>
+          <div class="bg-white/10 rounded-2xl p-2 sm:p-2.5 flex flex-col min-w-0 overflow-hidden">
+            <span class="text-[9px] sm:text-[10px] text-emerald-200/90 font-semibold leading-tight min-h-[26px] flex items-center break-words whitespace-normal">${t('flow_today', 'Daily Total')}</span>
             <div class="flex flex-col mt-1 min-w-0">
               <span class="text-base sm:text-lg font-black text-white font-mono leading-none">${telemetry.totalLitersToday.toFixed(0)}</span>
-              <span class="text-[9.5px] text-emerald-300 font-bold leading-tight mt-0.5 truncate">${t('liters', 'L')}</span>
+              <span class="text-[9px] text-emerald-300 font-bold leading-tight mt-0.5 truncate">${t('liters', 'L')}</span>
             </div>
-            <span class="text-[9px] text-emerald-300/90 mt-1.5 truncate font-mono">${telemetry.mainlinePressureBar.toFixed(2)} ${t('bar_line', 'Bar Line')}</span>
+            <span class="text-[8.5px] text-emerald-300/90 mt-1.5 truncate font-mono">${telemetry.mainlinePressureBar.toFixed(2)} ${t('bar_line', 'Bar Line')}</span>
           </div>
         </div>
       </div>
