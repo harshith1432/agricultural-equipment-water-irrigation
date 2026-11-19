@@ -146,6 +146,33 @@ export class SpectrometerUSBAdapter {
 
     // Setup default fallback calibration curves for simulation/instant startup
     this._initializeDefaultCalibration();
+
+    // Synchronize with leafClipDevice state
+    if (leafClipDevice) {
+      leafClipDevice.on('connectionChange', (evt) => {
+        if (evt.status === 'CONNECTED') {
+          this.isConnected = true;
+          this.isSimulated = evt.simulated;
+          this.connectionMode = CONNECTION_MODES.BLUETOOTH_BLE;
+          this.deviceInfo = {
+            ...this.deviceInfo,
+            model: evt.device?.model || 'BlueNRG_Chat',
+            serialNumber: evt.device?.id || evt.device?.deviceId || '02:80:E1:00:00:AA',
+            interface: 'Bluetooth Low Energy 5.0 (BlueNRG Chat)'
+          };
+          this.emit('statusChange', { status: 'CONNECTED', mode: CONNECTION_MODES.BLUETOOTH_BLE, simulated: this.isSimulated, device: this.deviceInfo });
+        } else if (evt.status === 'DISCONNECTED') {
+          if (this.connectionMode === CONNECTION_MODES.BLUETOOTH_BLE) {
+            this.isConnected = false;
+            this.emit('statusChange', { status: 'DISCONNECTED', mode: CONNECTION_MODES.BLUETOOTH_BLE });
+          }
+        }
+      });
+
+      leafClipDevice.on('rawData', (raw) => {
+        this.emit('rawData', raw);
+      });
+    }
   }
 
   on(event, callback) {
@@ -537,6 +564,10 @@ export class SpectrometerUSBAdapter {
   }
 
   async sendCommand(commandPayload) {
+    if (leafClipDevice && leafClipDevice.isConnected) {
+      return await leafClipDevice.sendCommand(commandPayload);
+    }
+
     const text = typeof commandPayload === 'string'
       ? commandPayload
       : JSON.stringify(commandPayload) + '\n';
@@ -635,6 +666,14 @@ export class SpectrometerUSBAdapter {
    * @returns {object} Calibration result report
    */
   async calibrateDarkCurrent({ customRawCounts = null } = {}) {
+    if (leafClipDevice && leafClipDevice.isConnected && !leafClipDevice.isSimulated) {
+      try {
+        await leafClipDevice.triggerDarkCalibration();
+      } catch (e) {
+        console.warn("[Spectrometer BLE Dark Cal]", e.message);
+      }
+    }
+
     const bands = SPECTROMETER_CONFIG.TOTAL_BANDS;
     let darkCounts;
 
@@ -681,6 +720,14 @@ export class SpectrometerUSBAdapter {
    * @returns {object} Calibration result report
    */
   async calibrateWhiteReference({ customRawCounts = null } = {}) {
+    if (leafClipDevice && leafClipDevice.isConnected && !leafClipDevice.isSimulated) {
+      try {
+        await leafClipDevice.triggerWhiteReference();
+      } catch (e) {
+        console.warn("[Spectrometer BLE White Cal]", e.message);
+      }
+    }
+
     const bands = SPECTROMETER_CONFIG.TOTAL_BANDS;
     let whiteCounts;
 
@@ -846,6 +893,22 @@ export class SpectrometerUSBAdapter {
     growthStage = 'Fruit Formation',
     simulatedParams = {}
   } = {}) {
+    if (leafClipDevice && leafClipDevice.isConnected && !leafClipDevice.isSimulated) {
+      try {
+        const leafScan = await leafClipDevice.triggerLeafMeasurement({
+          cropName,
+          growthStage
+        });
+        if (leafScan) {
+          this.lastScan = leafScan;
+          this.emit('scan', leafScan);
+          return leafScan;
+        }
+      } catch (err) {
+        console.warn("[Spectrometer BLE Leaf Scan]", err.message);
+      }
+    }
+
     if (!this.isConnected) {
       // Auto-fallback for defensive zero-crash execution
       await this.connect({

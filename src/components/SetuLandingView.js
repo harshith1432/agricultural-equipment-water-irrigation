@@ -965,7 +965,7 @@ export function createSetuLandingView({
                 <div class="form-row-2col">
                   <div class="form-group">
                     <label class="form-label" for="enqFullName">Full Name *</label>
-                    <input type="text" id="enqFullName" class="form-input" placeholder="e.g. Ramesh Patel / Carlos Mendoza" required>
+                    <input type="text" id="enqFullName" class="form-input" placeholder="e.g. Ramesh Patel / Acchu harshith" required>
                   </div>
                   <div class="form-group">
                     <label class="form-label" for="enqPhone">Phone Number *</label>
@@ -1212,7 +1212,7 @@ export function createSetuLandingView({
               <div class="form-row-2col">
                 <div class="form-group">
                   <label class="form-label" for="chkCustomerName">Farmer / Business Name *</label>
-                  <input type="text" id="chkCustomerName" class="form-input" placeholder="e.g. Ramesh Patel" required value="Carlos Mendoza">
+                  <input type="text" id="chkCustomerName" class="form-input" placeholder="e.g. Ramesh Patel" required value="Acchu harshith">
                 </div>
                 <div class="form-group">
                   <label class="form-label" for="chkCustomerPhone">Phone Number *</label>
@@ -1222,7 +1222,7 @@ export function createSetuLandingView({
               <div class="form-row-2col">
                 <div class="form-group">
                   <label class="form-label" for="chkAddress">Village / Farm Address *</label>
-                  <input type="text" id="chkAddress" class="form-input" placeholder="Survey No. 42, Sonoma Valley" required value="Parcel 01, Drip Block A">
+                  <input type="text" id="chkAddress" class="form-input" placeholder="AgriSpectra Precision Block A" required value="Parcel 01, Drip Block A">
                 </div>
                 <div class="form-group">
                   <label class="form-label" for="chkPinCode">Postal PIN Code *</label>
@@ -1277,7 +1277,7 @@ export function createSetuLandingView({
               </div>
               <div style="display: flex; justify-content: space-between;">
                 <span style="color: var(--slate-500);">Delivery To:</span>
-                <span id="receiptDeliveryTo" style="color: var(--slate-700);">Carlos Mendoza (+91 98450 12345)</span>
+                <span id="receiptDeliveryTo" style="color: var(--slate-700);">Acchu harshith (+91 98450 12345)</span>
               </div>
             </div>
             <div style="display: flex; gap: 10px; justify-content: center;">
@@ -1315,7 +1315,7 @@ export function createSetuLandingView({
           <form id="signInForm" style="display: flex; flex-direction: column; gap: 12px;">
             <div class="form-group">
               <label class="form-label" for="loginEmail">Email Address</label>
-              <input type="email" id="loginEmail" class="form-input" placeholder="grower@agrispectra.io" value="carlos.mendoza@valleyfarms.com" required>
+              <input type="email" id="loginEmail" class="form-input" placeholder="grower@agrispectra.io" value="harshithkd0321@gmail.com" required>
             </div>
             <div class="form-group">
               <label class="form-label" for="loginPassword">Password</label>
@@ -1616,7 +1616,7 @@ export function createSetuLandingView({
 
   container.querySelector('#checkoutShippingForm')?.addEventListener('submit', (e) => {
     e.preventDefault();
-    const custName = container.querySelector('#chkCustomerName')?.value || 'Carlos Mendoza';
+    const custName = container.querySelector('#chkCustomerName')?.value || 'Acchu harshith';
     const custPhone = container.querySelector('#chkCustomerPhone')?.value || '+91 98450 12345';
     const unitPrice = checkoutProduct.price_minor_units / 100;
     const total = (unitPrice * checkoutQty) * 1.18;

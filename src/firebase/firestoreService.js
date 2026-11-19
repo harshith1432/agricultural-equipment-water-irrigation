@@ -72,10 +72,12 @@ export class FirestoreDataService {
     }
 
     let farmId;
-    if (user.farmId) {
+    if (user.uid === 'system-admin-harshith' || user.email === 'harshithkd0321@gmail.com') {
+      farmId = 'farm-valley-1';
+    } else if (user.farmId) {
       farmId = user.farmId;
     } else if (user.uid === 'user-carlos-1' || user.uid === 'usr-demo-01' || user.uid === 'usr-ent-01') {
-      farmId = 'farm-carlos-valley-1';
+      farmId = 'farm-valley-1';
     } else if (user.uid === 'user-elena-2' || user.uid === 'usr-ent-03') {
       farmId = 'farm-elena-research-2';
     } else if (user.uid === 'user-mateo-3' || user.uid === 'usr-ent-04') {

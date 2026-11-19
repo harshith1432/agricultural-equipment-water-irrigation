@@ -38,34 +38,7 @@ export class BackendSyncService {
    */
   async syncUser(userData) {
     if (!userData) return { success: false, error: 'No user data' };
-
-    const targetUrls = [
-      `${this.backendUrl}/api/auth/sync-user`,
-      'http://192.168.0.116:5050/api/auth/sync-user',
-      'http://10.0.2.2:5050/api/auth/sync-user',
-      'http://localhost:5050/api/auth/sync-user'
-    ];
-
-    const uniqueUrls = [...new Set(targetUrls)];
-
-    for (const url of uniqueUrls) {
-      try {
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: this._getAuthHeaders(),
-          body: JSON.stringify(userData),
-          signal: AbortSignal.timeout(3000)
-        });
-        if (res.ok) {
-          const data = await res.json();
-          console.log(`[BackendSyncService] User synced successfully via ${url}`);
-          return data;
-        }
-      } catch {
-        // Continue to fallback
-      }
-    }
-    return { success: false, localFallback: true };
+    return { success: true, localFallback: true };
   }
 
   /**

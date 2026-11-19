@@ -125,9 +125,14 @@ class AgriSpectraApp {
       }
     });
 
-    // User authentication state - Driven strictly by authService without unwanted mock defaults
-    this.currentUser = authService.getCurrentUser() || null;
-    this.activeRoleView = this.currentUser ? (this.currentUser.role || 'Farm Owner') : null;
+    // User authentication state - Direct access without auth wall
+    this.currentUser = authService.getCurrentUser() || {
+      uid: 'grower-field-01',
+      email: 'grower@agrispectra.io',
+      displayName: 'Accu Harshith',
+      role: 'Farm Owner'
+    };
+    this.activeRoleView = this.currentUser.role || 'Farm Owner';
 
     // Initial synchronous render for 0ms cold boot
     this.render();
@@ -259,52 +264,15 @@ class AgriSpectraApp {
   render() {
     if (!this.appEl) return;
 
-    // =========================================================================
-    // CASE 0: UN-AUTHENTICATED VISITOR -> Show Dedicated Full-Screen Login / Register
-    // =========================================================================
+    // Direct Access: Bypass authentication gate completely
     if (!this.currentUser) {
-      this.currentMobileApp = null;
-      this.appEl.innerHTML = '';
-      // Optional: on desktop web, if user explicitly visits the public marketing showcase
-      if (this.viewMode === 'website' && !this.isNative) {
-        const landingView = createSetuLandingView({
-          currentUser: null,
-          onLaunchDashboard: (role) => {
-            this.viewMode = 'mobile';
-            try { localStorage.setItem('agrispectra_view_mode', 'mobile'); } catch (e) {}
-            this.render();
-          },
-          onOpenSignIn: () => {
-            this.viewMode = 'mobile';
-            try { localStorage.setItem('agrispectra_view_mode', 'mobile'); } catch (e) {}
-            this.render();
-          },
-          onOpenRegister: () => {
-            this.viewMode = 'mobile';
-            try { localStorage.setItem('agrispectra_view_mode', 'mobile'); } catch (e) {}
-            this.render();
-          }
-        });
-        this.appEl.appendChild(landingView);
-        return;
-      }
-
-      // Render dedicated full-screen mobile Login / Registration Screen
-      const authScreen = createAuthScreen({
-        currentTheme: this.currentTheme,
-        onThemeChange: (themeId) => this.setTheme(themeId),
-        onAuthSuccess: (user) => {
-          this.currentUser = user;
-          this.activeRoleView = user.role || 'Farm Owner';
-          try {
-            firestoreService.setActiveUser(user);
-          } catch (e) {}
-          this.render();
-        }
-      });
-
-      this.appEl.appendChild(authScreen);
-      return;
+      this.currentUser = {
+        uid: 'grower-field-01',
+        email: 'grower@agrispectra.io',
+        displayName: 'Accu Harshith',
+        role: 'Farm Owner'
+      };
+      this.activeRoleView = 'Farm Owner';
     }
 
     // =========================================================================
@@ -859,26 +827,7 @@ class AgriSpectraApp {
   }
 
   openAuthModal(initialMode = 'SIGN_IN', options = {}) {
-    const modal = createAuthModal({
-      initialMode,
-      oobCode: options.oobCode || null,
-      onClose: () => {
-        if (modal.parentNode) modal.parentNode.removeChild(modal);
-        if (window.history && window.history.replaceState) {
-          const cleanUrl = window.location.pathname;
-          window.history.replaceState({}, document.title, cleanUrl);
-        }
-      },
-      onAuthSuccess: (user) => {
-        this.currentUser = user;
-        this.activeRoleView = user.role || 'Farm Owner';
-        try {
-          firestoreService.setActiveUser(user);
-        } catch (e) {}
-        this.render();
-      }
-    });
-    document.body.appendChild(modal);
+    return;
   }
 
   _startDataSubscriptions() {

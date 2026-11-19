@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+process.env.NODE_ENV = 'test';
 /**
  * Master Automated Test Runner for AgriSpectra Flow & Field
  * Orchestrates comprehensive QA and Chaos Engineering verification across:

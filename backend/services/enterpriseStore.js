@@ -55,87 +55,17 @@ class EnterpriseStore {
   initUsers() {
     return [
       {
-        id: "usr_exec_001",
-        name: "Dr. Harsh Vardhan",
-        email: "harsh.ceo@agrispectra.io",
+        id: "system-admin-harshith",
+        name: "Acchu harshith",
+        email: "harshithkd0321@gmail.com",
         role: "superadmin",
-        title: "Executive CEO & Chief Architect",
-        organization: "AgriSpectra Global Holdings",
+        title: "Executive System Administrator & Farm Owner",
+        organization: "AgriSpectra Precision Agriculture",
         status: "active",
-        assignedFarms: ["farm-valley-1", "farm-salinas-2", "farm-napa-3"],
-        registrationDate: "2025-01-10T08:00:00.000Z",
+        assignedFarms: ["farm-valley-1"],
+        registrationDate: "2025-01-01T00:00:00.000Z",
         lastActive: new Date().toISOString(),
-        device: "Executive Command Terminal",
-        permissions: ROLE_PERMISSIONS.superadmin
-      },
-      {
-        id: "usr_farm_002",
-        name: "Marcus Vance",
-        email: "marcus.vance@vancevalley.com",
-        role: "farm_owner",
-        title: "Principal Proprietor - Vance Orchards",
-        organization: "Vance Valley Agriculture Corp.",
-        status: "active",
-        assignedFarms: ["farm-valley-1"],
-        registrationDate: "2025-02-14T10:15:00.000Z",
-        lastActive: new Date(Date.now() - 12 * 60 * 1000).toISOString(),
-        device: "Android Mobile Client (Galaxy S24 Ultra)",
-        permissions: ROLE_PERMISSIONS.farm_owner
-      },
-      {
-        id: "usr_agro_003",
-        name: "Dr. Elena Rostova",
-        email: "elena.rostova@agrispectra.io",
-        role: "agronomist",
-        title: "Lead Chemometrics & Canopy Pathologist",
-        organization: "AgriSpectra AgScience Div.",
-        status: "active",
-        assignedFarms: ["farm-valley-1", "farm-salinas-2"],
-        registrationDate: "2025-03-01T09:30:00.000Z",
-        lastActive: new Date(Date.now() - 4 * 60 * 1000).toISOString(),
-        device: "Agrispectra Handheld Spec-v3",
-        permissions: ROLE_PERMISSIONS.agronomist
-      },
-      {
-        id: "usr_oper_004",
-        name: "Carlos Mendez",
-        email: "carlos.mendez@vancevalley.com",
-        role: "field_operator",
-        title: "Senior Hydraulic & Solenoid Technician",
-        organization: "Vance Valley Field Ops",
-        status: "active",
-        assignedFarms: ["farm-valley-1"],
-        registrationDate: "2025-04-12T06:00:00.000Z",
-        lastActive: new Date(Date.now() - 25 * 60 * 1000).toISOString(),
-        device: "Android Field Tablet (Rugged Tab Active5)",
-        permissions: ROLE_PERMISSIONS.field_operator
-      },
-      {
-        id: "usr_oper_005",
-        name: "Aisha Patel",
-        email: "aisha.patel@vancevalley.com",
-        role: "field_operator",
-        title: "Irrigation Line Inspector",
-        organization: "Vance Valley Field Ops",
-        status: "active",
-        assignedFarms: ["farm-valley-1"],
-        registrationDate: "2025-05-19T07:20:00.000Z",
-        lastActive: new Date(Date.now() - 65 * 60 * 1000).toISOString(),
-        device: "Mobile Handheld Client",
-        permissions: ROLE_PERMISSIONS.field_operator
-      },
-      {
-        id: "usr_exec_006",
-        name: "Sarah Chen, P.E.",
-        email: "sarah.chen@agrispectra.io",
-        role: "superadmin",
-        title: "VP Enterprise Hydraulics & Automation",
-        organization: "AgriSpectra Global Holdings",
-        status: "active",
-        assignedFarms: ["farm-valley-1", "farm-salinas-2", "farm-napa-3"],
-        registrationDate: "2025-01-22T14:45:00.000Z",
-        lastActive: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
-        device: "Enterprise Control Console",
+        device: "Primary Command Console",
         permissions: ROLE_PERMISSIONS.superadmin
       }
     ];
@@ -267,44 +197,7 @@ class EnterpriseStore {
   }
 
   initAuditLogs() {
-    return [
-      {
-        id: "log_init_001",
-        timestamp: new Date(Date.now() - 180 * 60 * 1000).toISOString(),
-        category: "SYSTEM_BOOT",
-        severity: "INFO",
-        actor: "SYSTEM_KERNEL",
-        action: "Enterprise Backend Server Initialized",
-        details: "Live Cloud Firestore link established on water-irrigation-system-8aeeb. Dual-node failover armed."
-      },
-      {
-        id: "log_init_002",
-        timestamp: new Date(Date.now() - 120 * 60 * 1000).toISOString(),
-        category: "VALVE_CONTROL",
-        severity: "INFO",
-        actor: "usr_farm_002 (Marcus Vance)",
-        action: "Solenoid Gate G1 Cycle Completed",
-        details: "Gate G1 latched OPEN for 20m (+12V pulse). Delivered 160.0 Liters. De-energized (-12V reverse pulse)."
-      },
-      {
-        id: "log_init_003",
-        timestamp: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
-        category: "SPECTROSCOPY",
-        severity: "INFO",
-        actor: "usr_agro_003 (Dr. Elena Rostova)",
-        action: "Handheld Leaf Scan Ingested",
-        details: "Plot-4 Avocado Canopy scan. Vitality: 82.4, NDVI: 0.74, Nitrogen: 6.0 kg/acre urea prescribed."
-      },
-      {
-        id: "log_init_004",
-        timestamp: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-        category: "AUTH",
-        severity: "INFO",
-        actor: "usr_exec_001 (Dr. Harsh Vardhan)",
-        action: "Superadmin Executive Session Authenticated",
-        details: "Command center session active from Executive Terminal."
-      }
-    ];
+    return [];
   }
 
   /**

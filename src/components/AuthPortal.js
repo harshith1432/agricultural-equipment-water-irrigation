@@ -131,8 +131,8 @@ export function createAuthPortal({ onAuthSuccess }) {
                 <h3 class="text-sm font-extrabold text-stone-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition">
                   Farm Owner
                 </h3>
-                <div class="text-[11px] font-bold text-stone-600 dark:text-slate-300">Carlos Mendoza</div>
-                <div class="text-[10px] text-stone-500 dark:text-slate-400 font-mono">Sonoma Valley Drip Vineyard</div>
+                <div class="text-[11px] font-bold text-stone-600 dark:text-slate-300">Acchu harshith</div>
+                <div class="text-[10px] text-stone-500 dark:text-slate-400 font-mono">AgriSpectra Precision Block A</div>
                 <p class="text-[11px] text-stone-600 dark:text-slate-300 mt-2 line-clamp-2">
                   Water economics, 1-acre budget savings, 6-zone matrix, harvest predictions, and CSV audit exports.
                 </p>
@@ -157,8 +157,8 @@ export function createAuthPortal({ onAuthSuccess }) {
                 <h3 class="text-sm font-extrabold text-stone-900 dark:text-white group-hover:text-teal-600 dark:group-hover:text-teal-400 transition">
                   Agronomist
                 </h3>
-                <div class="text-[11px] font-bold text-stone-600 dark:text-slate-300">Dave Miller</div>
-                <div class="text-[10px] text-stone-500 dark:text-slate-400 font-mono">Central Valley Alpha Block</div>
+                <div class="text-[11px] font-bold text-stone-600 dark:text-slate-300">Acchu harshith</div>
+                <div class="text-[10px] text-stone-500 dark:text-slate-400 font-mono">AgriSpectra Precision Block A</div>
                 <p class="text-[11px] text-stone-600 dark:text-slate-300 mt-2 line-clamp-2">
                   350-1100nm spectroscopy, 5 Chemometrics decision engines, NDRE fertilizer doses, voice audio readout.
                 </p>
@@ -183,8 +183,8 @@ export function createAuthPortal({ onAuthSuccess }) {
                 <h3 class="text-sm font-extrabold text-stone-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition">
                   Field Operator
                 </h3>
-                <div class="text-[11px] font-bold text-stone-600 dark:text-slate-300">Mateo Silva</div>
-                <div class="text-[10px] text-stone-500 dark:text-slate-400 font-mono">Sonoma Valley Drip Vineyard</div>
+                <div class="text-[11px] font-bold text-stone-600 dark:text-slate-300">Acchu harshith</div>
+                <div class="text-[10px] text-stone-500 dark:text-slate-400 font-mono">AgriSpectra Precision Block A</div>
                 <p class="text-[11px] text-stone-600 dark:text-slate-300 mt-2 line-clamp-2">
                   1-Acre 6-Zone Field Visual Map, bi-stable ±12V latch pulse triggers, 10/30/50cm FDR probes, emergency killswitch.
                 </p>
@@ -209,8 +209,8 @@ export function createAuthPortal({ onAuthSuccess }) {
                 <h3 class="text-sm font-extrabold text-stone-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition">
                   SuperAdmin
                 </h3>
-                <div class="text-[11px] font-bold text-stone-600 dark:text-slate-300">Elena Rostova</div>
-                <div class="text-[10px] text-stone-500 dark:text-slate-400 font-mono">Global Agronomic Operations</div>
+                <div class="text-[11px] font-bold text-stone-600 dark:text-slate-300">Acchu harshith</div>
+                <div class="text-[10px] text-stone-500 dark:text-slate-400 font-mono">AgriSpectra Precision Block A</div>
                 <p class="text-[11px] text-stone-600 dark:text-slate-300 mt-2 line-clamp-2">
                   Multi-tenant governance, user management, telemetry chaos injection, emergency broadcast dispatcher.
                 </p>

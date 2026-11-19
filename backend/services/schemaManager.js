@@ -22,14 +22,6 @@ const DEFAULT_FARMS = [
     totalArea: "1.00 Acre (6 Zones)",
     ownerId: "system-admin-harshith",
     createdAt: new Date().toISOString()
-  },
-  {
-    id: "farm-carlos-valley-1",
-    name: "Sonoma Valley Drip Vineyard",
-    location: "38.2919° N, 122.4580° W",
-    totalArea: "1.00 Acre (6 Zones)",
-    ownerId: "user-carlos-1",
-    createdAt: new Date().toISOString()
   }
 ];
 
@@ -169,50 +161,6 @@ const DEFAULT_USERS = [
     farmName: "AgriSpectra Precision Block A (1-Acre High-Density)",
     createdAt: new Date().toISOString(),
     lastLoginAt: new Date().toISOString()
-  },
-  {
-    uid: "user-acchu-harshith",
-    email: "harshithkd0321@gmail.com",
-    displayName: "Acchu harshith",
-    role: "superadmin",
-    status: "active",
-    farmId: "farm-valley-1",
-    farmName: "AgriSpectra Precision Block A (1-Acre High-Density)",
-    createdAt: new Date().toISOString(),
-    lastLoginAt: new Date().toISOString()
-  },
-  {
-    uid: "user-carlos-1",
-    email: "carlos.mendoza@valleyfarms.com",
-    displayName: "Carlos Mendoza",
-    role: "farm_owner",
-    status: "active",
-    farmId: "farm-carlos-valley-1",
-    farmName: "Sonoma Valley Drip Vineyard",
-    createdAt: new Date(Date.now() - 30 * 86400000).toISOString(),
-    lastLoginAt: new Date().toISOString()
-  },
-  {
-    uid: "user-elena-2",
-    email: "elena.rostova@agrispectra.io",
-    displayName: "Dr. Elena Rostova",
-    role: "agronomist",
-    status: "active",
-    farmId: "farm-valley-1",
-    farmName: "AgriSpectra Precision Block A (1-Acre High-Density)",
-    createdAt: new Date(Date.now() - 15 * 86400000).toISOString(),
-    lastLoginAt: new Date().toISOString()
-  },
-  {
-    uid: "user-mateo-3",
-    email: "mateo.field@agrispectra.io",
-    displayName: "Mateo Rossi",
-    role: "field_operator",
-    status: "active",
-    farmId: "farm-valley-1",
-    farmName: "AgriSpectra Precision Block A (1-Acre High-Density)",
-    createdAt: new Date(Date.now() - 5 * 86400000).toISOString(),
-    lastLoginAt: new Date().toISOString()
   }
 ];
 
@@ -317,96 +265,6 @@ class SchemaManager {
         }
         console.log(`[SchemaManager]   ✅ All 6 plots populated under ${farm.id}`);
       }
-
-      // Check subcollection: actionRecommendations
-      const recCol = farmRef.collection('actionRecommendations');
-      const recSnap = await recCol.limit(1).get();
-      if (recSnap.empty) {
-        await recCol.doc('rec-plot2-urgent-01').set({
-          id: 'rec-plot2-urgent-01',
-          plotId: 'plot-2',
-          plotName: 'Zone 2 - Central Canopy',
-          type: 'IRRIGATION_DEFICIT',
-          severity: 'HIGH',
-          title: 'Immediate Drip Irrigation Required',
-          description: 'Soil moisture dropped to 19.4% (Threshold: 30%). Recommended actuation: 25 minutes (450 Liters).',
-          recommendedAction: 'OPEN_VALVE_TIMED',
-          recommendedDurationMin: 25,
-          waterVolumeLiters: 450,
-          status: 'PENDING_OPERATOR_APPROVAL',
-          createdAt: new Date().toISOString()
-        }, { merge: true });
-      }
-
-      // Check subcollection: irrigationLogs
-      const logCol = farmRef.collection('irrigationLogs');
-      const logSnap = await logCol.limit(1).get();
-      if (logSnap.empty) {
-        await logCol.doc('log-init-01').set({
-          id: 'log-init-01',
-          plotId: 'plot-1',
-          valveId: 'valve-plot-1',
-          action: 'AUTOMATED_PULSE_CYCLE',
-          status: 'COMPLETED',
-          durationMinutes: 15,
-          litersDelivered: 270,
-          soilMoistureBefore: 26.2,
-          soilMoistureAfter: 32.1,
-          operator: 'Autonomous AI Soil Loop',
-          timestamp: new Date().toISOString()
-        }, { merge: true });
-      }
-
-      // Check subcollection: leafScans
-      const leafCol = farmRef.collection('leafScans');
-      const leafSnap = await leafCol.limit(1).get();
-      if (leafSnap.empty) {
-        await leafCol.doc('scan-init-plot2').set({
-          id: 'scan-init-plot2',
-          plotId: 'plot-2',
-          crop: 'Pinot Noir',
-          ndvi: 0.74,
-          chlorophyllIndex: 48.2,
-          canopyWaterIndex: 0.81,
-          stressDetected: false,
-          healthStatus: 'OPTIMAL',
-          timestamp: new Date().toISOString()
-        }, { merge: true });
-      }
-
-      // Check subcollection: spectralScans
-      const specCol = farmRef.collection('spectralScans');
-      const specSnap = await specCol.limit(1).get();
-      if (specSnap.empty) {
-        await specCol.doc('scan-20261119-042').set({
-          id: 'scan-20261119-042',
-          plantNumber: 'PLANT-042',
-          portNumber: 'PORT-08',
-          plantName: 'Roma Tomato',
-          plotId: 'plot-1',
-          plotNumber: 1,
-          crop: 'tomato',
-          calibrationRef: {
-            darkCurrent: 0.012,
-            whiteReference: 0.985,
-            calibratedAt: new Date().toISOString()
-          },
-          rawReflectance: Array.from({ length: 76 }, (_, i) => Number((0.05 + 0.6 * Math.sin((i / 75) * Math.PI)).toFixed(4))),
-          indices: {
-            ndvi: 0.78,
-            ndre: 0.35,
-            wbi: 0.92,
-            cire: 2.15,
-            vitality: 88,
-            lwi: 0.94
-          },
-          nitrogenPrescriptionKg: 0.0,
-          irrigationNeedHours: 36,
-          diseaseRisk: 'HEALTHY_OPTIMAL',
-          hardwareLink: 'BLE_NUS',
-          timestamp: new Date().toISOString()
-        }, { merge: true });
-      }
     }
 
     this.verifiedTables.add('farms');
@@ -461,30 +319,6 @@ class SchemaManager {
     const col = db.collection('telemetry_logs');
     const snap = await col.limit(1).get();
     const exists = !snap.empty;
-
-    if (!exists) {
-      console.log("[SchemaManager] ⚡ Collection 'telemetry_logs' not found. Creating table with baseline IoT telemetry record...");
-      await col.doc('telemetry-calibration-init').set({
-        id: 'telemetry-calibration-init',
-        deviceId: 'gateway-field-alpha-01',
-        plotId: 'plot-1',
-        farmId: 'farm-valley-1',
-        measurements: {
-          moisturePercent: 28.5,
-          temperatureC: 21.8,
-          ec: 1.42,
-          humidityPercent: 62.0,
-          solarRadiationWm2: 680.0
-        },
-        batteryPercent: 99.0,
-        firmwareVersion: 'v2.4.1-bi-stable',
-        status: 'CALIBRATED_ONLINE',
-        timestamp: new Date().toISOString()
-      }, { merge: true });
-    } else {
-      console.log("[SchemaManager] ✓ Collection 'telemetry_logs' exists and active.");
-    }
-
     this.verifiedTables.add('telemetry_logs');
     return { exists, status: 'ready' };
   }
@@ -496,26 +330,6 @@ class SchemaManager {
     const col = db.collection('irrigation_logs');
     const snap = await col.limit(1).get();
     const exists = !snap.empty;
-
-    if (!exists) {
-      console.log("[SchemaManager] ⚡ Collection 'irrigation_logs' not found. Creating table with baseline actuation log...");
-      await col.doc('log-calibration-init').set({
-        id: 'log-calibration-init',
-        valveId: 'valve-plot-1',
-        plotId: 'plot-1',
-        farmId: 'farm-valley-1',
-        action: 'VALVE_TEST_CYCLE',
-        flowRateLpm: 18.0,
-        litersApplied: 54.0,
-        durationMinutes: 3,
-        operator: 'System Provisioning',
-        voltagePulseMs: 150,
-        timestamp: new Date().toISOString()
-      }, { merge: true });
-    } else {
-      console.log("[SchemaManager] ✓ Collection 'irrigation_logs' exists and active.");
-    }
-
     this.verifiedTables.add('irrigation_logs');
     return { exists, status: 'ready' };
   }
@@ -527,31 +341,6 @@ class SchemaManager {
     const col = db.collection('soil_scans');
     const snap = await col.limit(1).get();
     const exists = !snap.empty;
-
-    if (!exists) {
-      console.log("[SchemaManager] ⚡ Collection 'soil_scans' not found. Creating table with baseline 8-in-1 Modbus scan...");
-      await col.doc('soil-scan-init-01').set({
-        id: 'soil-scan-init-01',
-        plotId: 'plot-1',
-        farmId: 'farm-valley-1',
-        depthCm: 15,
-        sourceMode: 'WIFI_CLOUD',
-        measurements: {
-          nitrogen: 125,
-          phosphorus: 42,
-          potassium: 210,
-          ph: 6.8,
-          moisture: 28.5,
-          ec: 1420,
-          temperature: 21.8
-        },
-        agronomicStatus: 'OPTIMAL',
-        timestamp: new Date().toISOString()
-      }, { merge: true });
-    } else {
-      console.log("[SchemaManager] ✓ Collection 'soil_scans' exists and active.");
-    }
-
     this.verifiedTables.add('soil_scans');
     return { exists, status: 'ready' };
   }
@@ -563,22 +352,6 @@ class SchemaManager {
     const col = db.collection('audit_logs');
     const snap = await col.limit(1).get();
     const exists = !snap.empty;
-
-    if (!exists) {
-      console.log("[SchemaManager] ⚡ Collection 'audit_logs' not found. Creating table with system boot audit entry...");
-      await col.doc('audit-system-init').set({
-        id: 'audit-system-init',
-        action: 'SYSTEM_BOOT_INITIALIZATION',
-        actor: 'AgriSpectra Backend Engine',
-        role: 'system',
-        details: 'Cloud database verified. Tables auto-provisioned.',
-        ipAddress: '127.0.0.1',
-        timestamp: new Date().toISOString()
-      }, { merge: true });
-    } else {
-      console.log("[SchemaManager] ✓ Collection 'audit_logs' exists and active.");
-    }
-
     this.verifiedTables.add('audit_logs');
     return { exists, status: 'ready' };
   }
@@ -590,41 +363,6 @@ class SchemaManager {
     const col = db.collection('spectral_scans');
     const snap = await col.limit(1).get();
     const exists = !snap.empty;
-
-    if (!exists) {
-      console.log("[SchemaManager] ⚡ Collection 'spectral_scans' not found. Creating table with baseline 76-band specimen scan...");
-      await col.doc('scan-20261119-042').set({
-        id: "scan-20261119-042",
-        plantNumber: "PLANT-042",
-        portNumber: "PORT-08",
-        plantName: "Roma Tomato",
-        plotId: "plot-1",
-        plotNumber: 1,
-        crop: "tomato",
-        calibrationRef: {
-          darkCurrent: 0.012,
-          whiteReference: 0.985,
-          calibratedAt: new Date().toISOString()
-        },
-        rawReflectance: Array.from({ length: 76 }, (_, i) => Number((0.05 + 0.6 * Math.sin((i / 75) * Math.PI)).toFixed(4))),
-        indices: {
-          ndvi: 0.78,
-          ndre: 0.35,
-          wbi: 0.92,
-          cire: 2.15,
-          vitality: 88,
-          lwi: 0.94
-        },
-        nitrogenPrescriptionKg: 0.0,
-        irrigationNeedHours: 36,
-        diseaseRisk: "HEALTHY_OPTIMAL",
-        hardwareLink: "BLE_NUS",
-        timestamp: new Date().toISOString()
-      }, { merge: true });
-    } else {
-      console.log("[SchemaManager] ✓ Collection 'spectral_scans' exists and active.");
-    }
-
     this.verifiedTables.add('spectral_scans');
     return { exists, status: 'ready' };
   }

@@ -691,50 +691,122 @@ export class LeafClipBluetoothDevice {
         // MTU Negotiation (Request 247 bytes)
         await this.requestMtu(preferredMtu);
 
-        // Subscribe to BlueNRG Chat, Nordic UART notifications or Fallback
+        // Dynamically discover GATT Services and Characteristics
         let activeService = null;
         let activeTx = null;
         let activeRx = null;
-        let protocol = 'Fallback FFE0 Service';
+        let protocol = 'ST BlueNRG Chat Service';
 
-        // 1. Check and bind ST BlueNRG Chat Service
         try {
-          activeService = BLE_SERVICES.BLUENRG_SERVICE;
-          activeTx = BLE_SERVICES.BLUENRG_TX_CHAR;
-          activeRx = BLE_SERVICES.BLUENRG_RX_CHAR;
-          await BleClient.startNotifications(deviceId, activeService, activeTx, (dataView) => {
-            this.accumulator.pushChunk(dataView);
-          });
-          this.activeServiceUuid = activeService;
-          this.txCharacteristic = activeTx;
-          this.rxCharacteristic = activeRx;
-          protocol = 'ST BlueNRG Chat Service';
-        } catch (bluenrgErr) {
-          // 2. Try Nordic UART Service (NUS)
-          try {
-            activeService = BLE_SERVICES.NUS_SERVICE;
-            activeTx = BLE_SERVICES.NUS_TX_CHAR;
-            activeRx = BLE_SERVICES.NUS_RX_CHAR;
-            await BleClient.startNotifications(deviceId, activeService, activeTx, (dataView) => {
-              this.accumulator.pushChunk(dataView);
-            });
-            this.activeServiceUuid = activeService;
-            this.txCharacteristic = activeTx;
-            this.rxCharacteristic = activeRx;
-            protocol = 'Nordic UART Service (NUS)';
-          } catch (nusErr) {
-            // 3. Fallback custom service (FFE0/FFE1)
-            activeService = BLE_SERVICES.FALLBACK_SERVICE;
-            activeTx = BLE_SERVICES.FALLBACK_DATA_CHAR;
-            activeRx = BLE_SERVICES.FALLBACK_COMMAND_CHAR;
-            await BleClient.startNotifications(deviceId, activeService, activeTx, (dataView) => {
-              this.accumulator.pushChunk(dataView);
-            });
-            this.activeServiceUuid = activeService;
-            this.txCharacteristic = activeTx;
-            this.rxCharacteristic = activeRx;
-            protocol = 'Fallback FFE0 Service';
+          const discoveredServices = await BleClient.getServices(deviceId);
+          console.log("[BLE] Discovered GATT Services count:", (discoveredServices || []).length);
+
+          // 1. Look for ST BlueNRG Chat service (d973f2e0-b19e-11e2-9e96-0800200c9a66)
+          for (const s of (discoveredServices || [])) {
+            const sUuid = (s.uuid || '').toLowerCase();
+            if (sUuid.includes('d973f2e0') || sUuid.includes('d973')) {
+              activeService = s.uuid;
+              for (const c of (s.characteristics || [])) {
+                const cUuid = (c.uuid || '').toLowerCase();
+                if (cUuid.includes('d973f2e1') || c.properties?.notify || c.properties?.indicate) {
+                  activeTx = c.uuid;
+                }
+                if (cUuid.includes('d973f2e2') || c.properties?.write || c.properties?.writeWithoutResponse) {
+                  activeRx = c.uuid;
+                }
+              }
+              protocol = 'ST BlueNRG Chat Service';
+              break;
+            }
           }
+
+          // 2. If not found, look for Nordic UART Service (6e400001)
+          if (!activeService) {
+            for (const s of (discoveredServices || [])) {
+              const sUuid = (s.uuid || '').toLowerCase();
+              if (sUuid.includes('6e400001') || sUuid.includes('6e40')) {
+                activeService = s.uuid;
+                for (const c of (s.characteristics || [])) {
+                  const cUuid = (c.uuid || '').toLowerCase();
+                  if (cUuid.includes('6e400003') || c.properties?.notify || c.properties?.indicate) {
+                    activeTx = c.uuid;
+                  }
+                  if (cUuid.includes('6e400002') || c.properties?.write || c.properties?.writeWithoutResponse) {
+                    activeRx = c.uuid;
+                  }
+                }
+                protocol = 'Nordic UART Service (NUS)';
+                break;
+              }
+            }
+          }
+
+          // 3. Fallback: inspect any discovered service with notify and write capabilities
+          if (!activeService) {
+            for (const s of (discoveredServices || [])) {
+              const sUuid = (s.uuid || '').toLowerCase();
+              if (sUuid.includes('1800') || sUuid.includes('1801') || sUuid.includes('180a')) continue;
+              let foundTx = null;
+              let foundRx = null;
+              for (const c of (s.characteristics || [])) {
+                if (c.properties?.notify || c.properties?.indicate) foundTx = c.uuid;
+                if (c.properties?.write || c.properties?.writeWithoutResponse) foundRx = c.uuid;
+              }
+              if (foundTx || foundRx) {
+                activeService = s.uuid;
+                activeTx = foundTx;
+                activeRx = foundRx;
+                protocol = 'Custom Spectroscope GATT';
+                break;
+              }
+            }
+          }
+        } catch (discoverErr) {
+          console.warn("[BLE] getServices discovery notice:", discoverErr.message);
+        }
+
+        // Apply defaults if discovery did not pinpoint exact UUIDs
+        if (!activeService) activeService = BLE_SERVICES.BLUENRG_SERVICE;
+        if (!activeTx) activeTx = BLE_SERVICES.BLUENRG_TX_CHAR;
+        if (!activeRx) activeRx = BLE_SERVICES.BLUENRG_RX_CHAR;
+
+        this.activeServiceUuid = activeService;
+        this.txCharacteristic = activeTx;
+        this.rxCharacteristic = activeRx;
+
+        // Subscribe to notifications for incoming hardware data
+        try {
+          await BleClient.startNotifications(deviceId, activeService, activeTx, (dataView) => {
+            const rawBytes = new Uint8Array(dataView.buffer, dataView.byteOffset, dataView.byteLength);
+            let rawText = '';
+            try {
+              rawText = new TextDecoder().decode(dataView);
+            } catch (e) {
+              rawText = String.fromCharCode(...rawBytes);
+            }
+            const hex = Array.from(rawBytes).map(b => b.toString(16).padStart(2, '0')).join(' ');
+
+            this.latestRawData = {
+              text: rawText,
+              hex,
+              bytes: rawBytes.length,
+              timestamp: Date.now()
+            };
+
+            this.accumulator.pushChunk(dataView);
+            this.emit('rawData', this.latestRawData);
+            this.emit('rawChunkReceived', this.latestRawData);
+          });
+        } catch (notifErr) {
+          console.warn("[BLE] startNotifications fallback attempt:", notifErr.message);
+          try {
+            await BleClient.startNotifications(deviceId, BLE_SERVICES.NUS_SERVICE, BLE_SERVICES.NUS_TX_CHAR, (dv) => {
+              this.accumulator.pushChunk(dv);
+            });
+            this.activeServiceUuid = BLE_SERVICES.NUS_SERVICE;
+            this.txCharacteristic = BLE_SERVICES.NUS_TX_CHAR;
+            this.rxCharacteristic = BLE_SERVICES.NUS_RX_CHAR;
+          } catch {}
         }
 
         // Attempt reading battery
@@ -821,6 +893,13 @@ export class LeafClipBluetoothDevice {
   startLiveTelemetryStream() {
     this.stopLiveTelemetryStream();
     if (!this.isConnected) return;
+
+    // PHYSICAL HARDWARE CHECK: If real physical Bluetooth hardware is connected,
+    // do NOT run simulated telemetry generator! Real packets arrive via BleClient notifications.
+    if (!this.isSimulated) {
+      console.log("[BLE] Physical hardware connected. Live telemetry timer silenced to preserve real data.");
+      return;
+    }
 
     let seq = 0;
     this.telemetryInterval = setInterval(() => {
@@ -951,50 +1030,96 @@ export class LeafClipBluetoothDevice {
   }
 
   /**
-   * Send command payload (JSON or string) to spectroscope RX characteristic
+   * Send command payload (concise ASCII + JSON) to spectroscope RX characteristic in <= 20-byte MTU frames
    */
   async sendCommand(commandPayload) {
     if (!this.isConnected) {
       throw new Error("Leaf Clip is disconnected. Cannot send command.");
     }
 
-    const text = typeof commandPayload === 'string'
-      ? commandPayload
-      : JSON.stringify(commandPayload) + '\n';
-
     if (this.isSimulated) {
       // Echo into local accumulator to simulate device loopback/response
       setTimeout(() => {
-        if (text.includes('CALIB_DARK')) {
+        const text = typeof commandPayload === 'string' ? commandPayload : JSON.stringify(commandPayload);
+        if (text.includes('DARK')) {
           this.accumulator.pushChunk(JSON.stringify({ type: PACKET_TYPES.CALIB_DARK, status: 'OK', offset: 0.019 }) + '\n');
-        } else if (text.includes('CALIB_WHITE')) {
+        } else if (text.includes('WHITE')) {
           this.accumulator.pushChunk(JSON.stringify({ type: PACKET_TYPES.CALIB_WHITE, status: 'OK', peak: 58200 }) + '\n');
-        } else if (text.includes('SET_METADATA')) {
+        } else if (text.includes('METADATA')) {
           this.accumulator.pushChunk(JSON.stringify({ type: PACKET_TYPES.METADATA_ACK, status: 'OK' }) + '\n');
         }
       }, 50);
       return { success: true, simulated: true };
     }
 
+    // Prepare commands: Send both clean ASCII and JSON lines so any microcontroller firmware protocol is recognized
+    const commandsList = [];
+    if (typeof commandPayload === 'string') {
+      commandsList.push(commandPayload.endsWith('\n') ? commandPayload : (commandPayload + '\r\n'));
+    } else if (typeof commandPayload === 'object' && commandPayload !== null) {
+      const cmd = (commandPayload.cmd || commandPayload.type || '').toUpperCase();
+      if (cmd.includes('DARK')) {
+        commandsList.push('DARK\r\n');
+        commandsList.push(JSON.stringify({ cmd: 'DARK' }) + '\n');
+      } else if (cmd.includes('WHITE')) {
+        commandsList.push('WHITE\r\n');
+        commandsList.push(JSON.stringify({ cmd: 'WHITE' }) + '\n');
+      } else if (cmd.includes('ACQUIRE') || cmd.includes('SCAN') || cmd.includes('LEAF')) {
+        commandsList.push('SCAN\r\n');
+        commandsList.push(JSON.stringify({ cmd: 'SCAN' }) + '\n');
+      } else {
+        commandsList.push(JSON.stringify(commandPayload) + '\n');
+      }
+    } else {
+      commandsList.push(String(commandPayload) + '\r\n');
+    }
+
     const encoder = new TextEncoder();
-    const data = encoder.encode(text);
 
     if (this.isCapacitor && this.BleClient && this.device) {
-      const dataView = new DataView(data.buffer);
-      await this.BleClient.writeWithoutResponse(
-        this.device.deviceId,
-        this.activeServiceUuid || BLE_SERVICES.NUS_SERVICE,
-        this.rxCharacteristic || BLE_SERVICES.NUS_RX_CHAR,
-        dataView
-      );
+      for (const cmdStr of commandsList) {
+        const data = encoder.encode(cmdStr);
+        // Transmit in chunks <= 20 bytes (adheres strictly to BLE ATT MTU limit)
+        for (let offset = 0; offset < data.length; offset += 20) {
+          const chunk = data.slice(offset, offset + 20);
+          const dataView = new DataView(chunk.buffer, chunk.byteOffset, chunk.byteLength);
+          try {
+            await this.BleClient.writeWithoutResponse(
+              this.device.deviceId,
+              this.activeServiceUuid || BLE_SERVICES.BLUENRG_SERVICE,
+              this.rxCharacteristic || BLE_SERVICES.BLUENRG_RX_CHAR,
+              dataView
+            );
+          } catch (writeErr) {
+            try {
+              await this.BleClient.write(
+                this.device.deviceId,
+                this.activeServiceUuid || BLE_SERVICES.BLUENRG_SERVICE,
+                this.rxCharacteristic || BLE_SERVICES.BLUENRG_RX_CHAR,
+                dataView
+              );
+            } catch (fallbackErr) {
+              console.warn('[BLE Write Chunk Error]', fallbackErr.message);
+            }
+          }
+          if (offset + 20 < data.length) {
+            await new Promise(r => setTimeout(r, 20)); // Pacing
+          }
+        }
+        await new Promise(r => setTimeout(r, 30));
+      }
       return { success: true };
     }
 
     if (this.rxCharacteristic) {
-      if (typeof this.rxCharacteristic.writeValueWithoutResponse === 'function') {
-        await this.rxCharacteristic.writeValueWithoutResponse(data);
-      } else {
-        await this.rxCharacteristic.writeValue(data);
+      for (const cmdStr of commandsList) {
+        const data = encoder.encode(cmdStr);
+        if (typeof this.rxCharacteristic.writeValueWithoutResponse === 'function') {
+          await this.rxCharacteristic.writeValueWithoutResponse(data);
+        } else {
+          await this.rxCharacteristic.writeValue(data);
+        }
+        await new Promise(r => setTimeout(r, 30));
       }
       return { success: true };
     }

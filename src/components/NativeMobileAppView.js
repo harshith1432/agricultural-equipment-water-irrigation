@@ -68,7 +68,7 @@ export function createNativeMobileAppView({
   const savedTab = (() => {
     try { return localStorage.getItem('agrispectra_mobile_tab'); } catch (e) { return null; }
   })();
-  let activeTab = TAB_ALIASES[initialTab] || TAB_ALIASES[savedTab] || savedTab || initialTab || 'dashboard';
+  let activeTab = TAB_ALIASES[initialTab] || TAB_ALIASES[savedTab] || savedTab || initialTab || 'spectroscopy';
   let currentPlotId = selectedPlotId || "plot-1";
   let activePlots = (plots && plots.length > 0) ? plots : Object.values(INITIAL_FARM_DATA.plots || {});
 

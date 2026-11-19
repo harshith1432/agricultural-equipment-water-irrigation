@@ -84,47 +84,17 @@ class AuthService {
     this._loginFailedAttempts = new Map();
     this._resetAttempts = new Map();
 
-    // Multi-Tenant Enterprise User Roster
+    // Authoritative Enterprise User Roster (Only Authentic Accounts)
     this.enterpriseUsers = [
       {
-        uid: "user-carlos-1",
-        email: "carlos.mendoza@valleyfarms.com",
-        displayName: "Carlos Mendoza",
-        role: "Farm Owner",
-        status: "ACTIVE",
-        farmName: "Sonoma Valley Drip Vineyard",
-        farmId: "farm-carlos-valley-1",
-        joinedAt: new Date(Date.now() - 365 * 86400000).toISOString()
-      },
-      {
-        uid: "usr-ent-02",
-        email: "dave.miller@agrispectra.io",
-        displayName: "Dave Miller",
-        role: "Agronomist",
-        status: "ACTIVE",
-        farmName: "Central Valley Alpha Block",
-        farmId: "farm-dave-alpha-1",
-        joinedAt: new Date(Date.now() - 180 * 86400000).toISOString()
-      },
-      {
-        uid: "user-elena-2",
-        email: "elena.rostova@solenoidflow.org",
-        displayName: "Elena Rostova",
+        uid: "system-admin-harshith",
+        email: "harshithkd0321@gmail.com",
+        displayName: "Acchu harshith",
         role: "SuperAdmin",
         status: "ACTIVE",
-        farmName: "Salinas Agronomy Research Hub",
-        farmId: "farm-elena-research-2",
-        joinedAt: new Date(Date.now() - 720 * 86400000).toISOString()
-      },
-      {
-        uid: "user-mateo-3",
-        email: "mateo.field@solenoidflow.org",
-        displayName: "Mateo Silva",
-        role: "Field Operator",
-        status: "ACTIVE",
-        farmName: "Central Valley Hydraulic Orchard",
-        farmId: "farm-mateo-hydraulic-3",
-        joinedAt: new Date(Date.now() - 90 * 86400000).toISOString()
+        farmName: "AgriSpectra Precision Block A (1-Acre High-Density)",
+        farmId: "farm-valley-1",
+        joinedAt: new Date(Date.now() - 365 * 86400000).toISOString()
       }
     ];
 
@@ -1129,7 +1099,8 @@ class AuthService {
         email: "carlos.mendoza@valleyfarms.com",
         role: "Farm Owner",
         farmId: "farm-carlos-valley-1",
-        farmName: "Sonoma Valley Drip Vineyard"
+        farmName: "Sonoma Valley Drip Vineyard",
+        isDemo: true
       },
       agronomist: {
         uid: "usr-ent-02",
@@ -1137,7 +1108,8 @@ class AuthService {
         email: "dave.miller@agrispectra.io",
         role: "Agronomist",
         farmId: "farm-dave-alpha-1",
-        farmName: "Central Valley Alpha Block"
+        farmName: "Central Valley Alpha Block",
+        isDemo: true
       },
       fieldoperator: {
         uid: "user-mateo-3",
@@ -1145,7 +1117,8 @@ class AuthService {
         email: "mateo.field@solenoidflow.org",
         role: "Field Operator",
         farmId: "farm-mateo-hydraulic-3",
-        farmName: "Central Valley Hydraulic Orchard"
+        farmName: "Central Valley Hydraulic Orchard",
+        isDemo: true
       },
       superadmin: {
         uid: "user-elena-2",
@@ -1153,7 +1126,8 @@ class AuthService {
         email: "elena.rostova@solenoidflow.org",
         role: "SuperAdmin",
         farmId: "farm-elena-research-2",
-        farmName: "Salinas Agronomy Research Hub"
+        farmName: "Salinas Agronomy Research Hub",
+        isDemo: true
       }
     };
 
@@ -1284,6 +1258,27 @@ class AuthService {
 
     const rawEmail = user.email || additionalData.email || "";
     const cleanEmail = String(rawEmail).trim().toLowerCase();
+
+    // Prevent any demo/fake users from being written to live Cloud Firestore
+    const isDemoOrGuest = Boolean(
+      user.isDemo ||
+      user.isAnonymous ||
+      user.uid === 'guest-offline-farmer' ||
+      ['user-carlos-1', 'user-elena-2', 'user-mateo-3', 'usr-ent-02', 'user-acchu-harshith'].includes(user.uid) ||
+      (cleanEmail && (cleanEmail.includes('valleyfarms.com') || cleanEmail.includes('solenoidflow.org')))
+    );
+    if (isDemoOrGuest) {
+      return {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        role: user.role,
+        farmId: user.farmId,
+        farmName: user.farmName,
+        isOffline: true
+      };
+    }
+
     const isHarshith = cleanEmail === 'harshithkd0321@gmail.com' || cleanEmail === 'harshithkd032@gmail.com';
 
     let targetUid = user.uid || (isHarshith ? 'system-admin-harshith' : this._generateSecureUid('usr'));
@@ -1469,6 +1464,27 @@ class AuthService {
    */
   async syncProfileToBackend(profileData) {
     if (!profileData) return false;
+
+    // Strictly defend live database from test runner and demo mock data pollution
+    const isTestEnv = typeof process !== 'undefined' && (process.env?.NODE_ENV === 'test' || typeof window === 'undefined');
+    const isDemoOrTest = Boolean(
+      profileData.isDemo ||
+      profileData.isAnonymous ||
+      profileData.uid === 'guest-offline-farmer' ||
+      ['user-carlos-1', 'user-elena-2', 'user-mateo-3', 'usr-ent-02'].includes(profileData.uid) ||
+      (profileData.email && (
+        profileData.email.includes('valleyfarms.com') ||
+        profileData.email.includes('solenoidflow.org') ||
+        profileData.email.includes('testfarms.com') ||
+        profileData.email.startsWith('order') ||
+        profileData.email.startsWith('newgrower') ||
+        profileData.email.startsWith('portal_signup') ||
+        profileData.email.startsWith('grower_')
+      ))
+    );
+    if (isTestEnv || isDemoOrTest) {
+      return false;
+    }
     const nowIso = new Date().toISOString();
     const payload = {
       uid: profileData.uid,
@@ -1656,15 +1672,22 @@ class AuthService {
     } catch (e) {}
     this._notifyListeners();
 
-    // Auto-sync profile to Cloud Firestore & Enterprise Backend
-    if (isLive || isLiveFirebaseConfigured) {
+    // Auto-sync profile to Cloud Firestore & Enterprise Backend only for authentic real users (never fake/demo personas)
+    const isDemoOrGuest = Boolean(
+      offlineUser.isDemo ||
+      offlineUser.isAnonymous ||
+      ['user-carlos-1', 'user-elena-2', 'user-mateo-3', 'usr-ent-02', 'guest-offline-farmer'].includes(offlineUser.uid) ||
+      (offlineUser.email && (offlineUser.email.includes('valleyfarms.com') || offlineUser.email.includes('solenoidflow.org')))
+    );
+
+    if (!isDemoOrGuest && (isLive || isLiveFirebaseConfigured)) {
       this.syncUserProfile(offlineUser).catch((err) => {
         console.warn("[AuthService] Cloud Firestore profile sync note:", err.message);
       });
+      this.syncProfileToBackend(offlineUser).catch((err) => {
+        console.warn("[AuthService] Offline fallback profile sync note:", err.message);
+      });
     }
-    this.syncProfileToBackend(offlineUser).catch((err) => {
-      console.warn("[AuthService] Offline fallback profile sync note:", err.message);
-    });
 
     return {
       ...offlineUser,

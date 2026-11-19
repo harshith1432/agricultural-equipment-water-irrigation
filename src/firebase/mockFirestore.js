@@ -234,18 +234,18 @@ export const DEFAULT_USER_PREFERENCES = {
 };
 
 // =========================================================================
-// Persona Chamber 1: Carlos Mendoza (Sonoma Valley Drip Vineyard)
+// Persona Chamber 1: AgriSpectra Precision Block A (1-Acre High-Density)
 // =========================================================================
 export const SEED_CARLOS_FARM = {
-  farmId: "farm-carlos-valley-1",
-  name: "Sonoma Valley Drip Vineyard",
+  farmId: "farm-valley-1",
+  name: "AgriSpectra Precision Block A (1-Acre High-Density)",
   totalArea: "1.00 Acre (6 Zones)",
-  location: { latitude: 38.2919, longitude: -122.4580 },
+  location: { latitude: 36.7783, longitude: -119.4179 },
   createdAt: new Date(Date.now() - 720 * 3600000).toISOString(),
-  ownerId: "user-carlos-1",
-  managers: ["user-carlos-1", "usr-ent-02"],
-  operators: ["user-mateo-3"],
-  members: ["user-elena-2"],
+  ownerId: "system-admin-harshith",
+  managers: ["system-admin-harshith"],
+  operators: ["system-admin-harshith"],
+  members: ["system-admin-harshith"],
   plots: {
     "plot-1": {
       id: "plot-1",
@@ -1012,7 +1012,7 @@ export const SEED_GUEST_FARM = {
 
 class ReactiveMockFirestore {
   constructor() {
-    this.currentFarmId = "farm-carlos-valley-1";
+    this.currentFarmId = "farm-valley-1";
     this.farmsData = {};
     this.subscribers = new Map(); // channel -> Array of callbacks
 
@@ -1021,13 +1021,20 @@ class ReactiveMockFirestore {
   }
 
   normalizeFarmId(farmId) {
-    if (!farmId || farmId === "farm-valley-1") return "farm-carlos-valley-1";
+    if (!farmId) return "farm-valley-1";
     return farmId;
   }
 
   getSeedDataForFarm(farmId) {
     const norm = this.normalizeFarmId(farmId);
-    if (norm === "farm-carlos-valley-1") return JSON.parse(JSON.stringify(SEED_CARLOS_FARM));
+    if (norm === "farm-valley-1") return JSON.parse(JSON.stringify(SEED_CARLOS_FARM));
+    if (norm === "farm-carlos-valley-1") {
+      const carlosSeed = JSON.parse(JSON.stringify(SEED_CARLOS_FARM));
+      carlosSeed.farmId = "farm-carlos-valley-1";
+      carlosSeed.name = "Sonoma Valley Drip Vineyard";
+      carlosSeed.ownerId = "user-carlos-1";
+      return carlosSeed;
+    }
     if (norm === "farm-elena-research-2") return JSON.parse(JSON.stringify(SEED_ELENA_FARM));
     if (norm === "farm-mateo-hydraulic-3") return JSON.parse(JSON.stringify(SEED_MATEO_FARM));
     if (norm === "farm-guest-local-0") return JSON.parse(JSON.stringify(SEED_GUEST_FARM));
@@ -1964,8 +1971,8 @@ class ReactiveMockFirestore {
           localStorage.removeItem(LEGACY_STORAGE_KEY);
         }
       } catch (e) {}
-      this.currentFarmId = 'farm-carlos-valley-1';
-      this.saveData('farm-carlos-valley-1');
+      this.currentFarmId = 'farm-valley-1';
+      this.saveData('farm-valley-1');
     }
     if (this._spectralIndices) {
       this._spectralIndices.clear();

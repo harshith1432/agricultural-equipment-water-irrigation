@@ -21,6 +21,7 @@ import {
 import { leafClipDevice } from '../../hardware/webBluetoothLeafClip.js';
 import { createCalibrationModal } from '../CalibrationWizard.js';
 import { createBluetoothDevicePickerModal } from '../BluetoothDevicePickerModal.js';
+import { escapeHtml } from '../../utils/sanitizer.js';
 
 export function createSpectroscopyAnalysisView({
   plot = null,
@@ -35,6 +36,33 @@ export function createSpectroscopyAnalysisView({
   let viewMode = 'simple'; // 'simple' | 'advanced'
   let currentScan = latestScanAnalysis || spectrometerUSBAdapter.lastScan;
   let pollingIntervalId = null;
+
+  let liveRawData = leafClipDevice.latestRawData || {
+    text: 'Waiting for Bluetooth transmission...',
+    hex: '',
+    bytes: 0,
+    timestamp: null
+  };
+
+  leafClipDevice.on('rawData', (raw) => {
+    liveRawData = raw;
+    const rawBox = container.querySelector('#live-ble-raw-output');
+    const rawBytesElem = container.querySelector('#live-ble-raw-bytes');
+    const rawTimeElem = container.querySelector('#live-ble-raw-time');
+    if (rawBox) {
+      rawBox.textContent = raw.text || raw.hex || 'Frame received';
+    }
+    if (rawBytesElem) {
+      rawBytesElem.textContent = `${raw.bytes} B`;
+    }
+    if (rawTimeElem && raw.timestamp) {
+      rawTimeElem.textContent = new Date(raw.timestamp).toLocaleTimeString();
+    }
+  });
+
+  leafClipDevice.on('connectionChange', () => {
+    render();
+  });
 
   function getReadableSpectroMode(mode) {
     switch (mode) {
@@ -295,6 +323,87 @@ export function createSpectroscopyAnalysisView({
             </div>
           </div>
         ` : ''}
+      </div>
+
+      <!-- Live Bluetooth Hardware Telemetry & Raw Data Stream -->
+      <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 shadow-sm border ${leafClipDevice.isConnected ? 'border-emerald-500/40' : 'border-slate-200 dark:border-slate-800'} space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-xl ${leafClipDevice.isConnected ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'} flex items-center justify-center shrink-0">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="7 7 17 17 12 22 12 2 17 7 7 17"/></svg>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h3 class="text-xs font-bold text-slate-900 dark:text-white">
+                  Live Hardware Raw Stream
+                </h3>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold ${leafClipDevice.isConnected ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'}">
+                  ${leafClipDevice.isConnected ? (leafClipDevice.deviceInfo?.model || 'BlueNRG_Chat') : 'Disconnected'}
+                </span>
+              </div>
+              <p class="text-[10px] text-slate-500">
+                Direct UART/Chat packets received from ST BlueNRG spectroscope
+              </p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 text-[10px] font-mono text-slate-500">
+            <span id="live-ble-raw-bytes" class="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">${liveRawData.bytes || 0} B</span>
+            <span id="live-ble-raw-time" class="text-slate-400">${liveRawData.timestamp ? new Date(liveRawData.timestamp).toLocaleTimeString() : 'No data yet'}</span>
+          </div>
+        </div>
+
+        <!-- Raw Data Terminal Console Box -->
+        <div class="bg-slate-950 text-emerald-400 p-3 rounded-2xl font-mono text-xs overflow-x-auto max-h-28 border border-slate-800 shadow-inner">
+          <div class="text-[10px] text-slate-500 uppercase tracking-wider mb-1 flex items-center justify-between">
+            <span>Raw Hardware RX Buffer</span>
+            <span id="live-ble-command-status" class="text-emerald-300">Ready</span>
+          </div>
+          <pre id="live-ble-raw-output" class="whitespace-pre-wrap break-all leading-tight text-[11px] select-text">${escapeHtml(liveRawData.text || liveRawData.hex || 'Waiting for incoming Bluetooth frames...')}</pre>
+        </div>
+
+        <!-- Quick Hardware Command Actions -->
+        <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1">
+          <button 
+            type="button" 
+            id="btn-ble-send-ping" 
+            class="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold flex items-center gap-1 transition shrink-0 cursor-pointer"
+            title="Send *IDN? status check to Bluetooth"
+          >
+            <svg class="w-3 h-3 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            <span>Ping Hardware</span>
+          </button>
+
+          <button 
+            type="button" 
+            id="btn-ble-send-dark" 
+            class="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold flex items-center gap-1 transition shrink-0 cursor-pointer"
+            title="Send DARK command"
+          >
+            <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+            <span>Send DARK</span>
+          </button>
+
+          <button 
+            type="button" 
+            id="btn-ble-send-white" 
+            class="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold flex items-center gap-1 transition shrink-0 cursor-pointer"
+            title="Send WHITE command"
+          >
+            <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+            <span>Send WHITE</span>
+          </button>
+
+          <button 
+            type="button" 
+            id="btn-ble-send-scan" 
+            class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1 transition shrink-0 cursor-pointer shadow-sm"
+            title="Send SCAN command"
+          >
+            <svg class="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            <span>Trigger Scan</span>
+          </button>
+        </div>
       </div>
 
       <!-- 3. The 5 Farmer Agronomic Decision Cards -->
@@ -668,6 +777,60 @@ export function createSpectroscopyAnalysisView({
           render();
         }
       });
+    });
+
+    // Quick Bluetooth Hardware Command Handlers
+    container.querySelector('#btn-ble-send-ping')?.addEventListener('click', async () => {
+      const statusEl = container.querySelector('#live-ble-command-status');
+      try {
+        if (!leafClipDevice.isConnected) throw new Error("Bluetooth not connected");
+        if (statusEl) statusEl.textContent = 'Transmitting STATUS...';
+        await leafClipDevice.sendCommand('STATUS\r\n');
+        if (statusEl) statusEl.textContent = 'Transmitted STATUS';
+      } catch (e) {
+        if (statusEl) statusEl.textContent = e.message;
+      }
+    });
+
+    container.querySelector('#btn-ble-send-dark')?.addEventListener('click', async () => {
+      const statusEl = container.querySelector('#live-ble-command-status');
+      try {
+        if (!leafClipDevice.isConnected) throw new Error("Bluetooth not connected");
+        if (statusEl) statusEl.textContent = 'Transmitting DARK...';
+        await leafClipDevice.triggerDarkCalibration();
+        if (statusEl) statusEl.textContent = 'DARK Calibration Sent';
+      } catch (e) {
+        if (statusEl) statusEl.textContent = e.message;
+      }
+    });
+
+    container.querySelector('#btn-ble-send-white')?.addEventListener('click', async () => {
+      const statusEl = container.querySelector('#live-ble-command-status');
+      try {
+        if (!leafClipDevice.isConnected) throw new Error("Bluetooth not connected");
+        if (statusEl) statusEl.textContent = 'Transmitting WHITE...';
+        await leafClipDevice.triggerWhiteReference();
+        if (statusEl) statusEl.textContent = 'WHITE Calibration Sent';
+      } catch (e) {
+        if (statusEl) statusEl.textContent = e.message;
+      }
+    });
+
+    container.querySelector('#btn-ble-send-scan')?.addEventListener('click', async () => {
+      const statusEl = container.querySelector('#live-ble-command-status');
+      try {
+        if (!leafClipDevice.isConnected) throw new Error("Bluetooth not connected");
+        if (statusEl) statusEl.textContent = 'Transmitting SCAN...';
+        const scan = await leafClipDevice.triggerLeafMeasurement({
+          plotNumber: 1,
+          cropName: 'Bell Peppers'
+        });
+        currentScan = scan;
+        if (statusEl) statusEl.textContent = 'SCAN Received';
+        render();
+      } catch (e) {
+        if (statusEl) statusEl.textContent = e.message;
+      }
     });
 
     // Mode Switcher
