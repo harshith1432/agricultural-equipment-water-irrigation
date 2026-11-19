@@ -7,6 +7,8 @@
  */
 
 import { execSync } from 'child_process';
+import fs from 'fs';
+import path from 'path';
 
 let adminApp = null;
 let adminFirestore = null;
@@ -51,6 +53,35 @@ export class FirestoreClient {
         this.isConnected = true;
         this.authProvider = "Firebase Admin SDK";
         return;
+      }
+
+      // 1. Check for local service-account JSON files on disk
+      const possiblePaths = [
+        path.resolve(process.cwd(), 'service-account.json'),
+        path.resolve(process.cwd(), 'backend/service-account.json'),
+        path.resolve(process.cwd(), 'water-irrigation-system-8aeeb-firebase-adminsdk-fbsvc-0b4678c042.json'),
+        path.resolve(process.cwd(), 'backend/water-irrigation-system-8aeeb-firebase-adminsdk-fbsvc-0b4678c042.json'),
+        path.resolve(process.cwd(), 'credentials/water-irrigation-system-8aeeb-firebase-adminsdk-fbsvc-0b4678c042.json')
+      ];
+
+      for (const p of possiblePaths) {
+        if (fs.existsSync(p)) {
+          try {
+            const raw = fs.readFileSync(p, 'utf8');
+            const sa = JSON.parse(raw);
+            const app = appModule.initializeApp({
+              credential: appModule.cert(sa),
+              projectId: sa.project_id || this.projectId
+            });
+            this.adminDb = firestoreModule.getFirestore(app);
+            this.isConnected = true;
+            this.authProvider = `Firebase Admin SDK (${path.basename(p)})`;
+            console.log(`[FirestoreClient] Initialized Firebase Admin SDK from ${p}`);
+            return;
+          } catch (e) {
+            console.warn(`[FirestoreClient] Failed to load local service account from ${p}:`, e.message);
+          }
+        }
       }
 
       // Check for FIREBASE_SERVICE_ACCOUNT environment variable (JSON string or base64)

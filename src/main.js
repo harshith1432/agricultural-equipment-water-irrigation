@@ -10,6 +10,7 @@ import { createSidebar } from './components/Sidebar.js';
 import { createHeader } from './components/Header.js';
 import { createAuthPortal } from './components/AuthPortal.js';
 import { createAuthModal } from './components/AuthModal.js';
+import { createAuthScreen } from './components/AuthScreen.js';
 import { createOnboardingCarousel, hasCompletedOnboarding, setOnboardingCompleted } from './components/OnboardingCarousel.js';
 import { createFarmOwnerDashboard } from './components/dashboards/FarmOwnerDashboard.js';
 import { createAgronomistDashboard } from './components/dashboards/AgronomistDashboard.js';
@@ -45,10 +46,10 @@ class AgriSpectraApp {
     // Robust detection for native Android / iOS Capacitor container & mobile screens
     const isNative = (typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform()) ||
       (typeof window !== 'undefined' && (
-        window.location.protocol === 'capacitor:' ||
-        window.location.hostname === 'localhost' ||
-        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || '') ||
-        window.innerWidth < 1024
+        window.location?.protocol === 'capacitor:' ||
+        window.location?.hostname === 'localhost' ||
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator?.userAgent || '') ||
+        (typeof window.innerWidth === 'number' && window.innerWidth < 1024)
       ));
 
     this.isNative = Boolean(isNative);
@@ -62,10 +63,10 @@ class AgriSpectraApp {
     this.isSidebarOpen = true;
     this.selectedPlotId = localStorage.getItem('agrispectra_selected_plot') || "plot-1";
 
-    // Reactive State with robust offline defaults
-    this.plots = Object.values(INITIAL_FARM_DATA.plots || {});
-    this.actionRecommendations = Object.values(INITIAL_FARM_DATA.actionRecommendations || {});
-    this.irrigationLogs = Object.values(INITIAL_FARM_DATA.irrigationLogs || []);
+    // Reactive State - populated when user is authenticated
+    this.plots = this.currentUser ? Object.values(INITIAL_FARM_DATA.plots || {}) : [];
+    this.actionRecommendations = this.currentUser ? Object.values(INITIAL_FARM_DATA.actionRecommendations || {}) : [];
+    this.irrigationLogs = this.currentUser ? Object.values(INITIAL_FARM_DATA.irrigationLogs || []) : [];
     this.latestScanAnalysis = null;
 
     let cachedMetrics = null;
@@ -121,15 +122,12 @@ class AgriSpectraApp {
       }
     });
 
-    // User authentication state - Defaults to active grower session
-    this.currentUser = authService.getCurrentUser() || {
-      uid: "usr-demo-01",
-      displayName: "Carlos Mendoza",
-      email: "carlos.mendoza@valleyfarms.com",
-      role: "Farm Owner",
-      farmName: "Sonoma Valley Parcel"
-    };
-    this.activeRoleView = this.currentUser ? (this.currentUser.role || 'Farm Owner') : 'Farm Owner';
+    // User authentication state - Driven strictly by authService without unwanted mock defaults
+    this.currentUser = authService.getCurrentUser() || null;
+    this.activeRoleView = this.currentUser ? (this.currentUser.role || 'Farm Owner') : null;
+
+    // Initial synchronous render for 0ms cold boot
+    this.render();
 
     this.init();
   }
@@ -147,59 +145,28 @@ class AgriSpectraApp {
     // Apply the active theme
     this.applyTheme(this.currentTheme);
 
-    // 1. Connect Simulated BLE device by default
-    await leafClipDevice.connect({ forceSimulation: false });
-    this.bleState.connected = leafClipDevice.isConnected;
-    this.bleState.simulated = leafClipDevice.isSimulated;
+    // 1. Connect Simulated BLE device
+    try {
+      await leafClipDevice.connect({ forceSimulation: false });
+      this.bleState.connected = leafClipDevice.isConnected;
+      this.bleState.simulated = leafClipDevice.isSimulated;
+    } catch (e) {
+      console.warn("[AgriSpectraApp] BLE device connect note:", e);
+    }
 
-    // 2. Initial analysis for selected plot (Plot 2 default)
-    const initialSpectrum = generateSpectralSignature({
-      vitality: 54,
-      waterContent: 0.62,
-      nitrogenLevel: 0.55,
-      diseaseStress: 0.65
-    });
-    this.latestScanAnalysis = processSpectralVector(initialSpectrum, "Heirloom Drip Tomatoes", "Fruit Sizing & Ripening");
+    if (this.currentUser) {
+      // 2. Initial analysis for selected plot (Plot 2 default)
+      const initialSpectrum = generateSpectralSignature({
+        vitality: 54,
+        waterContent: 0.62,
+        nitrogenLevel: 0.55,
+        diseaseStress: 0.65
+      });
+      this.latestScanAnalysis = processSpectralVector(initialSpectrum, "Heirloom Drip Tomatoes", "Fruit Sizing & Ripening");
 
-    // 3. Subscribe to Real-Time Firestore NoSQL Collections
-    this.unsubscribePlots = firestoreService.subscribePlots((plots) => {
-      this.plots = plots;
-
-      // Auto-fallback if active selected plot was deleted
-      if (this.plots.length > 0 && !this.plots.some(p => p.id === this.selectedPlotId)) {
-        this.selectedPlotId = this.plots[0].id;
-        try { localStorage.setItem('agrispectra_selected_plot', this.selectedPlotId); } catch (e) {}
-      }
-
-      if (this.currentUser) this.render();
-
-      // Ensure MQTT simulator has latest plot references
-      if (!this.mqttState.running && this.plots.length > 0) {
-        mqttSimulator.start(this.plots, (updatedPlot) => {
-          firestoreService.updatePlotTelemetry(
-            updatedPlot.id,
-            updatedPlot.soilSensors,
-            updatedPlot.totalLitersDelivered
-          );
-        });
-        this.mqttState.running = true;
-      }
-    });
-
-    this.unsubscribeCropCatalog = firestoreService.subscribeCropCatalog((crops) => {
-      this.cropCatalog = crops;
-      if (this.currentUser) this.render();
-    });
-
-    this.unsubscribeRecommendations = firestoreService.subscribeActionRecommendations((recs) => {
-      this.actionRecommendations = recs;
-      if (this.currentUser) this.render();
-    });
-
-    this.unsubscribeLogs = firestoreService.subscribeIrrigationLogs((logs) => {
-      this.irrigationLogs = logs;
-      if (this.currentUser) this.render();
-    });
+      // 3. Subscribe to Real-Time Firestore NoSQL Collections
+      this._startDataSubscriptions();
+    }
 
     // 4. Listen to hardware telemetry ticks
     mqttSimulator.on('telemetryTick', (data) => {
@@ -228,41 +195,23 @@ class AgriSpectraApp {
       this.currentUser = user;
       if (user) {
         this.activeRoleView = user.role || 'Farm Owner';
-      }
-      try {
-        firestoreService.setActiveUser(user);
-      } catch (e) {
-        console.warn("[AgriSpectraApp] Error binding active user chamber:", e);
-      }
-
-      // Re-subscribe to real-time collections for the newly active user's isolation chamber
-      if (typeof this.unsubscribePlots === 'function') this.unsubscribePlots();
-      this.unsubscribePlots = firestoreService.subscribePlots((plots) => {
-        this.plots = plots;
-        if (this.plots.length > 0 && !this.plots.some(p => p.id === this.selectedPlotId)) {
-          this.selectedPlotId = this.plots[0].id;
-          try { localStorage.setItem('agrispectra_selected_plot', this.selectedPlotId); } catch (e) {}
+        try {
+          firestoreService.setActiveUser(user);
+        } catch (e) {
+          console.warn("[AgriSpectraApp] Error binding active user chamber:", e);
         }
-        if (this.currentUser) this.render();
-      });
-
-      if (typeof this.unsubscribeCropCatalog === 'function') this.unsubscribeCropCatalog();
-      this.unsubscribeCropCatalog = firestoreService.subscribeCropCatalog((crops) => {
-        this.cropCatalog = crops;
-        if (this.currentUser) this.render();
-      });
-
-      if (typeof this.unsubscribeRecommendations === 'function') this.unsubscribeRecommendations();
-      this.unsubscribeRecommendations = firestoreService.subscribeActionRecommendations((recs) => {
-        this.actionRecommendations = recs;
-        if (this.currentUser) this.render();
-      });
-
-      if (typeof this.unsubscribeLogs === 'function') this.unsubscribeLogs();
-      this.unsubscribeLogs = firestoreService.subscribeIrrigationLogs((logs) => {
-        this.irrigationLogs = logs;
-        if (this.currentUser) this.render();
-      });
+        this._startDataSubscriptions();
+      } else {
+        try {
+          firestoreService.setActiveUser(null);
+        } catch (e) {}
+        this._cleanupDataSubscriptions();
+        this.plots = [];
+        this.cropCatalog = [];
+        this.actionRecommendations = [];
+        this.irrigationLogs = [];
+        this.latestScanAnalysis = null;
+      }
 
       this.render();
     });
@@ -305,14 +254,60 @@ class AgriSpectraApp {
     this.appEl.innerHTML = '';
 
     // =========================================================================
-    // CASE 0: TRUE FULL-SCREEN NATIVE MOBILE APP (Capacitor Android / iOS & Mobile)
+    // CASE 0: UN-AUTHENTICATED VISITOR -> Show Dedicated Full-Screen Login / Register
+    // =========================================================================
+    if (!this.currentUser) {
+      // Optional: on desktop web, if user explicitly visits the public marketing showcase
+      if (this.viewMode === 'website' && !this.isNative) {
+        const landingView = createSetuLandingView({
+          currentUser: null,
+          onLaunchDashboard: (role) => {
+            this.viewMode = 'mobile';
+            try { localStorage.setItem('agrispectra_view_mode', 'mobile'); } catch (e) {}
+            this.render();
+          },
+          onOpenSignIn: () => {
+            this.viewMode = 'mobile';
+            try { localStorage.setItem('agrispectra_view_mode', 'mobile'); } catch (e) {}
+            this.render();
+          },
+          onOpenRegister: () => {
+            this.viewMode = 'mobile';
+            try { localStorage.setItem('agrispectra_view_mode', 'mobile'); } catch (e) {}
+            this.render();
+          }
+        });
+        this.appEl.appendChild(landingView);
+        return;
+      }
+
+      // Render dedicated full-screen mobile Login / Registration Screen
+      const authScreen = createAuthScreen({
+        currentTheme: this.currentTheme,
+        onThemeChange: (themeId) => this.setTheme(themeId),
+        onAuthSuccess: (user) => {
+          this.currentUser = user;
+          this.activeRoleView = user.role || 'Farm Owner';
+          try {
+            firestoreService.setActiveUser(user);
+          } catch (e) {}
+          this.render();
+        }
+      });
+
+      this.appEl.appendChild(authScreen);
+      return;
+    }
+
+    // =========================================================================
+    // CASE 1: TRUE FULL-SCREEN NATIVE MOBILE APP (Capacitor Android / iOS & Mobile)
     // =========================================================================
     const isNative = (typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform()) ||
       (typeof window !== 'undefined' && (
-        window.location.protocol === 'capacitor:' ||
-        window.location.hostname === 'localhost' ||
-        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || '') ||
-        window.innerWidth < 1024
+        window.location?.protocol === 'capacitor:' ||
+        window.location?.hostname === 'localhost' ||
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator?.userAgent || '') ||
+        (typeof window.innerWidth === 'number' && window.innerWidth < 1024)
       ));
 
     this.isNative = Boolean(isNative || this.isNative);
@@ -341,11 +336,7 @@ class AgriSpectraApp {
         onReplayOnboarding: () => this.showOnboarding(),
         onSignOut: () => this.handleSignOut(),
         onSynergyAction: (recId, action) => this.handleSynergyAction(recId, action),
-        currentUser: this.currentUser || {
-          displayName: "Carlos Mendoza",
-          email: "grower@agrispectra.io",
-          role: "Farm Owner"
-        }
+        currentUser: this.currentUser
       });
 
       this.appEl.appendChild(mobileApp);
@@ -353,7 +344,7 @@ class AgriSpectraApp {
     }
 
     // =========================================================================
-    // CASE 1: SETU ENTERPRISE WEB PLATFORM (Default Web Landing & Product Showcase)
+    // CASE 2: SETU ENTERPRISE WEB PLATFORM (Default Web Landing & Product Showcase)
     // =========================================================================
     if (this.viewMode === 'website' || this.viewMode === 'aero-showcase') {
       const landingView = createSetuLandingView({
@@ -382,61 +373,6 @@ class AgriSpectraApp {
       });
 
       this.appEl.appendChild(landingView);
-      return;
-    }
-
-    // =========================================================================
-    // CASE 1: UN-AUTHENTICATED VISITOR -> Show Login / Access Portal Gateway
-    // =========================================================================
-    if (!this.currentUser) {
-      const portalWrapper = document.createElement('div');
-      portalWrapper.className = "flex-1 flex flex-col min-h-screen bg-[#FBF9F4] dark:bg-slate-900 transition-colors duration-300";
-
-      // Minimal top bar with theme toggle
-      const topBar = document.createElement('div');
-      topBar.className = "w-full px-6 py-4 flex items-center justify-between border-b border-stone-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md";
-      topBar.innerHTML = `
-        <div class="flex items-center gap-2.5">
-          <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-800 flex items-center justify-center text-white text-xs font-bold shadow-sm">
-            🌾
-          </div>
-          <span class="text-sm font-extrabold tracking-tight text-stone-900 dark:text-white font-sans">AGRISPECTRA FLOW & FIELD</span>
-        </div>
-
-        <div class="flex items-center gap-2">
-          <select id="header-theme-select" class="min-h-[38px] px-3 py-1.5 rounded-xl bg-stone-100 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 text-xs font-bold text-stone-700 dark:text-slate-300 focus:outline-none cursor-pointer">
-            <option value="creamy-agri" ${this.currentTheme === 'creamy-agri' ? 'selected' : ''}>🌾 Cream & Green</option>
-            <option value="lush-emerald" ${this.currentTheme === 'lush-emerald' ? 'selected' : ''}>🌿 Lush Emerald</option>
-            <option value="sunlight" ${this.currentTheme === 'sunlight' ? 'selected' : ''}>☀️ Sunlight</option>
-            <option value="dark-soil" ${this.currentTheme === 'dark-soil' ? 'selected' : ''}>🌙 Dark Soil</option>
-          </select>
-        </div>
-      `;
-      portalWrapper.appendChild(topBar);
-
-      topBar.querySelector('#header-theme-select')?.addEventListener('change', (e) => {
-        this.setTheme(e.target.value);
-      });
-
-      // The full AuthPortal component
-      const authPortal = createAuthPortal({
-        onAuthSuccess: (user) => {
-          this.currentUser = user;
-          this.activeRoleView = user.role || 'Farm Owner';
-          this.render();
-        }
-      });
-      portalWrapper.appendChild(authPortal);
-
-      // Simple footer
-      const portalFooter = document.createElement('footer');
-      portalFooter.className = "py-6 text-center text-xs text-stone-500 dark:text-slate-500 border-t border-stone-200 dark:border-slate-800 font-mono";
-      portalFooter.innerHTML = `
-        <span>AgriSpectra Flow & Field • Precision Agronomy & ±12V Hydraulic Infrastructure • Multi-Tenant Enterprise</span>
-      `;
-      portalWrapper.appendChild(portalFooter);
-
-      this.appEl.appendChild(portalWrapper);
       return;
     }
 
@@ -791,7 +727,8 @@ class AgriSpectraApp {
   }
 
   applyTheme(themeId) {
-    const body = document.body;
+    const body = typeof document !== 'undefined' ? document.body : null;
+    if (!body || !body.classList) return;
     body.classList.remove('theme-aero-field', 'theme-official-enterprise', 'theme-creamy-agri', 'theme-lush-emerald', 'theme-sunlight', 'theme-dark-soil', 'sunlight-mode');
     
     if (themeId === 'aero-field') {
@@ -866,8 +803,11 @@ class AgriSpectraApp {
         this.render();
       },
       onContinueAsGuest: () => {
-        this.currentUser = authService.getCurrentUser();
+        this.currentUser = authService.signInAsGuest();
         this.activeRoleView = this.currentUser?.role || 'Field Operator';
+        try {
+          firestoreService.setActiveUser(this.currentUser);
+        } catch (e) {}
         this.render();
       }
     });
@@ -888,15 +828,98 @@ class AgriSpectraApp {
       onAuthSuccess: (user) => {
         this.currentUser = user;
         this.activeRoleView = user.role || 'Farm Owner';
+        try {
+          firestoreService.setActiveUser(user);
+        } catch (e) {}
         this.render();
       }
     });
     document.body.appendChild(modal);
   }
 
+  _startDataSubscriptions() {
+    this._cleanupDataSubscriptions();
+
+    this.unsubscribePlots = firestoreService.subscribePlots((plots) => {
+      this.plots = plots;
+
+      // Auto-fallback if active selected plot was deleted
+      if (this.plots.length > 0 && !this.plots.some(p => p.id === this.selectedPlotId)) {
+        this.selectedPlotId = this.plots[0].id;
+        try { localStorage.setItem('agrispectra_selected_plot', this.selectedPlotId); } catch (e) {}
+      }
+
+      if (this.currentUser) this.render();
+
+      // Ensure MQTT simulator has latest plot references
+      if (!this.mqttState.running && this.plots.length > 0 && this.currentUser) {
+        mqttSimulator.start(this.plots, (updatedPlot) => {
+          firestoreService.updatePlotTelemetry(
+            updatedPlot.id,
+            updatedPlot.soilSensors,
+            updatedPlot.totalLitersDelivered
+          );
+        });
+        this.mqttState.running = true;
+      }
+    });
+
+    this.unsubscribeCropCatalog = firestoreService.subscribeCropCatalog((crops) => {
+      this.cropCatalog = crops;
+      if (this.currentUser) this.render();
+    });
+
+    this.unsubscribeRecommendations = firestoreService.subscribeActionRecommendations((recs) => {
+      this.actionRecommendations = recs;
+      if (this.currentUser) this.render();
+    });
+
+    this.unsubscribeLogs = firestoreService.subscribeIrrigationLogs((logs) => {
+      this.irrigationLogs = logs;
+      if (this.currentUser) this.render();
+    });
+  }
+
+  _cleanupDataSubscriptions() {
+    if (typeof this.unsubscribePlots === 'function') {
+      this.unsubscribePlots();
+      this.unsubscribePlots = null;
+    }
+    if (typeof this.unsubscribeCropCatalog === 'function') {
+      this.unsubscribeCropCatalog();
+      this.unsubscribeCropCatalog = null;
+    }
+    if (typeof this.unsubscribeRecommendations === 'function') {
+      this.unsubscribeRecommendations();
+      this.unsubscribeRecommendations = null;
+    }
+    if (typeof this.unsubscribeLogs === 'function') {
+      this.unsubscribeLogs();
+      this.unsubscribeLogs = null;
+    }
+    if (this.mqttState.running) {
+      mqttSimulator.stop();
+      this.mqttState.running = false;
+    }
+  }
+
   async handleSignOut() {
-    await authService.signOut();
+    try {
+      await authService.signOut();
+    } catch (e) {
+      console.warn("[AgriSpectraApp] Error during signOut:", e);
+    }
     this.currentUser = null;
+    this.activeRoleView = null;
+    try {
+      firestoreService.setActiveUser(null);
+    } catch (e) {}
+    this._cleanupDataSubscriptions();
+    this.plots = [];
+    this.cropCatalog = [];
+    this.actionRecommendations = [];
+    this.irrigationLogs = [];
+    this.latestScanAnalysis = null;
     this.render();
   }
 
@@ -905,38 +928,44 @@ class AgriSpectraApp {
    */
   updateDynamicMetrics() {
     // If elements in DOM have pressure or flow, update dynamically
-    const pressureEls = document.querySelectorAll('.dynamic-mainline-pressure');
-    pressureEls.forEach(el => {
-      el.textContent = `${this.telemetryMetrics.mainlinePressureBar} Bar`;
-    });
+    if (typeof document !== 'undefined') {
+      const pressureEls = document.querySelectorAll('.dynamic-mainline-pressure');
+      pressureEls.forEach(el => {
+        el.textContent = `${this.telemetryMetrics.mainlinePressureBar} Bar`;
+      });
+    }
   }
 }
 
-// Instantiate on DOM load
-window.addEventListener('DOMContentLoaded', () => {
-  window.agriSpectraApp = new AgriSpectraApp();
-  window.deviceManager = deviceManager;
-  window.hardware = {
-    deviceManager,
-    labartSoilSensorUSB,
-    spectrometerUSBAdapter,
-    tempHumiditySensorUSB,
-    irrigationControllerAdapter
-  };
+// Instantiate on DOM load in browser environment
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  window.addEventListener('DOMContentLoaded', () => {
+    window.agriSpectraApp = new AgriSpectraApp();
+    window.deviceManager = deviceManager;
+    window.hardware = {
+      deviceManager,
+      labartSoilSensorUSB,
+      spectrometerUSBAdapter,
+      tempHumiditySensorUSB,
+      irrigationControllerAdapter
+    };
 
-  // Handle PWA Service Worker: only for web browser, bypass in native Capacitor container
-  const isCapacitor = Boolean(window.Capacitor?.isNativePlatform && window.Capacitor.isNativePlatform());
-  if ('serviceWorker' in navigator) {
-    if (isCapacitor) {
-      navigator.serviceWorker.getRegistrations().then((registrations) => {
-        for (let registration of registrations) {
-          registration.unregister();
-        }
-      });
-    } else if (window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      navigator.serviceWorker.register('/sw.js')
-        .then((reg) => console.log('[AgriSpectra PWA] Service Worker registered:', reg.scope))
-        .catch((err) => console.warn('[AgriSpectra PWA] Service Worker registration failed:', err));
+    // Handle PWA Service Worker: only for web browser, bypass in native Capacitor container
+    const isCapacitor = Boolean(window.Capacitor?.isNativePlatform && window.Capacitor.isNativePlatform());
+    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+      if (isCapacitor) {
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          for (let registration of registrations) {
+            registration.unregister();
+          }
+        });
+      } else if (window.location && (window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+        navigator.serviceWorker.register('/sw.js')
+          .then((reg) => console.log('[AgriSpectra PWA] Service Worker registered:', reg.scope))
+          .catch((err) => console.warn('[AgriSpectra PWA] Service Worker registration failed:', err));
+      }
     }
-  }
-});
+  });
+}
+
+export { AgriSpectraApp };

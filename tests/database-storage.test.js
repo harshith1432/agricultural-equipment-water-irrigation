@@ -486,5 +486,112 @@ export function registerDatabaseStorageTests() {
       const carlosPlots = await firestoreService.getPlots();
       expect(carlosPlots.some(p => p.name.includes('Potato Field Zone'))).toBe(true);
     });
+
+    it('cleans up active user chamber, in-memory caches, and returns empty data when setActiveUser(null)', async () => {
+      // 1. Log in a user and set up data
+      await authService.loginAsDemoRole('Farm Owner');
+      expect(authService.getCurrentUser()).toBeDefined();
+
+      let receivedPlots = [];
+      const unsub = firestoreService.subscribePlots((plots) => {
+        receivedPlots = plots;
+      });
+      expect(receivedPlots.length).toBeGreaterThan(0);
+
+      // 2. Perform sign out
+      await authService.signOut();
+
+      // Verify authService properties are null
+      expect(authService.currentUser).toBe(null);
+      expect(authService.currentUserProfile).toBe(null);
+      expect(authService.getCurrentUser()).toBe(null);
+
+      // Verify firestoreService active user chamber is reset to null
+      expect(firestoreService.currentFarmId).toBe(null);
+      const plotsAfterLogout = await firestoreService.getPlots();
+      expect(plotsAfterLogout.length).toBe(0);
+
+      const logsAfterLogout = await firestoreService.getIrrigationLogs();
+      expect(logsAfterLogout.length).toBe(0);
+
+      const recsAfterLogout = await firestoreService.getActionRecommendations();
+      expect(recsAfterLogout.length).toBe(0);
+
+      const farmAfterLogout = await firestoreService.getFarm();
+      expect(farmAfterLogout).toBe(null);
+
+      // Verify subscriber was notified of empty plots
+      expect(receivedPlots.length).toBe(0);
+
+      unsub();
+    });
+
+    it('ensures authService.getCurrentUser() returns null when storage is cleared without Carlos Mendoza fallback', async () => {
+      // Clear all cache/storage
+      localStorage.clear();
+      await authService.signOut();
+
+      const currentUser = authService.getCurrentUser();
+      expect(currentUser).toBe(null);
+
+      // Verify firestoreService when unauthenticated returns no plots
+      const plots = await firestoreService.getPlots();
+      expect(plots.length).toBe(0);
+    });
+
+    it('isolates new user seed data and preserves returning user partition data across sessions', async () => {
+      const uid1 = `user-alpha-${Date.now()}`;
+      const userAlpha = {
+        uid: uid1,
+        email: 'alpha@grower.io',
+        displayName: 'Alpha Grower',
+        role: 'Farm Owner',
+        farmId: `farm_${uid1}`
+      };
+
+      // 1. User Alpha logs in - creates a plot
+      firestoreService.setActiveUser(userAlpha);
+      expect(firestoreService.currentFarmId).toBe(`farm_${uid1}`);
+
+      const alphaPlot = await firestoreService.createPlot({
+        name: 'Zone Alpha Exclusive Plot',
+        crop: 'Organic Strawberries',
+        plotNumber: 2
+      });
+      expect(alphaPlot).toBeDefined();
+
+      // 2. User Alpha logs out
+      await authService.signOut();
+      expect(firestoreService.currentFarmId).toBe(null);
+      expect((await firestoreService.getPlots()).length).toBe(0);
+
+      // 3. User Beta logs in - fresh user
+      const uid2 = `user-beta-${Date.now()}`;
+      const userBeta = {
+        uid: uid2,
+        email: 'beta@grower.io',
+        displayName: 'Beta Grower',
+        role: 'Agronomist',
+        farmId: `farm_${uid2}`
+      };
+      firestoreService.setActiveUser(userBeta);
+      expect(firestoreService.currentFarmId).toBe(`farm_${uid2}`);
+
+      const betaPlots = await firestoreService.getPlots();
+      // Beta should only see their own seed plot, NOT Alpha's plot
+      expect(betaPlots.some(p => p.name === 'Zone Alpha Exclusive Plot')).toBe(false);
+      expect(betaPlots.some(p => p.crop === 'Organic Strawberries')).toBe(false);
+
+      // 4. User Alpha returns - should see their saved partition data
+      firestoreService.setActiveUser(userAlpha);
+      expect(firestoreService.currentFarmId).toBe(`farm_${uid1}`);
+
+      const alphaPlotsReturned = await firestoreService.getPlots();
+      expect(alphaPlotsReturned.some(p => p.name === 'Zone Alpha Exclusive Plot')).toBe(true);
+      expect(alphaPlotsReturned.some(p => p.crop === 'Organic Strawberries')).toBe(true);
+
+      // Cleanup
+      await authService.signOut();
+    });
   });
 }

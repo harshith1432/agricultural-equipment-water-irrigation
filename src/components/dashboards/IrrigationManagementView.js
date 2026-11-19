@@ -41,12 +41,15 @@ export function createIrrigationManagementView({
   // Active pulse animation state
   let activePulseAnimation = null;
 
+  // Pipe burst safety alert message
+  let safetyAlertMessage = null;
+
   // Track status transitions: 'IDLE' | 'COMMAND_SENT' | 'ACKNOWLEDGED' | 'ON' | 'OFF' | 'FAULT'
   const valveStatusPills = new Map();
 
   // Initialize controller with default 6 farm valves if missing
   const defaultValves = [
-    { id: 'valve-1', gateIdentifier: 'G1', name: 'Zone 1 - Tuber Sprinklers', plotId: 'plot-1', nominalFlowRateLph: 450 },
+    { id: 'valve-1', gateIdentifier: 'G1', name: 'Zone 1 - Tuber Sprinklers', plotId: 'plot-1', nominalFlowRateLph: 450, state: VALVE_STATES.OPEN },
     { id: 'valve-2', gateIdentifier: 'G2', name: 'Zone 2 - Heirloom Tomato Drip', plotId: 'plot-2', nominalFlowRateLph: 420 },
     { id: 'valve-3', gateIdentifier: 'G3', name: 'Zone 3 - Sweet Bell Pepper Micro-Jets', plotId: 'plot-3', nominalFlowRateLph: 380 },
     { id: 'valve-4', gateIdentifier: 'G4', name: 'Zone 4 - Sweet Corn Furrow Drip', plotId: 'plot-4', nominalFlowRateLph: 520 },
@@ -58,6 +61,9 @@ export function createIrrigationManagementView({
       irrigationControllerAdapter.registerValve(v);
     }
   });
+
+  // Ensure minimum valves are open on boot (Pipe burst protection)
+  irrigationControllerAdapter.ensureMinimumValvesOpen();
 
   // Pre-seed a schedule if empty
   const allValves = irrigationControllerAdapter.getAllValves ? irrigationControllerAdapter.getAllValves() : [];

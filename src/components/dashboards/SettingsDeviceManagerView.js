@@ -47,7 +47,7 @@ export function createSettingsDeviceManagerView({
 
         <div class="pt-2 border-t border-emerald-700/40 flex items-center justify-between text-xs text-emerald-100">
           <span>${t('profile_details')}:</span>
-          <span class="font-bold text-white">${currentUser?.displayName || 'Carlos Mendoza'}</span>
+          <span class="font-bold text-white">${currentUser?.displayName || currentUser?.email?.split('@')[0] || t('grower', 'Grower')}</span>
         </div>
       </div>
 

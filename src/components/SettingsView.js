@@ -17,6 +17,7 @@ import { authService } from '../firebase/authService.js';
 import { firestoreService } from '../firebase/firestoreService.js';
 import { t, onLocaleChange, getLocale, setLocale, SUPPORTED_LOCALES } from '../utils/i18n.js';
 import { setOnboardingCompleted } from './OnboardingCarousel.js';
+import { irrigationControllerAdapter } from '../hardware/irrigationControllerAdapter.js';
 
 export function createSettingsView({
   currentUser = null,
@@ -39,8 +40,15 @@ export function createSettingsView({
   };
 
   let pulseTimingMs = getStoredPulseTiming();
+  let minOpenValves = irrigationControllerAdapter.getMinOpenValves();
   let glareModeActive = currentTheme === 'sunlight';
   let bannerMessage = null;
+
+  function saveMinOpenValves(count) {
+    const val = irrigationControllerAdapter.setMinOpenValves(count);
+    minOpenValves = val;
+    return val;
+  }
 
   function getStoredTargets() {
     try {
@@ -89,8 +97,8 @@ export function createSettingsView({
 
   function render() {
     const user = currentUser || authService.getCurrentUser() || {
-      displayName: "Carlos Mendoza",
-      email: "carlos.mendoza@valleyfarms.com",
+      displayName: "Grower",
+      email: "grower@agrispectra.io",
       role: "Farm Owner",
       isOffline: false
     };
@@ -165,7 +173,7 @@ export function createSettingsView({
             <input 
               type="text" 
               id="profile-name-input" 
-              value="${user.displayName || 'Carlos Mendoza'}" 
+              value="${user.displayName || ''}" 
               class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-medium focus:outline-none focus:ring-1 focus:ring-emerald-500" 
             />
           </div>
@@ -175,7 +183,7 @@ export function createSettingsView({
             <input 
               type="email" 
               id="profile-email-input" 
-              value="${user.email || 'carlos.mendoza@valleyfarms.com'}" 
+              value="${user.email || ''}" 
               class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-medium focus:outline-none focus:ring-1 focus:ring-emerald-500" 
             />
           </div>
@@ -348,6 +356,41 @@ export function createSettingsView({
             >
               <span class="text-xs font-bold font-mono">${p.label}</span>
               <span class="text-[9px] text-slate-400 mt-0.5 leading-tight">${p.desc}</span>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+
+      <!-- 4b. Hydraulic Pipe Burst Safety & Always Open Valves Interlock -->
+      <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 shadow-sm border border-emerald-900/5 dark:border-slate-800 space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+            ${icon('shieldCheck', 'w-4 h-4 text-emerald-600')}
+            <span>${t('min_valves_title')}</span>
+          </h3>
+          <span class="text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-500/20">
+            ${minOpenValves > 0 ? `${minOpenValves} ${t('valve_always_open')}` : t('manual_mode')}
+          </span>
+        </div>
+        <p class="text-[10px] text-slate-500 leading-relaxed">${t('min_valves_desc')}</p>
+
+        <div class="grid grid-cols-3 gap-2">
+          ${[
+            { count: 1, label: t('min_valves_opt_1'), sub: t('min_valves_sub_1') },
+            { count: 2, label: t('min_valves_opt_2'), sub: t('min_valves_sub_2') },
+            { count: 0, label: t('min_valves_opt_0'), sub: t('min_valves_sub_0') }
+          ].map(opt => `
+            <button 
+              type="button" 
+              data-min-valves="${opt.count}"
+              class="min-valves-btn p-2.5 rounded-2xl border text-center transition cursor-pointer flex flex-col items-center justify-center ${
+                minOpenValves === opt.count 
+                  ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-500 text-[#0E5431] dark:text-emerald-300 font-bold shadow-sm' 
+                  : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 hover:bg-slate-100'
+              }"
+            >
+              <span class="text-xs font-bold font-mono">${opt.label}</span>
+              <span class="text-[9px] text-slate-400 mt-0.5 leading-tight">${opt.sub}</span>
             </button>
           `).join('')}
         </div>
@@ -576,8 +619,8 @@ export function createSettingsView({
 
   function attachEvents() {
     const user = currentUser || authService.getCurrentUser() || {
-      displayName: "Carlos Mendoza",
-      email: "carlos.mendoza@valleyfarms.com",
+      displayName: "Grower",
+      email: "grower@agrispectra.io",
       role: "Farm Owner",
       farmName: "Sonoma Valley Parcel"
     };
@@ -681,6 +724,16 @@ export function createSettingsView({
           bannerMessage = `Solenoid pulse width updated to ${ms} ms (±12V DC).`;
           render();
         }
+      });
+    });
+
+    // Hydraulic pipe burst safety minimum open valves buttons
+    container.querySelectorAll('.min-valves-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const count = Number(btn.getAttribute('data-min-valves'));
+        saveMinOpenValves(count);
+        bannerMessage = `${t('min_valves_title')}: ${count > 0 ? `${count} ${t('valve_always_open')}` : t('manual_mode')}`;
+        render();
       });
     });
 

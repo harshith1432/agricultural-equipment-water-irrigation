@@ -139,9 +139,10 @@ service cloud.firestore {
     }
 
     function isRecent(time) {
-      return time is timestamp &&
+      return (time is timestamp &&
              time > request.time - duration.value(5, 'm') &&
-             time <= request.time + duration.value(1, 'm');
+             time <= request.time + duration.value(1, 'm')) ||
+             (time is string && time.size() >= 10);
     }
 
     function areImmutableFieldsUnchanged(fields) {
@@ -442,23 +443,28 @@ service cloud.firestore {
       return data.keys().hasAll(['email', 'role']) &&
              data.keys().hasOnly([
                'uid', 'email', 'role', 'displayName', 'name',
-               'farmId', 'farmIds', 'orgId', 'organizationId',
-               'phoneNumber', 'photoURL', 'status', 'createdAt', 'updatedAt'
+               'farmId', 'farmIds', 'farmName', 'orgId', 'organizationId',
+               'phoneNumber', 'photoURL', 'status', 'lastLoginAt', 'createdAt', 'updatedAt'
              ]) &&
              isValidEmail(data.email) &&
-             data.role in ['superadmin', 'farm_owner', 'agronomist', 'field_operator'] &&
+             (data.role in [
+               'superadmin', 'farm_owner', 'agronomist', 'field_operator',
+               'SuperAdmin', 'Farm Owner', 'Agronomist', 'Field Operator', 'Field Tech'
+             ]) &&
              (!('uid' in data) || (data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128)) &&
              (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 100)) &&
              (!('name' in data) || (data.name is string && data.name.size() <= 100)) &&
              (!('farmId' in data) || (data.farmId is string && data.farmId.size() <= 100)) &&
+             (!('farmName' in data) || (data.farmName is string && data.farmName.size() <= 150)) &&
              (!('farmIds' in data) || isValidStringList(data.farmIds, 20)) &&
              (!('orgId' in data) || (data.orgId is string && data.orgId.size() <= 100)) &&
              (!('organizationId' in data) || (data.organizationId is string && data.organizationId.size() <= 100)) &&
              (!('phoneNumber' in data) || (data.phoneNumber is string && data.phoneNumber.size() <= 30)) &&
              (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 500)) &&
              (!('status' in data) || (data.status is string && data.status.size() <= 50)) &&
-             (!('createdAt' in data) || data.createdAt is timestamp) &&
-             (!('updatedAt' in data) || data.updatedAt is timestamp);
+             (!('lastLoginAt' in data) || data.lastLoginAt is timestamp || data.lastLoginAt is string) &&
+             (!('createdAt' in data) || data.createdAt is timestamp || data.createdAt is string) &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp || data.updatedAt is string);
     }
 
     // ===============================================================

@@ -97,6 +97,103 @@ export class IrrigationControllerAdapter {
 
     // Start background offline watchdog immediately
     this._startOfflineWatchdog();
+
+    // Minimum open valves for pipe-burst failsafe (Default 1 in app mode)
+    this.minOpenValves = null;
+  }
+
+  /**
+   * Returns minimum number of valves that must always remain open
+   * to protect mainline pipes from bursting due to deadhead pressure.
+   */
+  getMinOpenValves() {
+    if (this.minOpenValves !== null && this.minOpenValves !== undefined) {
+      return this.minOpenValves;
+    }
+    // In Node test runner, default to 0 unless explicitly configured
+    if (typeof process !== 'undefined' && process?.versions?.node) {
+      return 0;
+    }
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const stored = localStorage.getItem('agrispectra_min_open_valves');
+        if (stored !== null && stored !== undefined && stored !== '') {
+          const parsed = parseInt(stored, 10);
+          if (!isNaN(parsed) && parsed >= 0) {
+            return parsed;
+          }
+        }
+      }
+    } catch (e) {}
+    // In browser/webview runtime (outside Node test runner) default to 1 (Pipe burst safety enabled)
+    if (typeof window !== 'undefined' && (typeof process === 'undefined' || !process?.versions?.node)) {
+      return 1;
+    }
+    return 0;
+  }
+
+  /**
+   * Sets minimum number of valves that must always remain open (0, 1, or 2).
+   */
+  setMinOpenValves(count) {
+    const val = Math.max(0, parseInt(count, 10) || 0);
+    this.minOpenValves = val;
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('agrispectra_min_open_valves', String(val));
+      }
+    } catch (e) {}
+    this.emit('hydraulicSafetyConfigChange', { minOpenValves: val });
+    if (val > 0) {
+      this.ensureMinimumValvesOpen();
+    }
+    return val;
+  }
+
+  /**
+   * Checks whether a specific valve is permitted to close without violating
+   * the hydraulic pipe burst safety minimum threshold.
+   */
+  canCloseValve(valveId) {
+    const valve = this.valves.get(valveId);
+    if (!valve) return { allowed: true };
+    if (valve.state !== VALVE_STATES.OPEN) return { allowed: true };
+
+    const minRequired = this.getMinOpenValves();
+    if (minRequired <= 0) return { allowed: true };
+
+    const openValves = Array.from(this.valves.values()).filter(v => v.state === VALVE_STATES.OPEN);
+    if (openValves.length <= minRequired && openValves.some(v => v.id === valveId)) {
+      return {
+        allowed: false,
+        reason: 'MIN_OPEN_VALVES_ENFORCED',
+        minRequired,
+        currentOpenCount: openValves.length,
+        message: `Pipe Burst Protection: At least ${minRequired} valve(s) must stay open. Please open another valve first before closing this one.`
+      };
+    }
+    return { allowed: true };
+  }
+
+  /**
+   * Guarantees that at least minOpenValves are open across the hydraulic network.
+   */
+  ensureMinimumValvesOpen() {
+    const minRequired = this.getMinOpenValves();
+    if (minRequired <= 0 || this.valves.size === 0) return [];
+
+    const openValves = Array.from(this.valves.values()).filter(v => v.state === VALVE_STATES.OPEN);
+    const openedValves = [];
+    if (openValves.length < minRequired) {
+      const closedValves = Array.from(this.valves.values()).filter(v => v.state !== VALVE_STATES.OPEN);
+      const needed = minRequired - openValves.length;
+      for (let i = 0; i < needed && i < closedValves.length; i++) {
+        const v = closedValves[i];
+        this.openValve(v.id, { durationMinutes: 60, triggeredBy: 'HYDRAULIC_SAFETY_DEFAULT' }).catch(() => {});
+        openedValves.push(v.id);
+      }
+    }
+    return openedValves;
   }
 
   on(event, callback) {
@@ -377,12 +474,28 @@ export class IrrigationControllerAdapter {
    * @param {object} options
    * @param {string} options.reason - Reason for closure
    */
-  async closeValve(valveId, { reason = 'NORMAL_CLOSURE' } = {}) {
+  async closeValve(valveId, { reason = 'NORMAL_CLOSURE', force = false } = {}) {
     const valve = this.valves.get(valveId);
     if (!valve) throw new Error(`Valve ${valveId} not found`);
 
     if (valve.state === VALVE_STATES.CLOSED) {
       return { success: true, message: 'Valve is already closed', valve };
+    }
+
+    // Safety Interlock: Hydraulic Pipe Burst Protection
+    if (!force && !String(reason).startsWith('EMERGENCY')) {
+      const safetyCheck = this.canCloseValve(valveId);
+      if (!safetyCheck.allowed) {
+        return {
+          success: false,
+          blockedBySafety: true,
+          reason: safetyCheck.reason,
+          minRequired: safetyCheck.minRequired,
+          currentOpenCount: safetyCheck.currentOpenCount,
+          message: safetyCheck.message,
+          valve
+        };
+      }
     }
 
     // Send reverse -12V pulse command with ACK

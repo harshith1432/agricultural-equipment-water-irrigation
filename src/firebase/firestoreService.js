@@ -41,23 +41,22 @@ import { db, isLiveFirebaseConfigured } from './config.js';
 import { mockFirestore } from './mockFirestore.js';
 import { backendSyncService } from './backendSyncService.js';
 
-export const FARM_ID = "farm-carlos-valley-1";
+export const FARM_ID = "farm-valley-1";
 
 export class FirestoreDataService {
   constructor() {
     this.db = db;
     this.useLive = Boolean(isLiveFirebaseConfigured && this.db !== null);
     this.currentUser = null;
-    mockFirestore.currentFarmId = FARM_ID;
     console.log(`[FirestoreService] Active Backend Mode: ${this.useLive ? 'CLOUD FIRESTORE (LIVE & OFFLINE PERSISTENT)' : 'REACTIVE PERSISTENT LOCAL NO-SQL'}`);
   }
 
   get currentFarmId() {
-    return mockFirestore.currentFarmId || FARM_ID;
+    return mockFirestore.currentFarmId;
   }
 
   set currentFarmId(val) {
-    mockFirestore.currentFarmId = val || FARM_ID;
+    mockFirestore.currentFarmId = val;
   }
 
   /**
@@ -66,23 +65,30 @@ export class FirestoreDataService {
    */
   setActiveUser(user) {
     this.currentUser = user;
-    let farmId = FARM_ID;
-    if (user) {
-      if (user.farmId) {
-        farmId = user.farmId;
-      } else if (user.uid === 'user-carlos-1' || user.uid === 'usr-demo-01' || user.uid === 'usr-ent-01') {
-        farmId = 'farm-carlos-valley-1';
-      } else if (user.uid === 'user-elena-2' || user.uid === 'usr-ent-03') {
-        farmId = 'farm-elena-research-2';
-      } else if (user.uid === 'user-mateo-3' || user.uid === 'usr-ent-04') {
-        farmId = 'farm-mateo-hydraulic-3';
-      } else if (user.uid === 'offline-guest' || user.uid === 'guest-offline-farmer') {
-        farmId = 'farm-guest-local-0';
-      } else if (user.uid) {
-        farmId = 'farm_' + user.uid;
-      }
+    if (!user) {
+      this.currentFarmId = null;
+      mockFirestore.resetActiveChamber();
+      return null;
     }
 
+    let farmId;
+    if (user.farmId) {
+      farmId = user.farmId;
+    } else if (user.uid === 'user-carlos-1' || user.uid === 'usr-demo-01' || user.uid === 'usr-ent-01') {
+      farmId = 'farm-carlos-valley-1';
+    } else if (user.uid === 'user-elena-2' || user.uid === 'usr-ent-03') {
+      farmId = 'farm-elena-research-2';
+    } else if (user.uid === 'user-mateo-3' || user.uid === 'usr-ent-04') {
+      farmId = 'farm-mateo-hydraulic-3';
+    } else if (user.uid === 'offline-guest' || user.uid === 'guest-offline-farmer') {
+      farmId = 'farm-guest-local-0';
+    } else if (user.uid) {
+      farmId = 'farm_' + user.uid;
+    } else {
+      farmId = FARM_ID;
+    }
+
+    this.currentFarmId = farmId;
     mockFirestore.setActiveFarm(farmId, user);
     return farmId;
   }
@@ -207,6 +213,7 @@ export class FirestoreDataService {
    */
   async getFarm(farmId = this.currentFarmId) {
     const targetFarm = farmId || this.currentFarmId;
+    if (!targetFarm) return null;
     if (this.useLive) {
       try {
         const farmRef = doc(this.db, "farms", targetFarm);
@@ -229,10 +236,15 @@ export class FirestoreDataService {
     let callback, farmId;
     if (typeof arg1 === 'function') {
       callback = arg1;
-      farmId = arg2 || this.currentFarmId;
+      farmId = arg2 !== undefined ? arg2 : this.currentFarmId;
     } else {
-      farmId = arg1 || this.currentFarmId;
+      farmId = arg1 !== undefined ? arg1 : this.currentFarmId;
       callback = arg2;
+    }
+
+    if (!farmId) {
+      callback(null);
+      return () => {};
     }
 
     if (this.useLive) {
@@ -295,6 +307,7 @@ export class FirestoreDataService {
    */
   async getPlots(farmId = this.currentFarmId) {
     const targetFarm = farmId || this.currentFarmId;
+    if (!targetFarm) return [];
     if (this.useLive) {
       try {
         const plotsRef = collection(this.db, "farms", targetFarm, "plots");
@@ -320,10 +333,15 @@ export class FirestoreDataService {
     let callback, farmId;
     if (typeof arg1 === 'function') {
       callback = arg1;
-      farmId = arg2 || this.currentFarmId;
+      farmId = arg2 !== undefined ? arg2 : this.currentFarmId;
     } else {
-      farmId = arg1 || this.currentFarmId;
+      farmId = arg1 !== undefined ? arg1 : this.currentFarmId;
       callback = arg2;
+    }
+
+    if (!farmId) {
+      callback([]);
+      return () => {};
     }
 
     if (this.useLive) {
@@ -685,10 +703,15 @@ export class FirestoreDataService {
     let callback, farmId;
     if (typeof arg1 === 'function') {
       callback = arg1;
-      farmId = arg2 || this.currentFarmId;
+      farmId = arg2 !== undefined ? arg2 : this.currentFarmId;
     } else {
-      farmId = arg1 || this.currentFarmId;
+      farmId = arg1 !== undefined ? arg1 : this.currentFarmId;
       callback = arg2;
+    }
+
+    if (!farmId) {
+      callback([]);
+      return () => {};
     }
 
     if (this.useLive) {
@@ -738,6 +761,12 @@ export class FirestoreDataService {
     return id;
   }
 
+  async getIrrigationLogs(farmId = this.currentFarmId) {
+    const targetFarm = farmId || this.currentFarmId;
+    if (!targetFarm) return [];
+    return mockFirestore.getChannelSnapshot('irrigationLogs', targetFarm);
+  }
+
   // =========================================================================
   // 6. Action Recommendations: farms/{farmId}/actionRecommendations/{recId}
   // =========================================================================
@@ -749,10 +778,15 @@ export class FirestoreDataService {
     let callback, farmId;
     if (typeof arg1 === 'function') {
       callback = arg1;
-      farmId = arg2 || this.currentFarmId;
+      farmId = arg2 !== undefined ? arg2 : this.currentFarmId;
     } else {
-      farmId = arg1 || this.currentFarmId;
+      farmId = arg1 !== undefined ? arg1 : this.currentFarmId;
       callback = arg2;
+    }
+
+    if (!farmId) {
+      callback([]);
+      return () => {};
     }
 
     if (this.useLive) {
@@ -844,6 +878,12 @@ export class FirestoreDataService {
       }, `createActionRecommendation (${id})`);
     }
     return id;
+  }
+
+  async getActionRecommendations(farmId = this.currentFarmId) {
+    const targetFarm = farmId || this.currentFarmId;
+    if (!targetFarm) return [];
+    return mockFirestore.getChannelSnapshot('actionRecommendations', targetFarm);
   }
 
   // =========================================================================
@@ -942,10 +982,15 @@ export class FirestoreDataService {
     let callback, farmId;
     if (typeof arg1 === 'function') {
       callback = arg1;
-      farmId = arg2 || this.currentFarmId;
+      farmId = arg2 !== undefined ? arg2 : this.currentFarmId;
     } else {
-      farmId = arg1 || this.currentFarmId;
+      farmId = arg1 !== undefined ? arg1 : this.currentFarmId;
       callback = arg2;
+    }
+
+    if (!farmId) {
+      callback([]);
+      return () => {};
     }
 
     if (this.useLive) {
@@ -985,6 +1030,7 @@ export class FirestoreDataService {
    */
   async getCropCatalog(farmId = this.currentFarmId) {
     const targetFarm = farmId || this.currentFarmId;
+    if (!targetFarm) return [];
     if (this.useLive) {
       try {
         const cropsRef = collection(this.db, "farms", targetFarm, "crops");

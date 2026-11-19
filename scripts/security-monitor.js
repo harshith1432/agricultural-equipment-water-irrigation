@@ -25,13 +25,15 @@ const IGNORED_DIRS = new Set([
   'build',
   'qa_artifacts',
   '.idea',
-  'public'
+  'public',
+  'credentials'
 ]);
 
 const IGNORED_FILES = new Set([
   'package-lock.json',
   'bignumber.js',
   'google-services.json',
+  'service-account.json',
   '.env',
   '.env.local'
 ]);
@@ -94,7 +96,7 @@ function getAllFiles(dir, fileList = []) {
     const stat = fs.statSync(fullPath);
     if (stat.isDirectory()) {
       getAllFiles(fullPath, fileList);
-    } else if (stat.isFile() && !IGNORED_FILES.has(item)) {
+    } else if (stat.isFile() && !IGNORED_FILES.has(item) && !item.includes('adminsdk') && !item.includes('service-account')) {
       fileList.push(fullPath);
     }
   }

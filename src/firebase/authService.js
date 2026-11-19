@@ -48,7 +48,7 @@ import { secureStorage } from '../utils/secureStorage.js';
 import { sanitizeText } from '../utils/sanitizer.js';
 import { firestoreService } from './firestoreService.js';
 
-export const DEFAULT_FARM_ID = "farm-carlos-valley-1";
+export const DEFAULT_FARM_ID = "farm-valley-1";
 export const DEFAULT_ROLE = "Agronomist";
 const STORAGE_USER_KEY = "agrispectra_auth_user";
 const STORAGE_OFFLINE_PROFILE_KEY = "agrispectra_offline_profile";
@@ -129,7 +129,11 @@ class AuthService {
     // Load any cached user session from localStorage for 0ms initial field boot
     this._loadCachedSession();
     try {
-      if (this.currentUser) firestoreService.setActiveUser(this.currentUser);
+      if (this.currentUser) {
+        firestoreService.setActiveUser(this.currentUser);
+      } else {
+        firestoreService.setActiveUser(null);
+      }
     } catch (e) {}
 
     // Setup live Firebase Auth state listener if initialized in browser
@@ -250,12 +254,31 @@ class AuthService {
   }
 
   /**
-   * Clear session cache
+   * Clear session cache and encrypted session cookies
    */
   _clearCachedSession() {
     try {
       if (typeof localStorage !== 'undefined') {
         localStorage.removeItem(STORAGE_USER_KEY);
+        localStorage.removeItem(STORAGE_OFFLINE_PROFILE_KEY);
+      }
+      try {
+        secureStorage.secureRemoveItem(STORAGE_USER_KEY);
+        secureStorage.secureRemoveItem(STORAGE_OFFLINE_PROFILE_KEY);
+      } catch (e) {}
+
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.clear();
+      }
+
+      if (typeof document !== 'undefined' && document.cookie) {
+        const cookies = document.cookie.split(";");
+        for (let c of cookies) {
+          const eqPos = c.indexOf("=");
+          const name = eqPos > -1 ? c.substr(0, eqPos).trim() : c.trim();
+          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;SameSite=Strict`;
+          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+        }
       }
     } catch (e) {
       // Ignore
@@ -287,12 +310,12 @@ class AuthService {
   getCurrentUser() {
     if (this.currentUser) {
       const role = this.currentUser.role || this.currentUserProfile?.role || DEFAULT_ROLE;
-      const farmName = this.currentUser.farmName || this.currentUserProfile?.farmName || "Sonoma Valley Drip Vineyard";
-      const farmId = this.currentUser.farmId || this.currentUserProfile?.farmId || DEFAULT_FARM_ID;
+      const farmName = this.currentUser.farmName || this.currentUserProfile?.farmName || "Personal Farm Parcel";
+      const farmId = this.currentUser.farmId || this.currentUserProfile?.farmId || (this.currentUser.uid ? `farm_${this.currentUser.uid}` : DEFAULT_FARM_ID);
       const userPayload = {
         uid: this.currentUser.uid,
         email: this.currentUser.email,
-        displayName: this.currentUser.displayName || this.currentUserProfile?.displayName || "Farmer Dave",
+        displayName: this.currentUser.displayName || this.currentUserProfile?.displayName || (this.currentUser.email ? this.currentUser.email.split('@')[0] : "Grower"),
         photoURL: this.currentUser.photoURL || this.currentUserProfile?.photoURL || null,
         role: role,
         farmId: farmId,

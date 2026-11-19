@@ -24,7 +24,10 @@ backend/.env.*
 client_secret*.json
 *client_secret*.json
 *credentials*.json
+credentials/
+backend/credentials/
 google-services.json
+android/app/google-services.json
 *.pem
 *.key
 

@@ -960,6 +960,17 @@ class ReactiveMockFirestore {
   }
 
   loadData(farmId = this.currentFarmId) {
+    if (!farmId) {
+      return {
+        farmId: null,
+        name: 'Unauthenticated',
+        plots: {},
+        crops: {},
+        leafScans: [],
+        irrigationLogs: [],
+        actionRecommendations: []
+      };
+    }
     const normId = this.normalizeFarmId(farmId);
     try {
       if (typeof localStorage !== 'undefined') {
@@ -997,6 +1008,7 @@ class ReactiveMockFirestore {
   }
 
   saveData(farmId = this.currentFarmId) {
+    if (!farmId) return;
     const normId = this.normalizeFarmId(farmId);
     try {
       if (typeof localStorage !== 'undefined') {
@@ -1017,6 +1029,17 @@ class ReactiveMockFirestore {
   }
 
   getFarmData(farmId = this.currentFarmId) {
+    if (!farmId) {
+      return {
+        farmId: null,
+        name: 'Unauthenticated',
+        plots: {},
+        crops: {},
+        leafScans: [],
+        irrigationLogs: [],
+        actionRecommendations: []
+      };
+    }
     const normId = this.normalizeFarmId(farmId);
     if (!this.farmsData[normId]) {
       this.farmsData[normId] = this.loadData(normId);
@@ -1035,9 +1058,24 @@ class ReactiveMockFirestore {
     if (val && val.farmId) {
       const normId = this.normalizeFarmId(val.farmId);
       this.farmsData[normId] = val;
-    } else {
+    } else if (this.currentFarmId) {
       this.farmsData[this.normalizeFarmId(this.currentFarmId)] = val;
     }
+  }
+
+  /**
+   * Resets the active user chamber and clears in-memory caches
+   * of plots, irrigation logs, telemetry, and recommendations
+   */
+  resetActiveChamber() {
+    this.currentFarmId = null;
+    this.activeUserChamber = null;
+    Object.keys(this.farmsData).forEach(k => {
+      if (k.startsWith('farm_') || k.startsWith('usr') || k.startsWith('farm-guest')) {
+        delete this.farmsData[k];
+      }
+    });
+    this.notifyAll();
   }
 
   /**
@@ -1046,6 +1084,10 @@ class ReactiveMockFirestore {
    * @param {Object} user
    */
   setActiveFarm(farmId, user = null) {
+    if (!farmId) {
+      this.resetActiveChamber();
+      return null;
+    }
     const normId = this.normalizeFarmId(farmId);
     this.currentFarmId = normId;
     if (!this.farmsData[normId]) {
@@ -1090,14 +1132,26 @@ class ReactiveMockFirestore {
   }
 
   getPlots(farmId = this.currentFarmId) {
+    if (!farmId) return [];
     return Object.values(this.getFarmData(farmId).plots || {});
   }
 
   getCrops(farmId = this.currentFarmId) {
+    if (!farmId) return [];
     return Object.values(this.getFarmData(farmId).crops || {});
   }
 
   getChannelSnapshot(channel, farmId = this.currentFarmId) {
+    if (!farmId) {
+      if (channel === 'plots') return [];
+      if (channel === 'crops' || channel === 'cropCatalog') return [];
+      if (channel === 'leafScans') return [];
+      if (channel === 'irrigationLogs') return [];
+      if (channel === 'actionRecommendations') return [];
+      if (channel === 'farm') return null;
+      if (channel === 'userPreferences') return this.getUserPreferences();
+      return null;
+    }
     const farmData = this.getFarmData(farmId);
     if (channel === 'plots') {
       return Object.values(farmData.plots || {}).sort((a, b) => (a.plotNumber || 0) - (b.plotNumber || 0));
@@ -1430,7 +1484,7 @@ class ReactiveMockFirestore {
       // Ignore
     }
 
-    const memoryPrefs = this.data.userPreferences?.[userKey];
+    const memoryPrefs = this.userPreferencesStore?.[userKey] || this.data?.userPreferences?.[userKey];
     return {
       ...DEFAULT_USER_PREFERENCES,
       ...(storedPrefs || {}),
@@ -1449,11 +1503,17 @@ class ReactiveMockFirestore {
       updatedAt: new Date().toISOString()
     };
 
-    if (!this.data.userPreferences) {
-      this.data.userPreferences = {};
+    if (!this.userPreferencesStore) {
+      this.userPreferencesStore = {};
     }
-    this.data.userPreferences[userKey] = updated;
-    this.saveData();
+    this.userPreferencesStore[userKey] = updated;
+
+    if (this.currentFarmId && this.farmsData && this.farmsData[this.normalizeFarmId(this.currentFarmId)]) {
+      const farm = this.farmsData[this.normalizeFarmId(this.currentFarmId)];
+      if (!farm.userPreferences) farm.userPreferences = {};
+      farm.userPreferences[userKey] = updated;
+      this.saveData(this.currentFarmId);
+    }
 
     try {
       if (typeof localStorage !== 'undefined') {

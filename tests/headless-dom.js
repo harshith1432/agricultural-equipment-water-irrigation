@@ -273,7 +273,11 @@ export class MockElement {
   }
 
   get innerHTML() {
-    return this._innerHTML;
+    if (this._innerHTML) return this._innerHTML;
+    if (this.children && this.children.length > 0) {
+      return this.children.map(c => c.innerHTML || '').join('');
+    }
+    return '';
   }
 
   set innerHTML(html) {
@@ -495,15 +499,42 @@ export function setupHeadlessDOM() {
     globalThis.prompt = () => '';
   }
 
+  if (!globalThis.localStorage) {
+    const store = new Map();
+    globalThis.localStorage = {
+      getItem: (key) => store.get(key) || null,
+      setItem: (key, value) => store.set(key, String(value)),
+      removeItem: (key) => store.delete(key),
+      clear: () => store.clear(),
+      get length() { return store.size; },
+      key: (i) => Array.from(store.keys())[i] || null
+    };
+  }
+
   if (!globalThis.window) {
     globalThis.window = {
       innerWidth: 390,
       innerHeight: 844,
+      location: {
+        protocol: 'http:',
+        hostname: 'localhost',
+        pathname: '/',
+        search: '',
+        replaceState: () => {}
+      },
       confirm: globalThis.confirm,
       alert: globalThis.alert,
       addEventListener: () => {},
       removeEventListener: () => {},
       dispatchEvent: () => {}
+    };
+  } else if (!globalThis.window.location) {
+    globalThis.window.location = {
+      protocol: 'http:',
+      hostname: 'localhost',
+      pathname: '/',
+      search: '',
+      replaceState: () => {}
     };
   }
 

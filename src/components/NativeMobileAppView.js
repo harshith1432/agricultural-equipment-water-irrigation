@@ -91,7 +91,8 @@ export function createNativeMobileAppView({
     onThemeChange,
     currentTheme,
     currentUser,
-    onOpenAuthModal
+    onOpenAuthModal,
+    onSignOut
   });
   header.classList.add('flex-shrink-0');
   container.appendChild(header);
