@@ -1267,6 +1267,9 @@ class AuthService {
 
     // Prevent any test runner, synthetic, or demo/fake users from being written to live Cloud Firestore
     const isTestRunner = (typeof process !== 'undefined' && process.env?.NODE_ENV === 'test') || Boolean(globalThis.__IS_TEST_ENV__);
+    const cleanEmailLower = String(cleanEmail || '').toLowerCase();
+    const cleanEmailDomain = cleanEmailLower.includes('@') ? cleanEmailLower.split('@').pop() : '';
+    const isMockEmailDomain = ['valleyfarms.com', 'solenoidflow.org', 'example.com', 'testfarms.com'].includes(cleanEmailDomain);
     const isDemoOrGuest = Boolean(
       isTestRunner ||
       user.isDemo ||
@@ -1274,7 +1277,8 @@ class AuthService {
       user.uid === 'guest-offline-farmer' ||
       (typeof user.uid === 'string' && (user.uid.startsWith('usr-') || user.uid.startsWith('test-'))) ||
       ['user-carlos-1', 'user-elena-2', 'user-mateo-3', 'usr-ent-02', 'user-acchu-harshith'].includes(user.uid) ||
-      (cleanEmail && (cleanEmail.includes('valleyfarms.com') || cleanEmail.includes('solenoidflow.org') || cleanEmail.includes('example.com') || cleanEmail.includes('test')))
+      isMockEmailDomain ||
+      cleanEmailLower.startsWith('test')
     );
 
     let existingData = null;
@@ -1458,20 +1462,20 @@ class AuthService {
 
     // Strictly defend live database from test runner and demo mock data pollution
     const isTestEnv = typeof process !== 'undefined' && (process.env?.NODE_ENV === 'test' || typeof window === 'undefined');
+    const profileEmailLower = String(profileData.email || '').toLowerCase();
+    const profileEmailDomain = profileEmailLower.includes('@') ? profileEmailLower.split('@').pop() : '';
+    const isMockProfileDomain = ['valleyfarms.com', 'solenoidflow.org', 'testfarms.com', 'example.com'].includes(profileEmailDomain);
     const isDemoOrTest = Boolean(
       profileData.isDemo ||
       profileData.isAnonymous ||
       profileData.uid === 'guest-offline-farmer' ||
       ['user-carlos-1', 'user-elena-2', 'user-mateo-3', 'usr-ent-02'].includes(profileData.uid) ||
-      (profileData.email && (
-        profileData.email.includes('valleyfarms.com') ||
-        profileData.email.includes('solenoidflow.org') ||
-        profileData.email.includes('testfarms.com') ||
-        profileData.email.startsWith('order') ||
-        profileData.email.startsWith('newgrower') ||
-        profileData.email.startsWith('portal_signup') ||
-        profileData.email.startsWith('grower_')
-      ))
+      isMockProfileDomain ||
+      profileEmailLower.startsWith('order') ||
+      profileEmailLower.startsWith('newgrower') ||
+      profileEmailLower.startsWith('portal_signup') ||
+      profileEmailLower.startsWith('grower_') ||
+      profileEmailLower.startsWith('test')
     );
     if (isTestEnv || isDemoOrTest) {
       return false;
@@ -1664,11 +1668,15 @@ class AuthService {
     this._notifyListeners();
 
     // Auto-sync profile to Cloud Firestore & Enterprise Backend only for authentic real users (never fake/demo personas)
+    const offlineEmailLower = String(offlineUser.email || '').toLowerCase();
+    const offlineEmailDomain = offlineEmailLower.includes('@') ? offlineEmailLower.split('@').pop() : '';
+    const isMockOfflineDomain = ['valleyfarms.com', 'solenoidflow.org', 'testfarms.com', 'example.com'].includes(offlineEmailDomain);
     const isDemoOrGuest = Boolean(
       offlineUser.isDemo ||
       offlineUser.isAnonymous ||
       ['user-carlos-1', 'user-elena-2', 'user-mateo-3', 'usr-ent-02', 'guest-offline-farmer'].includes(offlineUser.uid) ||
-      (offlineUser.email && (offlineUser.email.includes('valleyfarms.com') || offlineUser.email.includes('solenoidflow.org')))
+      isMockOfflineDomain ||
+      offlineEmailLower.startsWith('test')
     );
 
     if (!isDemoOrGuest && (isLive || isLiveFirebaseConfigured)) {

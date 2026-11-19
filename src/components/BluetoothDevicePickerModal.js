@@ -1,9 +1,10 @@
 /**
  * AgriSpectra BluetoothDevicePickerModal Component (White & Green Theme)
  * High-clarity mobile Bluetooth scanner:
- * - Always shows meaningful device names (never "Unknown ...")
- * - Upgrades device names dynamically when scan responses arrive
- * - Click-to-expand details and prominent green Connect button
+ * - Always shows meaningful device names and prioritizes named spectroscope hardware
+ * - Zero jumping on scroll: card expands smoothly in place without resetting scroll position
+ * - MAC address formatted with full-width key-value rows so it never overflows
+ * - Clean white and emerald-green theme with no unnecessary banner text
  */
 
 import { leafClipDevice } from '../hardware/webBluetoothLeafClip.js';
@@ -111,16 +112,174 @@ export function createBluetoothDevicePickerModal({ onConnected, onDismiss } = {}
   }
 
   function getSignalBadge(rssi) {
-    if (!rssi && rssi !== 0) return { label: 'Unknown', color: 'text-slate-400', bars: 1 };
+    if (!rssi && rssi !== 0) return { label: 'Signal: Detecting', color: 'text-slate-400', bars: 1 };
     if (rssi >= -65) return { label: `${rssi} dBm (Strong)`, color: 'text-emerald-700 font-bold', bars: 4 };
     if (rssi >= -80) return { label: `${rssi} dBm (Good)`, color: 'text-emerald-600 font-medium', bars: 3 };
     return { label: `${rssi} dBm (Weak)`, color: 'text-amber-600', bars: 2 };
   }
 
-  function renderSafeDeviceCards(container, list) {
-    container.innerHTML = '';
-    list.forEach(dev => {
-      const devKey = String(dev.id || dev.deviceId || dev.mac || '');
+  // Build static modal frame once
+  modal.innerHTML = `
+    <!-- Clean White & Green Modal Header -->
+    <div class="flex items-center justify-between pb-3 border-b border-emerald-100">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center shrink-0 shadow-sm">
+          <svg id="ble-header-icon" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="7 7 17 17 12 22 12 2 17 7 7 17"/>
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h2 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
+              Bluetooth Devices
+            </h2>
+            <div id="ble-status-badge-container"></div>
+          </div>
+          <p class="text-xs text-slate-500">
+            Tap a device to view details and connect
+          </p>
+        </div>
+      </div>
+
+      <button 
+        type="button" 
+        id="btn-close-ble-picker"
+        class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition cursor-pointer"
+        aria-label="Close"
+      >
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <!-- Controls: Search & Re-Scan Button -->
+    <div class="flex items-center gap-2">
+      <div class="relative flex-1">
+        <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input 
+          type="text" 
+          id="ble-search-input" 
+          placeholder="Search by device name or MAC..."
+          class="w-full pl-9 pr-3 py-2 bg-slate-50 hover:bg-white text-xs rounded-xl border border-slate-200 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-600 focus:bg-white transition"
+        />
+      </div>
+
+      <button 
+        id="btn-ble-rescan"
+        class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-1.5 transition active:scale-95 shrink-0 cursor-pointer shadow-sm"
+      >
+        <svg id="ble-rescan-icon" class="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
+        <span id="ble-rescan-text">Re-scan</span>
+      </button>
+    </div>
+
+    <!-- Discovered Devices List Container (Scrollable) -->
+    <div id="ble-devices-list-container" class="flex-1 overflow-y-auto space-y-2.5 min-h-[240px] max-h-[420px] pr-0.5"></div>
+  `;
+
+  const listContainer = modal.querySelector('#ble-devices-list-container');
+  const statusBadgeContainer = modal.querySelector('#ble-status-badge-container');
+  const rescanBtn = modal.querySelector('#btn-ble-rescan');
+  const rescanIcon = modal.querySelector('#ble-rescan-icon');
+  const rescanText = modal.querySelector('#ble-rescan-text');
+  const headerIcon = modal.querySelector('#ble-header-icon');
+  const searchInput = modal.querySelector('#ble-search-input');
+
+  function updateHeaderState(deviceCount) {
+    if (isScanning) {
+      headerIcon.classList.add('animate-pulse');
+      rescanIcon.classList.add('animate-spin');
+      rescanBtn.disabled = true;
+      rescanText.textContent = 'Scanning...';
+      statusBadgeContainer.innerHTML = `
+        <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-ping"></span>
+          Scanning...
+        </span>
+      `;
+    } else {
+      headerIcon.classList.remove('animate-pulse');
+      rescanIcon.classList.remove('animate-spin');
+      rescanBtn.disabled = false;
+      rescanText.textContent = 'Re-scan';
+      statusBadgeContainer.innerHTML = `
+        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600">
+          ${deviceCount} found
+        </span>
+      `;
+    }
+  }
+
+  function renderList(targetToScrollIntoView = null) {
+    // Preserve scroll position so tapping never jumps to top
+    const prevScrollTop = listContainer.scrollTop;
+
+    const enrichedList = discoveredDevices.map(enrichDevice);
+
+    // Prioritization:
+    // 1. ST BlueNRG & nRF Spectroscopes at top
+    // 2. Real named peripherals (e.g. OnePlus, Printers, named devices)
+    // 3. Generic unnamed beacons
+    // 4. Signal strength (RSSI)
+    enrichedList.sort((a, b) => {
+      if (a.isBlueNrg && !b.isBlueNrg) return -1;
+      if (!a.isBlueNrg && b.isBlueNrg) return 1;
+      if (a.isNrf && !b.isNrf) return -1;
+      if (!a.isNrf && b.isNrf) return 1;
+      const aGeneric = /Bluetooth Device|BLE Peripheral|Smart Sensor|Wireless Tracker/i.test(a.name);
+      const bGeneric = /Bluetooth Device|BLE Peripheral|Smart Sensor|Wireless Tracker/i.test(b.name);
+      if (!aGeneric && bGeneric) return -1;
+      if (aGeneric && !bGeneric) return 1;
+      return (Number(b.rssi) || -100) - (Number(a.rssi) || -100);
+    });
+
+    const filtered = enrichedList.filter(dev => {
+      const q = searchQuery.trim().toLowerCase();
+      if (!q) return true;
+      const devName = (dev.name || '').toLowerCase();
+      const devMac = (dev.mac || dev.id || '').toLowerCase();
+      const devProto = (dev.protocol || '').toLowerCase();
+      return devName.includes(q) || devMac.includes(q) || devProto.includes(q);
+    });
+
+    updateHeaderState(enrichedList.length);
+
+    listContainer.innerHTML = '';
+
+    if (filtered.length === 0) {
+      listContainer.innerHTML = `
+        <div class="flex flex-col items-center justify-center py-12 text-center space-y-3">
+          <div class="relative w-14 h-14 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center">
+            ${isScanning ? `
+              <div class="absolute inset-0 rounded-full border border-emerald-400 animate-ping opacity-75"></div>
+              <svg class="w-6 h-6 text-emerald-700 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                <path d="M3 3v5h5"/>
+                <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+                <path d="M16 21h5v-5"/>
+              </svg>
+            ` : `
+              <svg class="w-6 h-6 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="7 7 17 17 12 22 12 2 17 7 7 17"/>
+              </svg>
+            `}
+          </div>
+          <div class="space-y-1">
+            <h4 class="text-sm font-bold text-slate-800">
+              ${isScanning ? 'Searching for nearby Bluetooth devices...' : 'No Bluetooth devices detected'}
+            </h4>
+            <p class="text-xs text-slate-500 max-w-xs mx-auto">
+              ${isScanning 
+                ? 'Keep your spectroscope close and powered on...' 
+                : 'Ensure Bluetooth is turned on on your spectroscope and tap Re-scan.'}
+            </p>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    filtered.forEach(dev => {
+      const devKey = dev.id || dev.deviceId || dev.mac;
       const isExpanded = expandedDeviceId === devKey;
       const isConnecting = connectingDeviceId === devKey;
       const isCurrentConnected = leafClipDevice.isConnected && (
@@ -132,6 +291,7 @@ export function createBluetoothDevicePickerModal({ onConnected, onDismiss } = {}
       const sig = getSignalBadge(dev.rssi);
 
       const card = document.createElement('div');
+      card.setAttribute('data-dev-card', devKey);
       card.className = `device-card-item rounded-2xl transition-all duration-200 border ${
         isCurrentConnected
           ? 'bg-emerald-50/70 border-emerald-400 shadow-sm'
@@ -142,7 +302,7 @@ export function createBluetoothDevicePickerModal({ onConnected, onDismiss } = {}
                   : 'bg-white hover:bg-slate-50 border-slate-200'))
       }`;
 
-      // Header row
+      // Card Header row (Tap to toggle expansion)
       const headerRow = document.createElement('div');
       headerRow.className = 'btn-toggle-device-card p-3.5 flex items-center justify-between gap-3 cursor-pointer select-none';
       headerRow.setAttribute('data-dev-toggle', devKey);
@@ -181,7 +341,7 @@ export function createBluetoothDevicePickerModal({ onConnected, onDismiss } = {}
       infoBox.appendChild(titleRow);
 
       const macEl = document.createElement('p');
-      macEl.className = 'text-[11px] text-slate-500 font-mono mt-0.5';
+      macEl.className = 'text-[11px] text-slate-500 font-mono mt-0.5 break-all select-all';
       macEl.textContent = dev.mac || dev.id || '';
       infoBox.appendChild(macEl);
 
@@ -209,47 +369,55 @@ export function createBluetoothDevicePickerModal({ onConnected, onDismiss } = {}
       headerRow.appendChild(rightCol);
       card.appendChild(headerRow);
 
-      // Expanded details
+      // Expanded details (Full width stacked layout - MAC address never goes outside layout)
       if (isExpanded) {
         const expDiv = document.createElement('div');
         expDiv.className = 'px-4 pb-4 pt-1 border-t border-emerald-100 space-y-3 animate-fadeIn';
 
-        const specGrid = document.createElement('div');
-        specGrid.className = 'grid grid-cols-2 gap-2 text-xs bg-white/90 p-3 rounded-xl border border-emerald-100';
+        const specCard = document.createElement('div');
+        specCard.className = 'space-y-2 bg-emerald-50/40 p-3 rounded-xl border border-emerald-100/80 text-xs';
 
-        const c1 = document.createElement('div');
-        c1.innerHTML = '<span class="text-slate-400 block text-[10px] uppercase font-semibold">Device Name</span>';
-        const c1Val = document.createElement('strong');
-        c1Val.className = 'text-slate-800 text-xs';
-        c1Val.textContent = dev.name || 'Bluetooth Device';
-        c1.appendChild(c1Val);
-        specGrid.appendChild(c1);
+        // Row 1: Device Name
+        const r1 = document.createElement('div');
+        r1.className = 'flex items-center justify-between gap-3 border-b border-emerald-100/60 pb-1.5';
+        r1.innerHTML = '<span class="text-slate-500 text-[11px] font-medium shrink-0">Device Name</span>';
+        const r1Val = document.createElement('span');
+        r1Val.className = 'text-slate-800 font-bold text-xs text-right break-words';
+        r1Val.textContent = dev.name || 'Bluetooth Device';
+        r1.appendChild(r1Val);
+        specCard.appendChild(r1);
 
-        const c2 = document.createElement('div');
-        c2.innerHTML = '<span class="text-slate-400 block text-[10px] uppercase font-semibold">MAC Address</span>';
-        const c2Val = document.createElement('strong');
-        c2Val.className = 'text-slate-800 font-mono text-xs';
-        c2Val.textContent = dev.mac || dev.id || '';
-        c2.appendChild(c2Val);
-        specGrid.appendChild(c2);
+        // Row 2: MAC Address (Full-width, break-all, zero overflow!)
+        const r2 = document.createElement('div');
+        r2.className = 'flex items-center justify-between gap-3 border-b border-emerald-100/60 pb-1.5';
+        r2.innerHTML = '<span class="text-slate-500 text-[11px] font-medium shrink-0">MAC Address</span>';
+        const r2Val = document.createElement('span');
+        r2Val.className = 'text-slate-800 font-mono text-xs text-right tracking-tight break-all select-all';
+        r2Val.textContent = dev.mac || dev.id || '';
+        r2.appendChild(r2Val);
+        specCard.appendChild(r2);
 
-        const c3 = document.createElement('div');
-        c3.innerHTML = '<span class="text-slate-400 block text-[10px] uppercase font-semibold">Protocol</span>';
-        const c3Val = document.createElement('span');
-        c3Val.className = 'text-emerald-700 font-semibold text-xs';
-        c3Val.textContent = dev.protocol || 'ST BlueNRG Chat';
-        c3.appendChild(c3Val);
-        specGrid.appendChild(c3);
+        // Row 3: Protocol
+        const r3 = document.createElement('div');
+        r3.className = 'flex items-center justify-between gap-3 border-b border-emerald-100/60 pb-1.5';
+        r3.innerHTML = '<span class="text-slate-500 text-[11px] font-medium shrink-0">Protocol</span>';
+        const r3Val = document.createElement('span');
+        r3Val.className = 'text-emerald-700 font-semibold text-xs text-right';
+        r3Val.textContent = dev.protocol || 'ST BlueNRG Chat';
+        r3.appendChild(r3Val);
+        specCard.appendChild(r3);
 
-        const c4 = document.createElement('div');
-        c4.innerHTML = '<span class="text-slate-400 block text-[10px] uppercase font-semibold">Signal Quality</span>';
-        const c4Val = document.createElement('span');
-        c4Val.className = `${sig.color} text-xs font-semibold`;
-        c4Val.textContent = sig.label;
-        c4.appendChild(c4Val);
-        specGrid.appendChild(c4);
+        // Row 4: Signal Quality
+        const r4 = document.createElement('div');
+        r4.className = 'flex items-center justify-between gap-3';
+        r4.innerHTML = '<span class="text-slate-500 text-[11px] font-medium shrink-0">Signal Quality</span>';
+        const r4Val = document.createElement('span');
+        r4Val.className = `${sig.color} text-xs font-semibold text-right`;
+        r4Val.textContent = sig.label;
+        r4.appendChild(r4Val);
+        specCard.appendChild(r4);
 
-        expDiv.appendChild(specGrid);
+        expDiv.appendChild(specCard);
 
         // Connect button
         const connBtn = document.createElement('button');
@@ -275,204 +443,69 @@ export function createBluetoothDevicePickerModal({ onConnected, onDismiss } = {}
           btnSpan.textContent = `Connect to ${dev.name}`;
         }
         connBtn.appendChild(btnSpan);
-        expDiv.appendChild(connBtn);
 
+        connBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          if (leafClipDevice.isConnected && (leafClipDevice.deviceInfo?.id === devKey || leafClipDevice.device?.deviceId === devKey)) {
+            leafClipDevice.disconnect();
+            renderList();
+            return;
+          }
+
+          connectingDeviceId = devKey;
+          renderList();
+
+          try {
+            const res = await leafClipDevice.connectToDevice(dev);
+            connectingDeviceId = null;
+            renderList();
+            setTimeout(() => {
+              closeModal();
+              if (onConnected) onConnected(res);
+            }, 350);
+          } catch (err) {
+            connectingDeviceId = null;
+            alert("Bluetooth connection failed: " + (err.message || err));
+            renderList();
+          }
+        });
+
+        expDiv.appendChild(connBtn);
         card.appendChild(expDiv);
       }
 
-      container.appendChild(card);
-    });
-  }
+      // Event listener for expanding card without scrolling to top
+      headerRow.addEventListener('click', () => {
+        const willExpand = expandedDeviceId !== devKey;
+        expandedDeviceId = willExpand ? devKey : null;
+        renderList(willExpand ? devKey : null);
+      });
 
-  function render() {
-    const enrichedList = discoveredDevices.map(enrichDevice);
-
-    const filtered = enrichedList.filter(dev => {
-      const q = searchQuery.trim().toLowerCase();
-      if (!q) return true;
-      const devName = (dev.name || '').toLowerCase();
-      const devMac = (dev.mac || dev.id || '').toLowerCase();
-      const devProto = (dev.protocol || '').toLowerCase();
-      return devName.includes(q) || devMac.includes(q) || devProto.includes(q);
+      listContainer.appendChild(card);
     });
 
-    modal.innerHTML = `
-      <!-- Clean White & Green Modal Header -->
-      <div class="flex items-center justify-between pb-3 border-b border-emerald-100">
-        <div class="flex items-center gap-3">
-          <div class="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center shrink-0 shadow-sm">
-            <svg class="w-6 h-6 ${isScanning ? 'animate-pulse' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="7 7 17 17 12 22 12 2 17 7 7 17"/>
-            </svg>
-          </div>
-          <div>
-            <div class="flex items-center gap-2">
-              <h2 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
-                Bluetooth Devices
-              </h2>
-              ${isScanning ? `
-                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800">
-                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-ping"></span>
-                  Scanning...
-                </span>
-              ` : `
-                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600">
-                  ${enrichedList.length} found
-                </span>
-              `}
-            </div>
-            <p class="text-xs text-slate-500">
-              Tap a device to view details and connect
-            </p>
-          </div>
-        </div>
+    // Restore previous scroll position immediately
+    listContainer.scrollTop = prevScrollTop;
 
-        <button 
-          type="button"
-          id="btn-close-ble-picker"
-          class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition cursor-pointer"
-          aria-label="Close"
-        >
-          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </div>
-
-      <!-- Controls: Clean Search & Re-Scan Button -->
-      <div class="flex items-center gap-2">
-        <div class="relative flex-1">
-          <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input 
-            type="text" 
-            id="ble-search-input" 
-            value="${escapeHtml(searchQuery)}"
-            placeholder="Search by device name or MAC..."
-            class="w-full pl-9 pr-3 py-2 bg-slate-50 hover:bg-white text-xs rounded-xl border border-slate-200 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-600 focus:bg-white transition"
-          />
-        </div>
-
-        <button 
-          id="btn-ble-rescan"
-          class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-1.5 transition active:scale-95 shrink-0 cursor-pointer shadow-sm"
-          ${isScanning ? 'disabled' : ''}
-        >
-          <svg class="w-3.5 h-3.5 text-white ${isScanning ? 'animate-spin' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
-          <span>${isScanning ? 'Scanning...' : 'Re-scan'}</span>
-        </button>
-      </div>
-
-      <!-- Discovered Devices List Container (Safe DOM Rendering) -->
-      <div id="ble-devices-list-container" class="flex-1 overflow-y-auto no-scrollbar space-y-2.5 min-h-[220px] max-h-[380px] pr-0.5"></div>
-
-      <!-- Footer Info -->
-      <div class="pt-2 border-t border-emerald-100 flex items-center justify-between text-xs text-slate-500">
-        <span class="flex items-center gap-1.5 font-medium text-emerald-800">
-          <span class="w-2 h-2 rounded-full bg-emerald-600"></span>
-          ST BlueNRG & nRF Spectroscopes supported
-        </span>
-        <span>Tap device to connect</span>
-      </div>
-    `;
-
-    const listContainer = modal.querySelector('#ble-devices-list-container');
-    if (filtered.length === 0) {
-      listContainer.innerHTML = `
-        <div class="flex flex-col items-center justify-center py-12 text-center space-y-3">
-          <div class="relative w-14 h-14 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center">
-            ${isScanning ? `
-              <div class="absolute inset-0 rounded-full border border-emerald-400 animate-ping opacity-75"></div>
-              <svg class="w-6 h-6 text-emerald-700 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-                <path d="M3 3v5h5"/>
-                <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
-                <path d="M16 21h5v-5"/>
-              </svg>
-            ` : `
-              <svg class="w-6 h-6 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="7 7 17 17 12 22 12 2 17 7 7 17"/>
-              </svg>
-            `}
-          </div>
-          <div class="space-y-1">
-            <h4 class="text-sm font-bold text-slate-800">
-              ${isScanning ? 'Searching for nearby Bluetooth devices...' : 'No Bluetooth devices detected'}
-            </h4>
-            <p class="text-xs text-slate-500 max-w-xs mx-auto">
-              ${isScanning 
-                ? 'Keep your spectroscope close and powered on...' 
-                : 'Ensure Bluetooth is turned on on your spectroscope and tap Re-scan.'}
-            </p>
-          </div>
-        </div>
-      `;
-    } else {
-      renderSafeDeviceCards(listContainer, filtered);
+    // If a card was just clicked to expand, scroll that card into view smoothly
+    if (targetToScrollIntoView) {
+      setTimeout(() => {
+        const targetEl = listContainer.querySelector(`[data-dev-card="${targetToScrollIntoView}"]`);
+        if (targetEl) {
+          targetEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }, 50);
     }
-
-    // Attach event listeners
-    modal.querySelector('#btn-close-ble-picker').addEventListener('click', closeModal);
-
-    const searchInput = modal.querySelector('#ble-search-input');
-    searchInput.addEventListener('input', (e) => {
-      searchQuery = e.target.value;
-      render();
-    });
-
-    modal.querySelector('#btn-ble-rescan').addEventListener('click', () => {
-      startScan();
-    });
-
-    // Toggle card expansion
-    modal.querySelectorAll('.btn-toggle-device-card').forEach(elem => {
-      elem.addEventListener('click', () => {
-        const devKey = elem.getAttribute('data-dev-toggle');
-        expandedDeviceId = (expandedDeviceId === devKey ? null : devKey);
-        render();
-      });
-    });
-
-    // Connect button click
-    modal.querySelectorAll('.btn-connect-device').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const devKey = btn.getAttribute('data-connect-id');
-        const dev = enrichedList.find(d => (d.id === devKey || d.deviceId === devKey || d.mac === devKey));
-        if (!dev) return;
-
-        // If already connected, clicking toggles disconnect
-        if (leafClipDevice.isConnected && (leafClipDevice.deviceInfo?.id === devKey || leafClipDevice.device?.deviceId === devKey)) {
-          leafClipDevice.disconnect();
-          render();
-          return;
-        }
-
-        connectingDeviceId = devKey;
-        render();
-
-        try {
-          const res = await leafClipDevice.connectToDevice(dev);
-          connectingDeviceId = null;
-          render();
-          setTimeout(() => {
-            closeModal();
-            if (onConnected) onConnected(res);
-          }, 350);
-        } catch (err) {
-          connectingDeviceId = null;
-          alert("Bluetooth connection failed: " + (err.message || err));
-          render();
-        }
-      });
-    });
   }
 
   async function startScan() {
     isScanning = true;
-    render();
+    renderList();
 
     try {
       const results = await leafClipDevice.scanForDevices((newDev, all) => {
         discoveredDevices = mergeDeviceLists(discoveredDevices, all);
-        render();
+        renderList();
       });
       if (results && results.length > 0) {
         discoveredDevices = mergeDeviceLists(discoveredDevices, results);
@@ -481,7 +514,7 @@ export function createBluetoothDevicePickerModal({ onConnected, onDismiss } = {}
       console.warn("[BLE] Scan error:", e);
     } finally {
       isScanning = false;
-      render();
+      renderList();
     }
   }
 
@@ -492,6 +525,18 @@ export function createBluetoothDevicePickerModal({ onConnected, onDismiss } = {}
       if (onDismiss) onDismiss();
     }, 200);
   }
+
+  // Header and control event listeners
+  modal.querySelector('#btn-close-ble-picker').addEventListener('click', closeModal);
+
+  searchInput.addEventListener('input', (e) => {
+    searchQuery = e.target.value;
+    renderList();
+  });
+
+  rescanBtn.addEventListener('click', () => {
+    startScan();
+  });
 
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) closeModal();
@@ -508,7 +553,7 @@ export function createBluetoothDevicePickerModal({ onConnected, onDismiss } = {}
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
 
-  render();
+  renderList();
   startScan();
 
   return {

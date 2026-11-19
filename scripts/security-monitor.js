@@ -62,9 +62,10 @@ const DANGEROUS_PATTERNS = [
     id: 'INCOMPLETE_URL_SANITIZATION',
     name: 'Incomplete URL Substring Sanitization (CodeQL js/incomplete-url-substring-sanitization)',
     test: (filePath, content) => {
-      // Flag checking url/host with .includes("domain") or indexOf("domain")
-      const matches = content.match(/(?:\.baseUrl|\.url|\.origin|apiUrl)\.(?:includes|indexOf)\(['"`][^'"`]*\.[a-z]{2,}['"`]\)/g);
-      return matches ? `Unsafe substring check on URL string: ${matches.join(', ')}. Use new URL(url).hostname instead.` : null;
+      if (filePath.includes('node_modules') || filePath.includes('dist') || filePath.includes('.test.')) return null;
+      // Flag checking any string with .includes("domain.tld") or indexOf("domain.tld") which CodeQL flags as CWE-20
+      const matches = content.match(/\.(?:includes|indexOf)\(['"`][a-zA-Z0-9-]+\.(?:com|org|net|io|edu|gov)['"`]\)/g);
+      return matches ? `Unsafe substring check on domain/URL string: ${matches.join(', ')}. Compare parsed hostnames or exact domain parts instead.` : null;
     }
   },
   {
