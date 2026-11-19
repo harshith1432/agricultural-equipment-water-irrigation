@@ -822,7 +822,7 @@ class SchemaManager {
     // Normalize email to active account harshithkd0321@gmail.com
     const email = isAcchuHarshith ? 'harshithkd0321@gmail.com' : rawEmail;
 
-    let uid = userData.uid;
+    let uid = userData.uid ? String(userData.uid).replace(/[^a-zA-Z0-9_-]/g, '') : null;
     if (!uid) {
       if (isAcchuHarshith) {
         uid = 'system-admin-harshith';

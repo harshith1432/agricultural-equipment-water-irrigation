@@ -184,28 +184,18 @@ export class FirestoreClient {
   buildSafeFirestoreUrl(relativePath, queryParams = {}) {
     if (!relativePath || typeof relativePath !== 'string') return null;
     const segments = relativePath.split('/').filter(Boolean);
-    if (segments.length === 0 || segments.some(s => !/^[a-zA-Z0-9_-]+$/.test(s))) {
+    const ALLOWED_ROOT_COLLECTIONS = new Set(['farms', 'users', 'irrigation_logs', 'telemetry_logs', 'soil_scans', 'spectral_scans', 'crops', 'plots']);
+    if (segments.length === 0 || !ALLOWED_ROOT_COLLECTIONS.has(segments[0]) || segments.some(s => !/^[a-zA-Z0-9_-]+$/.test(s))) {
       return null;
     }
-    const cleanPath = segments.join('/');
+    const cleanPath = segments.map(s => encodeURIComponent(s)).join('/');
     const FIRESTORE_ORIGIN = 'https://firestore.googleapis.com';
     const basePath = `/v1/projects/${encodeURIComponent(this.projectId)}/databases/(default)/documents/${cleanPath}`;
     const safeUrl = new URL(basePath, FIRESTORE_ORIGIN);
     if (safeUrl.origin !== FIRESTORE_ORIGIN) {
       return null;
     }
-    for (const [key, val] of Object.entries(queryParams)) {
-      if (Array.isArray(val)) {
-        for (const item of val) {
-          if (typeof item === 'string' && /^[a-zA-Z0-9_]+$/.test(item)) {
-            safeUrl.searchParams.append(key, item);
-          }
-        }
-      } else if (typeof val === 'string' && /^[a-zA-Z0-9_]+$/.test(val)) {
-        safeUrl.searchParams.append(key, val);
-      }
-    }
-    return safeUrl.toString();
+    return safeUrl.href;
   }
 
   /**
@@ -276,7 +266,7 @@ export class FirestoreClient {
     const token = this.getAccessToken();
     if (!token) return false;
     const url = this.buildSafeFirestoreUrl(docPath);
-    if (!url) return false;
+    if (!url || typeof url !== 'string' || !url.startsWith('https://firestore.googleapis.com/')) return false;
     try {
       const res = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -377,7 +367,7 @@ export class FirestoreClient {
     if (!token || !token.startsWith('ya29.')) return false;
 
     const url = this.buildSafeFirestoreUrl(docPath);
-    if (!url) return false;
+    if (!url || typeof url !== 'string' || !url.startsWith('https://firestore.googleapis.com/')) return false;
 
     try {
       const firestoreFields = {};
