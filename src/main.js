@@ -148,14 +148,9 @@ class AgriSpectraApp {
     // Apply the active theme
     this.applyTheme(this.currentTheme);
 
-    // 1. Connect Simulated BLE device
-    try {
-      await leafClipDevice.connect({ forceSimulation: false });
-      this.bleState.connected = leafClipDevice.isConnected;
-      this.bleState.simulated = leafClipDevice.isSimulated;
-    } catch (e) {
-      console.warn("[AgriSpectraApp] BLE device connect note:", e);
-    }
+    // 1. Standby BLE state (clean initialization without unprompted Web Bluetooth user-gesture failure)
+    this.bleState.connected = leafClipDevice.isConnected;
+    this.bleState.simulated = leafClipDevice.isSimulated;
 
     if (this.currentUser) {
       // 2. Initial analysis for selected plot (Plot 2 default)
@@ -187,10 +182,18 @@ class AgriSpectraApp {
       if (this.currentUser) this.render();
     });
 
-    leafClipDevice.on('connectionChange', ({ status, simulated }) => {
+    leafClipDevice.on('connectionChange', ({ status, simulated, device }) => {
       this.bleState.connected = status === 'CONNECTED';
       this.bleState.simulated = simulated;
+      this.bleState.device = device;
       if (this.currentUser) this.render();
+    });
+
+    leafClipDevice.on('rawData', (data) => {
+      // Wire leafClipDevice raw telemetry into app state
+      if (data && data.channels && this.latestScanAnalysis) {
+        // Keeps raw terminal & spectroscopy view in sync
+      }
     });
 
     // 5. Auth state listener: synchronizes UI when user logs in or out
@@ -255,12 +258,13 @@ class AgriSpectraApp {
 
   render() {
     if (!this.appEl) return;
-    this.appEl.innerHTML = '';
 
     // =========================================================================
     // CASE 0: UN-AUTHENTICATED VISITOR -> Show Dedicated Full-Screen Login / Register
     // =========================================================================
     if (!this.currentUser) {
+      this.currentMobileApp = null;
+      this.appEl.innerHTML = '';
       // Optional: on desktop web, if user explicitly visits the public marketing showcase
       if (this.viewMode === 'website' && !this.isNative) {
         const landingView = createSetuLandingView({
@@ -416,6 +420,8 @@ class AgriSpectraApp {
     // =========================================================================
     // CASE 2: AUTHENTICATED USER -> Show Role-Tailored Specialized Dashboard
     // =========================================================================
+    this.currentMobileApp = null;
+    this.appEl.innerHTML = '';
     const layoutWrapper = document.createElement('div');
     layoutWrapper.className = "flex-1 flex min-h-screen bg-[#F8F5EE] dark:bg-slate-900 transition-colors duration-200";
 

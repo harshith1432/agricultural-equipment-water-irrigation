@@ -46,6 +46,12 @@ export function registerBleNusSpectrometerTests() {
       expect(BLE_SERVICES.BATTERY_LEVEL_CHAR).toBe('00002a19-0000-1000-8000-00805f9b34fb');
     });
 
+    it('defines standard Device Information, Generic Access, and Generic Attribute services', () => {
+      expect(BLE_SERVICES.DEVICE_INFO_SERVICE).toBe('0000180a-0000-1000-8000-00805f9b34fb');
+      expect(BLE_SERVICES.GENERIC_ACCESS_SERVICE).toBe('00001800-0000-1000-8000-00805f9b34fb');
+      expect(BLE_SERVICES.GENERIC_ATTRIBUTE_SERVICE).toBe('00001801-0000-1000-8000-00805f9b34fb');
+    });
+
     it('maintains backward-compatible service and characteristic aliases', () => {
       expect(BLE_SERVICES.SPECTROMETER_SERVICE).toBeDefined();
       expect(BLE_SERVICES.DATA_CHAR).toBeDefined();
@@ -136,6 +142,94 @@ export function registerBleNusSpectrometerTests() {
       const packet = await accumulator.waitForPacket(PACKET_TYPES.CALIB_DARK, 2000);
       expect(packet.type).toBe(PACKET_TYPES.CALIB_DARK);
       expect(packet.data.status).toBe('OK');
+    });
+
+    it('captures raw incoming chunks and emits rawChunk with rawBytes, rawText, timestamp, length', () => {
+      const accumulator = new PacketChunkAccumulator();
+      const rawChunks = [];
+      accumulator.on('rawChunk', c => rawChunks.push(c));
+
+      accumulator.pushChunk('RAW_TEST_CHUNK_DATA');
+
+      expect(rawChunks.length).toBe(1);
+      expect(rawChunks[0].rawText).toBe('RAW_TEST_CHUNK_DATA');
+      expect(rawChunks[0].length).toBe(19);
+      expect(rawChunks[0].rawBytes instanceof Uint8Array).toBe(true);
+      expect(rawChunks[0].timestamp).toBeGreaterThan(0);
+    });
+
+    it('recognizes any line with numeric values even without $SPEC as PACKET_TYPES.SPECTRUM', () => {
+      const accumulator = new PacketChunkAccumulator();
+      const spectra = [];
+      accumulator.on('spectrum', s => spectra.push(s));
+
+      // 1. Comma separated counts (e.g. AS7262 6 channels)
+      accumulator.pushChunk('1200, 1450, 1800, 2400, 3100, 4200\n');
+      expect(spectra.length).toBe(1);
+      expect(spectra[0].type).toBe(PACKET_TYPES.SPECTRUM);
+      expect(spectra[0].format).toBe('RAW_NUMERIC');
+      expect(spectra[0].data.rawCounts).toEqual([1200, 1450, 1800, 2400, 3100, 4200]);
+      expect(spectra[0].data.totalBands).toBe(6);
+
+      // 2. Space separated counts
+      accumulator.pushChunk('500 600 700 800\n');
+      expect(spectra.length).toBe(2);
+      expect(spectra[1].data.rawCounts).toEqual([500, 600, 700, 800]);
+
+      // 3. Prefixed numeric line (e.g. C12880MA)
+      accumulator.pushChunk('RAW: 100, 200, 300\n');
+      expect(spectra.length).toBe(3);
+      expect(spectra[2].data.rawCounts).toEqual([100, 200, 300]);
+    });
+
+    it('parses real hardware AS7265x 18-channel DARK, WHITE, Scan lines, and environmental sensor telemetry', () => {
+      const accumulator = new PacketChunkAccumulator();
+      const packets = [];
+      accumulator.on('packet', p => packets.push(p));
+
+      // 1. DARK reading
+      accumulator.pushChunk('DARK: 483 57 54 31 84 8 209 444 280 32 12 15 43 558 817 206 432 409\n');
+      expect(packets.length).toBe(1);
+      expect(packets[0].type).toBe(PACKET_TYPES.CALIB_DARK);
+      expect(packets[0].format).toBe('AS7265X_DARK');
+      expect(packets[0].data.channels.length).toBe(18);
+      expect(packets[0].data.channels[0]).toBe(483);
+      expect(packets[0].data.channels[17]).toBe(409);
+
+      // 2. WHITE reading
+      accumulator.pushChunk('WHITE: 604 58 58 33 104 9 466 727 419 42 15 16 50 613 827 280 545 457\n');
+      expect(packets.length).toBe(2);
+      expect(packets[1].type).toBe(PACKET_TYPES.CALIB_WHITE);
+      expect(packets[1].format).toBe('AS7265X_WHITE');
+      expect(packets[1].data.channels.length).toBe(18);
+
+      // 3. Scan 1 reading
+      accumulator.pushChunk('Scan 1: 605 59 58 33 104 9 467 729 419 42 15 16 50 614 825 280 545 458\n');
+      expect(packets.length).toBe(3);
+      expect(packets[2].type).toBe(PACKET_TYPES.SPECTRUM);
+      expect(packets[2].format).toBe('AS7265X_SCAN');
+      expect(packets[2].data.scanIndex).toBe(1);
+      expect(packets[2].data.channels.length).toBe(18);
+
+      // 4. Environmental sensor line (BME280)
+      accumulator.pushChunk('T=28.3 P=914.4 H=48.1\n');
+      expect(packets.length).toBe(4);
+      expect(packets[3].type).toBe(PACKET_TYPES.ENV_TELEMETRY);
+      expect(packets[3].format).toBe('AS7265X_ENV');
+      expect(packets[3].data.temperature).toBe(28.3);
+      expect(packets[3].data.pressure).toBe(914.4);
+      expect(packets[3].data.humidity).toBe(48.1);
+
+      // 5. Hardware interactive prompt questions
+      accumulator.pushChunk('Enter Plant Number:\n');
+      expect(packets.length).toBe(5);
+      expect(packets[4].type).toBe(PACKET_TYPES.DEVICE_PROMPT);
+      expect(packets[4].data.promptType).toBe('ENTER_PLANT_NUMBER');
+
+      accumulator.pushChunk('Calibrate DARK (LED off) now? Y/N:\n');
+      expect(packets.length).toBe(6);
+      expect(packets[5].type).toBe(PACKET_TYPES.DEVICE_PROMPT);
+      expect(packets[5].data.promptType).toBe('PROMPT_CALIBRATE_DARK');
     });
   });
 
@@ -249,6 +343,93 @@ export function registerBleNusSpectrometerTests() {
       expect(analysis.irrigationCountdownHours).toBeDefined();
       expect(analysis.diseaseRisk).toBeDefined();
       expect(analysis.device).toBeDefined();
+    });
+
+    it('initializes in clear DISCONNECTED state until user explicitly initiates connection', () => {
+      const freshDevice = new LeafClipBluetoothDevice();
+      expect(freshDevice.isConnected).toBe(false);
+      expect(freshDevice.connectionStatus).toBe('DISCONNECTED');
+      expect(freshDevice.device).toBe(null);
+    });
+
+    it('discovers nearby devices unrestricted via scanForDevices and streams scanResult events', async () => {
+      const device = new LeafClipBluetoothDevice();
+      const results = [];
+      device.on('scanResult', r => results.push(r));
+
+      const devices = await device.scanForDevices(200);
+      expect(devices.length).toBeGreaterThan(0);
+      expect(devices[0].deviceId).toBeDefined();
+      expect(devices[0].name).toBeDefined();
+      expect(devices[0].rssi).toBeDefined();
+      expect(results.length).toBeGreaterThan(0);
+      expect(results[0].deviceId).toBe(devices[0].deviceId);
+    });
+
+    it('connects to chosen device via connectToDevice(deviceId) and manual connect({ deviceId })', async () => {
+      const device = new LeafClipBluetoothDevice();
+      let lastEvent = null;
+      device.on('connectionChange', e => { lastEvent = e; });
+
+      // Direct connectToDevice
+      const res = await device.connectToDevice('CUSTOM-DEV-1234');
+      expect(res.success).toBe(true);
+      expect(device.isConnected).toBe(true);
+      expect(device.connectionStatus).toBe('CONNECTED');
+      expect(device.deviceInfo.id).toBe('CUSTOM-DEV-1234');
+      expect(lastEvent.status).toBe('CONNECTED');
+
+      // Manual connect with deviceId
+      const device2 = new LeafClipBluetoothDevice();
+      const res2 = await device2.connect({ deviceId: 'NRF52-MANUAL-001' });
+      expect(res2.success).toBe(true);
+      expect(device2.isConnected).toBe(true);
+      expect(device2.deviceInfo.id).toBe('NRF52-MANUAL-001');
+    });
+
+    it('maintains rolling rawHistory log of last 50 entries and updates lastRawReading', () => {
+      const device = new LeafClipBluetoothDevice();
+      const rawEvents = [];
+      device.on('rawData', d => rawEvents.push(d));
+
+      // Push 60 chunks into accumulator
+      for (let i = 0; i < 60; i++) {
+        device.accumulator.pushChunk(`RAW_PAYLOAD_${i}\n`);
+      }
+
+      // rawHistory must be clamped to at most 50
+      expect(device.rawHistory.length).toBe(50);
+      expect(rawEvents.length).toBeGreaterThan(0);
+
+      // Push a numeric spectrum line
+      device.accumulator.pushChunk('1100, 1250, 1380, 24000\n');
+      expect(device.lastRawReading).toBeDefined();
+      expect(device.lastRawReading.rawCounts).toEqual([1100, 1250, 1380, 24000]);
+      expect(device.lastRawReading.format).toBe('RAW_NUMERIC');
+    });
+
+    it('preserves and attaches rawCounts and rawText to analysis.rawData when physical packet is received', async () => {
+      const device = new LeafClipBluetoothDevice();
+      device.isConnected = true;
+      device.isSimulated = false; // Physical mode
+
+      // Emit physical spectrum packet shortly after triggerLeafMeasurement
+      setTimeout(() => {
+        const counts = Array.from({ length: 76 }, (_, i) => 15000 + i * 200);
+        device.accumulator.pushChunk(`$SPEC,76,${counts.join(',')}\r\n`);
+      }, 50);
+
+      const analysis = await device.triggerLeafMeasurement({
+        plotNumber: 1,
+        cropName: 'Bell Peppers',
+        growthStage: 'Fruit Formation'
+      });
+
+      expect(analysis.rawData).toBeDefined();
+      expect(analysis.rawData.rawCounts).toBeDefined();
+      expect(analysis.rawData.rawCounts.length).toBe(76);
+      expect(analysis.rawData.rawText).toContain('$SPEC');
+      expect(analysis.rawData.timestamp).toBeDefined();
     });
   });
 

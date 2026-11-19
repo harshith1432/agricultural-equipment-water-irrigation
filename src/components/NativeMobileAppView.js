@@ -111,6 +111,18 @@ export function createNativeMobileAppView({
   scrollBody.style.webkitOverflowScrolling = 'touch';
   container.appendChild(scrollBody);
 
+  // Per-tab Screen Cache & persistent scroll position dictionary
+  const screenCache = {};
+  const tabScrollPositions = {};
+  let currentActiveTabKey = null;
+
+  // Continuously record user scroll position per tab
+  scrollBody.addEventListener('scroll', () => {
+    if (currentActiveTabKey) {
+      tabScrollPositions[currentActiveTabKey] = scrollBody.scrollTop;
+    }
+  }, { passive: true });
+
   // 4. Create Floating Bottom Navigation Bar (6 Tabs)
   const bottomNav = createBottomNavBar({
     activeTab: activeTab,
@@ -126,11 +138,6 @@ export function createNativeMobileAppView({
     }
   });
   container.appendChild(bottomNav.element);
-
-  // Per-tab Screen Cache & persistent scroll position dictionary
-  const screenCache = {};
-  const tabScrollPositions = {};
-  let currentActiveTabKey = null;
 
   function getSelectedPlot() {
     return activePlots.find(p => p.id === currentPlotId) || activePlots[0];
@@ -277,6 +284,12 @@ export function createNativeMobileAppView({
   function renderActiveScreen({ resetScroll = false } = {}) {
     const normalizedTab = TAB_ALIASES[activeTab] || activeTab || 'dashboard';
 
+    // If current tab screen is already mounted in DOM and resetScroll is false, do not rebuild or touch DOM
+    if (currentActiveTabKey === normalizedTab && !resetScroll && screenCache[normalizedTab]) {
+      bottomNav.setActiveTab(normalizedTab);
+      return;
+    }
+
     // Save previous tab's scroll position before leaving it
     if (currentActiveTabKey && currentActiveTabKey !== normalizedTab) {
       tabScrollPositions[currentActiveTabKey] = scrollBody.scrollTop;
@@ -338,7 +351,6 @@ export function createNativeMobileAppView({
       delete screenCache['dashboard'];
       delete screenCache['overview'];
       delete screenCache['soil'];
-      delete screenCache['spectroscopy'];
       renderActiveScreen({ resetScroll: false });
       return;
     }

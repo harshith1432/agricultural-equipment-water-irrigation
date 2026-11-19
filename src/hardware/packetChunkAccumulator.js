@@ -15,6 +15,8 @@ export const PACKET_TYPES = {
   BATTERY: 'BATTERY',
   STATUS: 'STATUS',
   IDENT: 'IDENT',
+  DEVICE_PROMPT: 'DEVICE_PROMPT',
+  ENV_TELEMETRY: 'ENV_TELEMETRY',
   UNKNOWN: 'UNKNOWN'
 };
 
@@ -96,12 +98,23 @@ export class PacketChunkAccumulator {
 
     this.stats.totalBytesReceived += chunkLen;
 
+    let chunkText = '';
     // Append to text accumulator for ASCII / JSON lines
     try {
-      this.textAccumulator += this.textDecoder.decode(bytes, { stream: true });
+      chunkText = this.textDecoder.decode(bytes, { stream: true });
+      this.textAccumulator += chunkText;
     } catch (e) {
-      this.textAccumulator += String.fromCharCode(...bytes);
+      chunkText = String.fromCharCode(...bytes);
+      this.textAccumulator += chunkText;
     }
+
+    // Capture raw incoming chunks and emit rawChunk event
+    this.emit('rawChunk', {
+      rawBytes: bytes,
+      rawText: chunkText,
+      timestamp: Date.now(),
+      length: chunkLen
+    });
 
     // Append to ring buffer for binary frame scanning
     for (let i = 0; i < chunkLen; i++) {
@@ -247,6 +260,109 @@ export class PacketChunkAccumulator {
       };
     }
 
+    // 4b. Hardware Tri-Spectrometer (AS7265x / MicroSpec 18-channel optical array & BME280)
+    if (/^DARK:\s*([\d\s]+)/i.test(line)) {
+      const nums = line.replace(/^DARK:\s*/i, '').trim().split(/\s+/).map(Number).filter(n => !isNaN(n));
+      return {
+        format: 'AS7265X_DARK',
+        type: PACKET_TYPES.CALIB_DARK,
+        data: {
+          channels: nums,
+          count: nums.length,
+          rawText: line
+        },
+        rawText: line,
+        timestamp: Date.now()
+      };
+    }
+
+    if (/^WHITE:\s*([\d\s]+)/i.test(line)) {
+      const nums = line.replace(/^WHITE:\s*/i, '').trim().split(/\s+/).map(Number).filter(n => !isNaN(n));
+      return {
+        format: 'AS7265X_WHITE',
+        type: PACKET_TYPES.CALIB_WHITE,
+        data: {
+          channels: nums,
+          count: nums.length,
+          rawText: line
+        },
+        rawText: line,
+        timestamp: Date.now()
+      };
+    }
+
+    if (/^Scan\s*(\d+)[:\s]+([\d\s]+)/i.test(line)) {
+      const match = line.match(/^Scan\s*(\d+)[:\s]+(.*)$/i);
+      const scanIndex = match ? parseInt(match[1], 10) : 1;
+      const rawNums = match ? match[2].trim().split(/\s+/).map(Number).filter(n => !isNaN(n)) : [];
+      return {
+        format: 'AS7265X_SCAN',
+        type: PACKET_TYPES.SPECTRUM,
+        data: {
+          scanIndex,
+          channels: rawNums,
+          rawCounts: rawNums,
+          rawSample: rawNums,
+          totalBands: rawNums.length
+        },
+        rawText: line,
+        timestamp: Date.now()
+      };
+    }
+
+    if (/T=([\d.-]+)\s+P=([\d.-]+)\s+H=([\d.-]+)/i.test(line)) {
+      const match = line.match(/T=([\d.-]+)\s+P=([\d.-]+)\s+H=([\d.-]+)/i);
+      return {
+        format: 'AS7265X_ENV',
+        type: PACKET_TYPES.ENV_TELEMETRY,
+        data: {
+          temperature: parseFloat(match[1]),
+          pressure: parseFloat(match[2]),
+          humidity: parseFloat(match[3])
+        },
+        rawText: line,
+        timestamp: Date.now()
+      };
+    }
+
+    // 4c. Interactive Hardware Questions / Prompts
+    if (/Enter Plant Number/i.test(line)) {
+      return { format: 'DEVICE_PROMPT', type: PACKET_TYPES.DEVICE_PROMPT, data: { promptType: 'ENTER_PLANT_NUMBER', prompt: line }, rawText: line, timestamp: Date.now() };
+    }
+    if (/Enter Plant Name/i.test(line)) {
+      return { format: 'DEVICE_PROMPT', type: PACKET_TYPES.DEVICE_PROMPT, data: { promptType: 'ENTER_PLANT_NAME', prompt: line }, rawText: line, timestamp: Date.now() };
+    }
+    if (/Enter Pot Number/i.test(line)) {
+      return { format: 'DEVICE_PROMPT', type: PACKET_TYPES.DEVICE_PROMPT, data: { promptType: 'ENTER_POT_NUMBER', prompt: line }, rawText: line, timestamp: Date.now() };
+    }
+    if (/Correct\?\s*Y\/N/i.test(line)) {
+      return { format: 'DEVICE_PROMPT', type: PACKET_TYPES.DEVICE_PROMPT, data: { promptType: 'CONFIRM_METADATA', prompt: line }, rawText: line, timestamp: Date.now() };
+    }
+    if (/Calibrate DARK.*Y\/N/i.test(line)) {
+      return { format: 'DEVICE_PROMPT', type: PACKET_TYPES.DEVICE_PROMPT, data: { promptType: 'PROMPT_CALIBRATE_DARK', prompt: line }, rawText: line, timestamp: Date.now() };
+    }
+    if (/DARK:.*Ready\?\s*Y\/N/i.test(line)) {
+      return { format: 'DEVICE_PROMPT', type: PACKET_TYPES.DEVICE_PROMPT, data: { promptType: 'DARK_READY', prompt: line }, rawText: line, timestamp: Date.now() };
+    }
+    if (/Calibrate WHITE.*Y\/N/i.test(line)) {
+      return { format: 'DEVICE_PROMPT', type: PACKET_TYPES.DEVICE_PROMPT, data: { promptType: 'PROMPT_CALIBRATE_WHITE', prompt: line }, rawText: line, timestamp: Date.now() };
+    }
+    if (/WHITE:.*Ready\?\s*Y\/N/i.test(line)) {
+      return { format: 'DEVICE_PROMPT', type: PACKET_TYPES.DEVICE_PROMPT, data: { promptType: 'WHITE_READY', prompt: line }, rawText: line, timestamp: Date.now() };
+    }
+    if (/Start leaf scan\?\s*Y\/N/i.test(line)) {
+      return { format: 'DEVICE_PROMPT', type: PACKET_TYPES.DEVICE_PROMPT, data: { promptType: 'START_LEAF_SCAN', prompt: line }, rawText: line, timestamp: Date.now() };
+    }
+    if (/Leaf Spot Number:/i.test(line)) {
+      return { format: 'DEVICE_PROMPT', type: PACKET_TYPES.DEVICE_PROMPT, data: { promptType: 'LEAF_SPOT_NUMBER', prompt: line }, rawText: line, timestamp: Date.now() };
+    }
+    if (/Y=save\s+R=redo\s+C=cancel/i.test(line)) {
+      return { format: 'DEVICE_PROMPT', type: PACKET_TYPES.DEVICE_PROMPT, data: { promptType: 'SAVE_CONFIRMATION', prompt: line }, rawText: line, timestamp: Date.now() };
+    }
+    if (/Scan another spot\?\s*Y\/N/i.test(line)) {
+      return { format: 'DEVICE_PROMPT', type: PACKET_TYPES.DEVICE_PROMPT, data: { promptType: 'SCAN_ANOTHER_SPOT', prompt: line }, rawText: line, timestamp: Date.now() };
+    }
+
     // 5. Identification / Handshake: AGRISPECTRA-SPEC, ST-Link, C12880MA
     if (line.includes('AGRISPECTRA') || line.includes('SPEC') || line.includes('ST-Link') || line.includes('PONG')) {
       return {
@@ -260,7 +376,29 @@ export class PacketChunkAccumulator {
       };
     }
 
-    // 6. Generic Line
+    // 6. Delimited numeric vector / spectral counts (e.g. comma/space separated counts: AS726x 6/18 channels, C12880MA arrays, or raw counts)
+    const cleaned = line.replace(/^[a-zA-Z0-9_#-]+[:=]\s*/, '').replace(/[\[\]()]/g, '').trim();
+    if (cleaned.length > 0) {
+      const parts = cleaned.split(/[,;\t\s]+/).filter(Boolean);
+      if (parts.length > 0) {
+        const counts = parts.map(Number);
+        if (counts.every(n => !isNaN(n) && isFinite(n))) {
+          return {
+            format: 'RAW_NUMERIC',
+            type: PACKET_TYPES.SPECTRUM,
+            data: {
+              totalBands: counts.length,
+              rawCounts: counts,
+              rawSample: counts
+            },
+            rawText: line,
+            timestamp: Date.now()
+          };
+        }
+      }
+    }
+
+    // 7. Generic Line
     return {
       format: 'ASCII_RAW',
       type: PACKET_TYPES.UNKNOWN,

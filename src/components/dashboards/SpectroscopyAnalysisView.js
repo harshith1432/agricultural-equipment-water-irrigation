@@ -64,12 +64,9 @@ export function createSpectroscopyAnalysisView({
     return spectrometerUSBAdapter.lastScan;
   }
 
-  // Auto-acquire scan on startup if empty
-  if (!currentScan) {
-    acquireScanSafely().then(scan => {
-      currentScan = scan;
-      render();
-    }).catch(err => console.warn("Spectrometer scan init:", err));
+  // Use cached scan on startup if empty
+  if (!currentScan && spectrometerUSBAdapter.lastScan) {
+    currentScan = spectrometerUSBAdapter.lastScan;
   }
 
   function handleModeChange(mode) {
