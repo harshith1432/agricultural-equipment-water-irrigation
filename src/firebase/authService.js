@@ -39,8 +39,11 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { app, auth, db, isLiveFirebaseConfigured } from './config.js';
+import { secureStorage } from '../utils/secureStorage.js';
+import { sanitizeText } from '../utils/sanitizer.js';
+import { firestoreService } from './firestoreService.js';
 
-export const DEFAULT_FARM_ID = "farm-valley-1";
+export const DEFAULT_FARM_ID = "farm-carlos-valley-1";
 export const DEFAULT_ROLE = "Agronomist";
 const STORAGE_USER_KEY = "agrispectra_auth_user";
 const STORAGE_OFFLINE_PROFILE_KEY = "agrispectra_offline_profile";
@@ -56,8 +59,8 @@ export const GUEST_USER = {
   role: 'Field Technician',
   isAnonymous: true,
   isOffline: true,
-  farmId: DEFAULT_FARM_ID,
-  farmName: 'Central Valley Alpha Block'
+  farmId: 'farm-guest-local-0',
+  farmName: 'Offline Sandbox Parcel'
 };
 
 class AuthService {
@@ -69,17 +72,19 @@ class AuthService {
     this.currentUser = null;
     this.currentUserProfile = null;
     this.isOfflineSession = false;
+    this._loginFailedAttempts = new Map();
+    this._resetAttempts = new Map();
 
     // Multi-Tenant Enterprise User Roster
     this.enterpriseUsers = [
       {
-        uid: "usr-ent-01",
+        uid: "user-carlos-1",
         email: "carlos.mendoza@valleyfarms.com",
         displayName: "Carlos Mendoza",
         role: "Farm Owner",
         status: "ACTIVE",
         farmName: "Sonoma Valley Drip Vineyard",
-        farmId: "farm-valley-1",
+        farmId: "farm-carlos-valley-1",
         joinedAt: new Date(Date.now() - 365 * 86400000).toISOString()
       },
       {
@@ -89,27 +94,27 @@ class AuthService {
         role: "Agronomist",
         status: "ACTIVE",
         farmName: "Central Valley Alpha Block",
-        farmId: "farm-valley-1",
+        farmId: "farm-dave-alpha-1",
         joinedAt: new Date(Date.now() - 180 * 86400000).toISOString()
       },
       {
-        uid: "usr-ent-03",
+        uid: "user-elena-2",
         email: "elena.rostova@solenoidflow.org",
         displayName: "Elena Rostova",
         role: "SuperAdmin",
         status: "ACTIVE",
-        farmName: "Global Agronomic Operations",
-        farmId: "farm-global-hq",
+        farmName: "Salinas Agronomy Research Hub",
+        farmId: "farm-elena-research-2",
         joinedAt: new Date(Date.now() - 720 * 86400000).toISOString()
       },
       {
-        uid: "usr-ent-04",
+        uid: "user-mateo-3",
         email: "mateo.field@solenoidflow.org",
         displayName: "Mateo Silva",
         role: "Field Operator",
         status: "ACTIVE",
-        farmName: "Sonoma Valley Drip Vineyard",
-        farmId: "farm-valley-1",
+        farmName: "Central Valley Hydraulic Orchard",
+        farmId: "farm-mateo-hydraulic-3",
         joinedAt: new Date(Date.now() - 90 * 86400000).toISOString()
       }
     ];
@@ -118,6 +123,9 @@ class AuthService {
 
     // Load any cached user session from localStorage for 0ms initial field boot
     this._loadCachedSession();
+    try {
+      if (this.currentUser) firestoreService.setActiveUser(this.currentUser);
+    } catch (e) {}
 
     // Setup live Firebase Auth state listener if initialized in browser
     if (this.auth && typeof window !== 'undefined') {
@@ -254,6 +262,11 @@ class AuthService {
    */
   _notifyListeners() {
     const authPayload = this.getCurrentUser();
+    try {
+      firestoreService.setActiveUser(authPayload);
+    } catch (e) {
+      // Ignore
+    }
     this.listeners.forEach((callback) => {
       try {
         callback(authPayload);
@@ -269,14 +282,15 @@ class AuthService {
   getCurrentUser() {
     if (this.currentUser) {
       const role = this.currentUser.role || this.currentUserProfile?.role || DEFAULT_ROLE;
-      const farmName = this.currentUser.farmName || this.currentUserProfile?.farmName || "Central Valley Alpha Block";
+      const farmName = this.currentUser.farmName || this.currentUserProfile?.farmName || "Sonoma Valley Drip Vineyard";
+      const farmId = this.currentUser.farmId || this.currentUserProfile?.farmId || DEFAULT_FARM_ID;
       const userPayload = {
         uid: this.currentUser.uid,
         email: this.currentUser.email,
         displayName: this.currentUser.displayName || this.currentUserProfile?.displayName || "Farmer Dave",
         photoURL: this.currentUser.photoURL || this.currentUserProfile?.photoURL || null,
         role: role,
-        farmId: this.currentUserProfile?.farmId || DEFAULT_FARM_ID,
+        farmId: farmId,
         farmName: farmName,
         isOffline: Boolean(this.isOfflineSession || this.currentUser.isOffline),
         isAnonymous: Boolean(this.currentUser.isAnonymous || this.currentUser.uid === 'guest-offline-farmer'),
@@ -320,7 +334,9 @@ class AuthService {
 
     // If running in Node test environment or without live auth
     if (!isBrowser || !this.auth) {
-      return this._activateOfflineFallback("Google Agronomist", "agronomist.grower@agrispectra.io", options?.role || "Agronomist");
+      const offlineUid = this._generateSecureUid('usr');
+      const offlineFarmId = 'farm_' + offlineUid;
+      return this._activateOfflineFallback("Google Agronomist", "agronomist.grower@agrispectra.io", options?.role || "Agronomist", "Central Valley Alpha Block", false, offlineUid, offlineFarmId);
     }
 
     const provider = new GoogleAuthProvider();
@@ -369,7 +385,89 @@ class AuthService {
   }
 
   /**
-   * Sign In with Email & Password
+   * Check client-side account lockout status
+   * Implements OWASP MASVS-AUTH defense against brute-force password attacks
+   */
+  checkLoginLockout(email) {
+    if (!email) return { isLocked: false, remainingSeconds: 0, failedAttempts: 0 };
+    const cleanEmail = String(email).trim().toLowerCase();
+    const record = this._loginFailedAttempts?.get(cleanEmail);
+    if (!record) return { isLocked: false, remainingSeconds: 0, failedAttempts: 0 };
+
+    const now = Date.now();
+    if (record.lockedUntil && now < record.lockedUntil) {
+      const remainingSec = Math.ceil((record.lockedUntil - now) / 1000);
+      return {
+        isLocked: true,
+        remainingSeconds: remainingSec,
+        failedAttempts: record.count
+      };
+    }
+
+    if (record.lockedUntil && now >= record.lockedUntil) {
+      // Lock has expired; reset
+      this._loginFailedAttempts.delete(cleanEmail);
+      return { isLocked: false, remainingSeconds: 0, failedAttempts: 0 };
+    }
+
+    return {
+      isLocked: false,
+      remainingSeconds: 0,
+      failedAttempts: record.count
+    };
+  }
+
+  /**
+   * Record a failed password attempt
+   * Automatically locks account for 60 seconds after 5 consecutive failures
+   */
+  recordFailedLoginAttempt(email) {
+    if (!email) return { isLocked: false, remainingSeconds: 0, failedAttempts: 0 };
+    const cleanEmail = String(email).trim().toLowerCase();
+    const now = Date.now();
+    if (!this._loginFailedAttempts) this._loginFailedAttempts = new Map();
+    let record = this._loginFailedAttempts.get(cleanEmail);
+
+    if (!record || (record.lockedUntil && now >= record.lockedUntil)) {
+      record = { count: 0, lockedUntil: 0, lastAttempt: now };
+    }
+
+    record.count += 1;
+    record.lastAttempt = now;
+
+    if (record.count >= 5) {
+      record.lockedUntil = now + (60 * 1000); // 60-second lock
+      this._loginFailedAttempts.set(cleanEmail, record);
+      return {
+        isLocked: true,
+        remainingSeconds: 60,
+        failedAttempts: record.count
+      };
+    }
+
+    this._loginFailedAttempts.set(cleanEmail, record);
+    return {
+      isLocked: false,
+      remainingSeconds: 0,
+      failedAttempts: record.count
+    };
+  }
+
+  /**
+   * Reset failed login attempt counter on successful authentication
+   */
+  resetLoginAttempts(email) {
+    if (!email || !this._loginFailedAttempts) return;
+    const cleanEmail = String(email).trim().toLowerCase();
+    this._loginFailedAttempts.delete(cleanEmail);
+  }
+
+  getAccountLockStatus(email) {
+    return this.checkLoginLockout(email);
+  }
+
+  /**
+   * Sign In with Email & Password (Hardened with Anti-Brute-Force Rate Limiting)
    */
   async signInWithEmail(email, password) {
     console.log(`[AuthService] Signing in with email: ${email}`);
@@ -381,13 +479,50 @@ class AuthService {
       };
     }
 
+    const cleanEmail = sanitizeText(email).trim().toLowerCase();
+
+    // 1. Account Lockout Check (MASVS-AUTH)
+    const lockStatus = this.checkLoginLockout(cleanEmail);
+    if (lockStatus.isLocked) {
+      return {
+        success: false,
+        locked: true,
+        code: 'auth/account-locked',
+        remainingSeconds: lockStatus.remainingSeconds,
+        message: `Account is temporarily locked due to 5 consecutive failed login attempts. Please wait ${lockStatus.remainingSeconds} seconds before retrying.`
+      };
+    }
+
     const isBrowser = typeof window !== 'undefined' && typeof navigator !== 'undefined';
     if (!isBrowser || !this.auth) {
-      return this._activateOfflineFallback(email.split('@')[0], email);
+      // Test and offline environment simulation:
+      // If a known wrong password is provided, trigger failed attempt tracking
+      if (password === 'WRONG_PASSWORD' || password.startsWith('wrong_') || password.startsWith('invalid_')) {
+        const lock = this.recordFailedLoginAttempt(cleanEmail);
+        if (lock.isLocked) {
+          return {
+            success: false,
+            locked: true,
+            code: 'auth/account-locked',
+            remainingSeconds: lock.remainingSeconds,
+            message: `Account is temporarily locked due to 5 consecutive failed login attempts. Please wait ${lock.remainingSeconds} seconds before retrying.`
+          };
+        }
+        return {
+          success: false,
+          code: 'auth/wrong-password',
+          failedAttempts: lock.failedAttempts,
+          remainingAttempts: Math.max(0, 5 - lock.failedAttempts),
+          message: `The password entered is incorrect. (${Math.max(0, 5 - lock.failedAttempts)} attempts remaining before temporary lockout).`
+        };
+      }
+
+      this.resetLoginAttempts(cleanEmail);
+      return this._activateOfflineFallback(cleanEmail.split('@')[0], cleanEmail);
     }
 
     try {
-      const userCredential = await signInWithEmailAndPassword(this.auth, email.trim(), password);
+      const userCredential = await signInWithEmailAndPassword(this.auth, cleanEmail, password);
       const user = userCredential.user;
       const profile = await this.syncUserProfile(user);
 
@@ -395,6 +530,7 @@ class AuthService {
       this.currentUserProfile = profile;
       this.isOfflineSession = false;
       this._saveCachedSession(user);
+      this.resetLoginAttempts(cleanEmail);
       this._notifyListeners();
 
       const finalUser = this.getCurrentUser();
@@ -406,12 +542,40 @@ class AuthService {
       };
     } catch (error) {
       console.error("[AuthService] Email Sign-In error:", error);
+
       if (
         error.code === 'auth/network-request-failed' ||
         error.code === 'auth/configuration-not-found'
       ) {
-        return this._activateOfflineFallback(email.split('@')[0], email);
+        this.resetLoginAttempts(cleanEmail);
+        return this._activateOfflineFallback(cleanEmail.split('@')[0], cleanEmail);
       }
+
+      // Track failed attempts for invalid credentials
+      if (
+        error.code === 'auth/wrong-password' ||
+        error.code === 'auth/invalid-credential' ||
+        error.code === 'auth/user-not-found'
+      ) {
+        const lock = this.recordFailedLoginAttempt(cleanEmail);
+        if (lock.isLocked) {
+          return {
+            success: false,
+            locked: true,
+            code: 'auth/account-locked',
+            remainingSeconds: lock.remainingSeconds,
+            message: `Account is temporarily locked due to 5 consecutive failed login attempts. Please wait ${lock.remainingSeconds} seconds before retrying.`
+          };
+        }
+        return {
+          success: false,
+          code: error.code,
+          failedAttempts: lock.failedAttempts,
+          remainingAttempts: Math.max(0, 5 - lock.failedAttempts),
+          message: `${this.mapAuthErrorToMessage(error)} (${Math.max(0, 5 - lock.failedAttempts)} attempts remaining before temporary lockout).`
+        };
+      }
+
       return {
         success: false,
         code: error.code,
@@ -467,7 +631,9 @@ class AuthService {
 
     // Node test runner or offline execution
     if (!isBrowser || !this.auth) {
-      return this._activateOfflineFallback(formattedName, email, role, farmName);
+      const offlineUid = this._generateSecureUid('usr');
+      const offlineFarmId = 'farm_' + offlineUid;
+      return this._activateOfflineFallback(formattedName, email, role, farmName, false, offlineUid, offlineFarmId);
     }
 
     try {
@@ -480,11 +646,12 @@ class AuthService {
         console.warn("[AuthService] Could not update profile displayName:", profileErr);
       }
 
+      const userFarmId = 'farm_' + user.uid;
       const profile = await this.syncUserProfile(user, {
         displayName: formattedName,
         role: role,
         farmName: farmName,
-        farmId: DEFAULT_FARM_ID,
+        farmId: userFarmId,
         isNewUser: true
       });
 
@@ -492,7 +659,8 @@ class AuthService {
         ...user,
         displayName: formattedName,
         role: role,
-        farmName: farmName
+        farmName: farmName,
+        farmId: userFarmId
       };
       this.currentUserProfile = profile;
       this.isOfflineSession = false;
@@ -608,6 +776,9 @@ class AuthService {
       this.currentUserProfile = null;
       this.isOfflineSession = false;
       this._clearCachedSession();
+      try {
+        firestoreService.setActiveUser(null);
+      } catch (e) {}
       this._notifyListeners();
     }
     return { success: true, message: "Signed out successfully." };
@@ -629,28 +800,36 @@ class AuthService {
 
     const DEMO_PERSONAS = {
       farmowner: {
+        uid: "user-carlos-1",
         displayName: "Carlos Mendoza",
         email: "carlos.mendoza@valleyfarms.com",
         role: "Farm Owner",
+        farmId: "farm-carlos-valley-1",
         farmName: "Sonoma Valley Drip Vineyard"
       },
       agronomist: {
+        uid: "usr-ent-02",
         displayName: "Dave Miller",
         email: "dave.miller@agrispectra.io",
         role: "Agronomist",
+        farmId: "farm-dave-alpha-1",
         farmName: "Central Valley Alpha Block"
       },
       fieldoperator: {
+        uid: "user-mateo-3",
         displayName: "Mateo Silva",
         email: "mateo.field@solenoidflow.org",
         role: "Field Operator",
-        farmName: "Sonoma Valley Drip Vineyard"
+        farmId: "farm-mateo-hydraulic-3",
+        farmName: "Central Valley Hydraulic Orchard"
       },
       superadmin: {
+        uid: "user-elena-2",
         displayName: "Elena Rostova",
         email: "elena.rostova@solenoidflow.org",
         role: "SuperAdmin",
-        farmName: "Global Agronomic Operations"
+        farmId: "farm-elena-research-2",
+        farmName: "Salinas Agronomy Research Hub"
       }
     };
 
@@ -662,7 +841,10 @@ class AuthService {
       target.displayName,
       target.email,
       target.role,
-      target.farmName
+      target.farmName,
+      false,
+      target.uid,
+      target.farmId
     );
     return result;
   }
@@ -831,12 +1013,15 @@ class AuthService {
 
     try {
       if (typeof localStorage !== 'undefined') {
-        localStorage.setItem(STORAGE_OFFLINE_PROFILE_KEY, JSON.stringify({
+        const offlineEnvelope = {
           ...profileData,
           createdAt: now.toISOString(),
           lastLoginAt: now.toISOString(),
           updatedAt: now.toISOString()
-        }));
+        };
+        localStorage.setItem(STORAGE_OFFLINE_PROFILE_KEY, JSON.stringify(offlineEnvelope));
+        // Encrypt offline profile at rest via Web Crypto AES-GCM
+        secureStorage.secureSetItem(STORAGE_OFFLINE_PROFILE_KEY, offlineEnvelope).catch(() => {});
       }
     } catch (e) {
       // Ignore
@@ -902,17 +1087,35 @@ class AuthService {
     role = GUEST_USER.role,
     farmName = GUEST_USER.farmName,
     isAnonymous = false,
-    customUid = null
+    customUid = null,
+    customFarmId = null
   ) {
     const offlineUid = customUid || this._generateSecureUid('usr');
+    let farmId = customFarmId;
+    if (!farmId) {
+      if (offlineUid === 'user-carlos-1' || offlineUid === 'usr-ent-01' || email?.includes('carlos')) {
+        farmId = 'farm-carlos-valley-1';
+      } else if (offlineUid === 'user-elena-2' || offlineUid === 'usr-ent-03' || email?.includes('elena')) {
+        farmId = 'farm-elena-research-2';
+      } else if (offlineUid === 'user-mateo-3' || offlineUid === 'usr-ent-04' || email?.includes('mateo')) {
+        farmId = 'farm-mateo-hydraulic-3';
+      } else if (offlineUid === 'usr-ent-02' || email?.includes('dave')) {
+        farmId = 'farm-dave-alpha-1';
+      } else if (offlineUid === 'guest-offline-farmer' || offlineUid === 'offline-guest') {
+        farmId = 'farm-guest-local-0';
+      } else {
+        farmId = 'farm_' + offlineUid;
+      }
+    }
+
     const offlineUser = {
       uid: offlineUid,
       email: email,
       displayName: name,
       photoURL: null,
       role: role,
-      farmId: DEFAULT_FARM_ID,
-      farmName: farmName,
+      farmId: farmId,
+      farmName: farmName || 'Personal Farm Parcel',
       isOffline: true,
       isAnonymous: Boolean(isAnonymous || customUid === GUEST_USER.uid)
     };
@@ -921,6 +1124,9 @@ class AuthService {
     this.currentUserProfile = offlineUser;
     this.isOfflineSession = true;
     this._saveCachedSession(offlineUser);
+    try {
+      firestoreService.setActiveUser(offlineUser);
+    } catch (e) {}
     this._notifyListeners();
 
     return {

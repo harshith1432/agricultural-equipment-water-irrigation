@@ -7,6 +7,7 @@
 import { describe, it, expect } from './framework.js';
 import { firestoreService, FARM_ID } from '../src/firebase/firestoreService.js';
 import { mockFirestore, PRIMARY_STORAGE_KEY } from '../src/firebase/mockFirestore.js';
+import { authService } from '../src/firebase/authService.js';
 
 export function registerDatabaseStorageTests() {
   describe('Database & Storage Architecture - Real-Time Plot CRUD & Reactive Synchronization', () => {
@@ -307,6 +308,183 @@ export function registerDatabaseStorageTests() {
       expect(freshLoaded.plots[createdPlot.id].name).toBe('Zone 99 - Cold Restart Test');
       expect(freshLoaded.crops[createdCrop.id]).toBeDefined();
       expect(freshLoaded.crops[createdCrop.id].name).toBe('Cold Restart Quinoa');
+    });
+  });
+
+  describe('Database & Storage Architecture - Multi-Tenant Isolation Chambers & Connectivity Verification', () => {
+    it('verifies active database connectivity and returns latency, health, and document sync metrics', async () => {
+      const status = await firestoreService.verifyDatabaseConnection();
+      expect(status).toBeDefined();
+      expect(status.connected).toBe(true);
+      expect(['LIVE_CLOUD', 'ISOLATED_LOCAL'].includes(status.mode)).toBe(true);
+      expect(typeof status.latencyMs).toBe('number');
+      expect(status.latencyMs).toBeGreaterThan(0);
+      expect(typeof status.farmId).toBe('string');
+      expect(status.farmId.length).toBeGreaterThan(0);
+      expect(typeof status.userId).toBe('string');
+      expect(typeof status.syncedCount).toBe('number');
+      expect(status.error).toBe(null);
+    });
+
+    it('enforces complete multi-tenant user isolation chamber between User A (Carlos) and User B (Elena)', async () => {
+      mockFirestore.resetToDefault();
+
+      // 1. Establish User A (Carlos Mendoza) in farm-carlos-valley-1
+      const userCarlos = {
+        uid: 'user-carlos-1',
+        displayName: 'Carlos Mendoza',
+        email: 'carlos.mendoza@valleyfarms.com',
+        role: 'Farm Owner',
+        farmId: 'farm-carlos-valley-1'
+      };
+      firestoreService.setActiveUser(userCarlos);
+
+      let carlosActivePlots = [];
+      const unsubCarlosPlots = firestoreService.subscribePlots((plots) => {
+        carlosActivePlots = plots;
+      });
+
+      // User A creates plot "Zone 7 - Carlos Special"
+      const carlosPlot = await firestoreService.createPlot({
+        id: 'plot-carlos-special-7',
+        name: 'Zone 7 - Carlos Special',
+        crop: 'Heirloom Grapevines',
+        plotNumber: 7,
+        stage: 'Fruiting',
+        targetVwcMin: 18.0,
+        targetVwcMax: 26.0
+      });
+
+      expect(carlosPlot).toBeDefined();
+      expect(carlosActivePlots.some(p => p.name === 'Zone 7 - Carlos Special')).toBe(true);
+      unsubCarlosPlots();
+
+      // 2. Switch to User B (Dr. Elena Rostova) in farm-elena-research-2
+      const userElena = {
+        uid: 'user-elena-2',
+        displayName: 'Dr. Elena Rostova',
+        email: 'elena.rostova@solenoidflow.org',
+        role: 'SuperAdmin',
+        farmId: 'farm-elena-research-2'
+      };
+      firestoreService.setActiveUser(userElena);
+
+      let elenaActivePlots = [];
+      let elenaActiveCrops = [];
+      const unsubElenaPlots = firestoreService.subscribePlots((plots) => {
+        elenaActivePlots = plots;
+      });
+      const unsubElenaCrops = firestoreService.subscribeCropCatalog((crops) => {
+        elenaActiveCrops = crops;
+      });
+
+      // VERIFY: Elena cannot see "Zone 7 - Carlos Special"
+      expect(elenaActivePlots.some(p => p.name === 'Zone 7 - Carlos Special')).toBe(false);
+      expect(elenaActivePlots.some(p => p.id === 'plot-carlos-special-7')).toBe(false);
+
+      // User B creates a crop "Golden Saffron" in research chamber
+      const elenaCrop = await firestoreService.addCropType({
+        name: 'Golden Saffron',
+        scientificName: 'Crocus sativus',
+        optimalVwcMin: 14.0,
+        optimalVwcMax: 22.0,
+        optimalPhMin: 6.0,
+        optimalPhMax: 7.5,
+        targetNitrogen: 75,
+        category: 'Exotic Spice'
+      });
+
+      expect(elenaCrop).toBeDefined();
+      expect(elenaActiveCrops.some(c => c.name === 'Golden Saffron')).toBe(true);
+      unsubElenaPlots();
+      unsubElenaCrops();
+
+      // 3. Switch back to User A (Carlos) in farm-carlos-valley-1
+      firestoreService.setActiveUser(userCarlos);
+
+      let carlosReturnedPlots = [];
+      let carlosReturnedCrops = [];
+      const unsubCarlos2 = firestoreService.subscribePlots((plots) => {
+        carlosReturnedPlots = plots;
+      });
+      const unsubCarlosCrops2 = firestoreService.subscribeCropCatalog((crops) => {
+        carlosReturnedCrops = crops;
+      });
+
+      // VERIFY: Carlos CANNOT see "Golden Saffron" created by Elena
+      expect(carlosReturnedCrops.some(c => c.name === 'Golden Saffron')).toBe(false);
+
+      // VERIFY: Carlos STILL has his "Zone 7 - Carlos Special"
+      expect(carlosReturnedPlots.some(p => p.name === 'Zone 7 - Carlos Special')).toBe(true);
+      unsubCarlos2();
+      unsubCarlosCrops2();
+
+      // 4. Verify LocalStorage Partition Keys ensure zero cross-tenant contamination
+      const rawCarlosChamber = localStorage.getItem('agrispectra_offline_db_farm-carlos-valley-1');
+      expect(rawCarlosChamber).toBeDefined();
+      expect(rawCarlosChamber.includes('Zone 7 - Carlos Special')).toBe(true);
+      expect(rawCarlosChamber.includes('Golden Saffron')).toBe(false);
+
+      const rawElenaChamber = localStorage.getItem('agrispectra_offline_db_farm-elena-research-2');
+      expect(rawElenaChamber).toBeDefined();
+      expect(rawElenaChamber.includes('Golden Saffron')).toBe(true);
+      expect(rawElenaChamber.includes('Zone 7 - Carlos Special')).toBe(false);
+    });
+
+    it('dynamically initializes a fresh independent farm chamber for newly registered users with zero data leaks', async () => {
+      mockFirestore.resetToDefault();
+
+      const newUserId = `usr-isolated-${Date.now()}`;
+      const newUser = {
+        uid: newUserId,
+        displayName: 'Amara Patel',
+        email: 'amara.patel@agrocloud.io',
+        role: 'Farm Owner',
+        farmId: `farm_${newUserId}`,
+        farmName: 'Deccan Plateau Drip Block'
+      };
+
+      firestoreService.setActiveUser(newUser);
+
+      // Verify dynamically generated chamber
+      const farmDoc = await firestoreService.getFarm();
+      expect(farmDoc.farmId).toBe(`farm_${newUserId}`);
+
+      const plots = await firestoreService.getPlots();
+      expect(plots.length).toBe(1);
+      expect(plots[0].plotNumber).toBe(1);
+
+      // Verify persistence key is partition-isolated
+      const storedChamber = localStorage.getItem(`agrispectra_offline_db_farm_${newUserId}`);
+      expect(storedChamber).toBeDefined();
+      const parsed = JSON.parse(storedChamber);
+      expect(parsed.farmId).toBe(`farm_${newUserId}`);
+    });
+
+    it('switches demo roles via AuthService and updates active Firestore chamber seamlessly', async () => {
+      mockFirestore.resetToDefault();
+
+      // Login as Mateo Silva (Central Valley Hydraulic Orchard)
+      await authService.loginAsDemoRole('Field Operator');
+      const currentUser = authService.getCurrentUser();
+      expect(currentUser.displayName).toBe('Mateo Silva');
+      expect(currentUser.farmId).toBe('farm-mateo-hydraulic-3');
+
+      // Verify firestoreService has bound to Mateo's orchard chamber
+      const mateoPlots = await firestoreService.getPlots();
+      expect(mateoPlots.some(p => p.crop === 'Citrus' || p.name.includes('Citrus'))).toBe(true);
+
+      // Verify Mateo's chamber does not contain Carlos's potato or tomato plots
+      expect(mateoPlots.some(p => p.name.includes('Potato Field Zone'))).toBe(false);
+
+      // Switch to Carlos Mendoza (Sonoma Valley Drip Vineyard)
+      await authService.loginAsDemoRole('Farm Owner');
+      const carlosUser = authService.getCurrentUser();
+      expect(carlosUser.displayName).toBe('Carlos Mendoza');
+      expect(carlosUser.farmId).toBe('farm-carlos-valley-1');
+
+      const carlosPlots = await firestoreService.getPlots();
+      expect(carlosPlots.some(p => p.name.includes('Potato Field Zone'))).toBe(true);
     });
   });
 }

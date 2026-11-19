@@ -18,7 +18,7 @@ export function createUsageAnalyticsView({
   scanHistory = []
 }) {
   const container = document.createElement('div');
-  container.className = "usage-analytics-view w-full space-y-4 pb-28 text-slate-800 dark:text-slate-100 select-none";
+  container.className = "usage-analytics-view w-full space-y-4 pb-36 sm:pb-40 text-slate-800 dark:text-slate-100 select-none";
 
   let timeframe = '7d'; // 'today' | '7d' | '30d' | 'season'
 

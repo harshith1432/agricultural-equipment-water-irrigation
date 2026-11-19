@@ -196,6 +196,51 @@ assertDefense(
   "Defensive clamping sanitizes all moisture (0-100%), temperature (-40 to 85°C), and salinity (0-25 dS/m) inputs."
 );
 
+// -----------------------------------------------------------------------------
+// ROUND 6: ATTACK VECTOR F - MULTI-TENANT ISOLATION & CROP SUBCOLLECTION
+// -----------------------------------------------------------------------------
+console.log("\n>>> [ROUND 6] Simulating Attack Vector F: Multi-Tenant Isolation & Crop Security");
+
+// Check 6.1: Crops subcollection read restricts to members, operators, managers, owners, or farm_UID
+const cropsReadRule = firestoreRulesContent.includes("match /crops/{cropId}") &&
+                      firestoreRulesContent.includes("isFarmMember(farmId)") &&
+                      firestoreRulesContent.includes("farmId == 'farm_' + request.auth.uid");
+assertDefense(
+  "Attack F1: Attacker attempts unauthorized read on crop catalog across tenant farms",
+  cropsReadRule,
+  "`farms/{farmId}/crops/{cropId}` strictly enforces membership, operator/manager/owner roles, or `farm_UID` identity."
+);
+
+// Check 6.2: Crops write (create, update, delete) restricted to managers or owners
+const cropsWriteRule = firestoreRulesContent.includes("(isFarmManager(farmId) || isFarmOwner(farmId) || isOwner(farmId))") &&
+                       firestoreRulesContent.includes("isValidCrop(request.resource.data)");
+assertDefense(
+  "Attack F2: Standard member or unauthorized outsider attempts to create or mutate agronomic crops",
+  cropsWriteRule,
+  "Crops create/update/delete strictly requires manager or owner authorization and calls `isValidCrop`."
+);
+
+// Check 6.3: Crops schema validator enforces required fields and numeric bounds
+const cropsSchemaCheck = firestoreRulesContent.includes("data.keys().hasAll(['name', 'optimalVwcMin', 'optimalVwcMax', 'optimalPhMin', 'optimalPhMax'])") &&
+                         firestoreRulesContent.includes("data.optimalVwcMax >= data.optimalVwcMin") &&
+                         firestoreRulesContent.includes("data.optimalPhMax >= data.optimalPhMin");
+assertDefense(
+  "Attack F3: Attacker injects malformed crop payload (missing required thresholds or inverted pH/VWC)",
+  cropsSchemaCheck,
+  "`isValidCrop` validates string lengths (1..100) and bounds: VWC (>=0, max>=min) and pH (>=0, max>=min)."
+);
+
+// Check 6.4: Farm multi-tenant isolation verifies isOwner, isMember, farm_UID, and user farmIds
+const farmTenancyCheck = firestoreRulesContent.includes("isOwner(farmId)") &&
+                         firestoreRulesContent.includes("isMember(farmId)") &&
+                         firestoreRulesContent.includes("farmId == 'farm_' + request.auth.uid") &&
+                         firestoreRulesContent.includes("farmId in getCallerUserData().farmIds");
+assertDefense(
+  "Attack F4: Cross-tenant adversary queries other farmer's root parcel document without tenant grant",
+  farmTenancyCheck,
+  "Farm root access requires `isOwner(farmId)`, `isMember(farmId)`, `farm_UID`, or explicit grant in user's `farmIds`."
+);
+
 console.log("\n================================================================================");
 console.log(` AUDIT SUMMARY: ${passedDefenses}/${totalTests} DEFENSES VERIFIED (${Math.round((passedDefenses / totalTests) * 100)}% SUCCESS RATE)`);
 console.log(` ATTACK VECTORS NEUTRALIZED: ${blockedAttacks}/${totalTests}`);

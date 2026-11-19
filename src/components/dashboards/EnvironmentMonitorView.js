@@ -21,7 +21,7 @@ import {
 
 export function createEnvironmentMonitorView() {
   const container = document.createElement('div');
-  container.className = "environment-monitor-view w-full space-y-4 pb-28 text-slate-800 select-none";
+  container.className = "environment-monitor-view w-full space-y-4 pb-36 sm:pb-40 text-slate-800 dark:text-slate-100 select-none";
 
   let connectionMode = tempHumiditySensorUSB.connectionMode || CONNECTION_MODES.USB_TYPE_C;
   let currentReading = null;
@@ -131,23 +131,23 @@ export function createEnvironmentMonitorView() {
           </div>
         </div>
 
-        <!-- 4 Metrics Row (Humidity, Precipitation, Pressure, Wind) -->
-        <div class="grid grid-cols-4 gap-1.5 pt-3 border-t border-emerald-700/40 text-center">
-          <div class="bg-white/10 rounded-2xl py-2 px-0.5 min-w-0 overflow-hidden">
-            <div class="text-[9px] text-emerald-200 font-medium truncate">${t('humidity')}</div>
-            <div class="text-[11px] sm:text-xs font-black font-mono mt-0.5 truncate">${rh.toFixed(0)}%</div>
+        <!-- 4 Metrics Grid (Humidity, Precipitation, Pressure, Wind) -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-3 border-t border-emerald-700/40 text-center">
+          <div class="bg-white/10 rounded-2xl py-2 px-2 min-w-0 overflow-hidden">
+            <div class="text-[10px] text-emerald-200 font-medium truncate">${t('humidity')}</div>
+            <div class="text-xs sm:text-sm font-black font-mono mt-0.5 truncate">${rh.toFixed(0)}%</div>
           </div>
-          <div class="bg-white/10 rounded-2xl py-2 px-0.5 min-w-0 overflow-hidden">
-            <div class="text-[9px] text-emerald-200 font-medium truncate">${t('precipitation')}</div>
-            <div class="text-[11px] sm:text-xs font-black font-mono mt-0.5 truncate">0.0 mm</div>
+          <div class="bg-white/10 rounded-2xl py-2 px-2 min-w-0 overflow-hidden">
+            <div class="text-[10px] text-emerald-200 font-medium truncate">${t('precipitation')}</div>
+            <div class="text-xs sm:text-sm font-black font-mono mt-0.5 truncate">0.0 mm</div>
           </div>
-          <div class="bg-white/10 rounded-2xl py-2 px-0.5 min-w-0 overflow-hidden">
-            <div class="text-[9px] text-emerald-200 font-medium truncate">${t('pressure')}</div>
-            <div class="text-[11px] sm:text-xs font-black font-mono mt-0.5 truncate">1013 hPa</div>
+          <div class="bg-white/10 rounded-2xl py-2 px-2 min-w-0 overflow-hidden">
+            <div class="text-[10px] text-emerald-200 font-medium truncate">${t('pressure')}</div>
+            <div class="text-xs sm:text-sm font-black font-mono mt-0.5 truncate">1013 hPa</div>
           </div>
-          <div class="bg-white/10 rounded-2xl py-2 px-0.5 min-w-0 overflow-hidden">
-            <div class="text-[9px] text-emerald-200 font-medium truncate">${t('wind')}</div>
-            <div class="text-[11px] sm:text-xs font-black font-mono mt-0.5 truncate">12 km/h</div>
+          <div class="bg-white/10 rounded-2xl py-2 px-2 min-w-0 overflow-hidden">
+            <div class="text-[10px] text-emerald-200 font-medium truncate">${t('wind')}</div>
+            <div class="text-xs sm:text-sm font-black font-mono mt-0.5 truncate">12 km/h</div>
           </div>
         </div>
 

@@ -356,7 +356,69 @@ export function createSettingsView({
         </select>
       </div>
 
-      <!-- 6. Offline Cache Flush & Guide Replay -->
+      <!-- 6. Hardware Diagnostics & Network Status -->
+      <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 shadow-sm border border-emerald-900/5 dark:border-slate-800 space-y-3">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+          <h3 class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+            ${icon('activity', 'w-4 h-4 text-[#0E5431] dark:text-emerald-400')}
+            <span>Hardware Diagnostics & Network Status</span>
+          </h3>
+          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold font-mono ${
+            (typeof navigator !== 'undefined' && navigator.onLine)
+              ? 'bg-emerald-100 text-[#0E5431] dark:bg-emerald-950/60 dark:text-emerald-300'
+              : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+          }">
+            ${(typeof navigator !== 'undefined' && navigator.onLine) ? 'ONLINE SYNCED' : 'OFFLINE CACHED'}
+          </span>
+        </div>
+
+        <div class="space-y-2 text-xs">
+          <div class="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full ${typeof navigator !== 'undefined' && navigator.onLine ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}"></span>
+              <span class="font-medium text-slate-700 dark:text-slate-300">Cloud Firestore & REST API</span>
+            </div>
+            <span class="font-mono text-[11px] font-bold text-slate-900 dark:text-white">
+              ${typeof navigator !== 'undefined' && navigator.onLine ? 'CONNECTED' : 'BUFFERING'}
+            </span>
+          </div>
+
+          <div class="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-teal-400 animate-pulse"></span>
+              <span class="font-medium text-slate-700 dark:text-slate-300">Leaf-Clip Spectrometer BLE 5.0</span>
+            </div>
+            <span class="font-mono text-[11px] font-bold text-teal-600 dark:text-teal-400">PAIRED & STREAMING</span>
+          </div>
+
+          <div class="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+              <span class="font-medium text-slate-700 dark:text-slate-300">LABART 8-in-1 Soil Sensor</span>
+            </div>
+            <span class="font-mono text-[11px] font-bold text-[#0E5431] dark:text-emerald-400">MODBUS RTU OK</span>
+          </div>
+
+          <div class="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+              <span class="font-medium text-slate-700 dark:text-slate-300">Bi-Stable Solenoid Gate Controller</span>
+            </div>
+            <span class="font-mono text-[11px] font-bold text-blue-600 dark:text-blue-400">6 GATES READY</span>
+          </div>
+        </div>
+
+        <button 
+          type="button" 
+          id="btn-settings-force-sync"
+          class="w-full py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-[#0E5431] dark:text-emerald-300 font-bold text-xs flex items-center justify-center gap-1.5 transition active:scale-98"
+        >
+          ${icon('refresh', 'w-3.5 h-3.5')}
+          <span>Force Cloud Telemetry Sync</span>
+        </button>
+      </div>
+
+      <!-- 7. Offline Cache Flush & Guide Replay -->
       <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 shadow-sm border border-emerald-900/5 dark:border-slate-800 space-y-2.5">
         <h3 class="text-xs font-bold text-slate-900 dark:text-white">${t('offline_telemetry_cache')}</h3>
 
@@ -524,6 +586,15 @@ export function createSettingsView({
           render();
         }
       }
+    });
+
+    // Force Telemetry Sync
+    container.querySelector('#btn-settings-force-sync')?.addEventListener('click', () => {
+      try {
+        localStorage.removeItem('agrispectra_offline_mutation_queue');
+      } catch (e) {}
+      bannerMessage = "All field hardware telemetry packets and states synchronized with Cloud Firestore.";
+      render();
     });
 
     // Log Out

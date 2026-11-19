@@ -19,6 +19,8 @@ import soilRoutes from './routes/soilRoutes.js';
 import spectroRoutes from './routes/spectroRoutes.js';
 import environmentRoutes from './routes/environmentRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
+import authRoutes from './routes/authRoutes.js';
+import { authLimiter } from './middleware/rateLimiter.js';
 import { firestoreClient } from './services/firestoreClient.js';
 import { enterpriseStore } from './services/enterpriseStore.js';
 import { centralStorage } from './services/centralStorage.js';
@@ -48,7 +50,14 @@ app.use(cors({
     // Allow non-browser clients (native mobile WebView, server-to-server IoT gateways, curl, testing)
     if (!origin) return callback(null, true);
     
-    let isAllowed = process.env.NODE_ENV !== 'production' || allowedOrigins.includes('*') || allowedOrigins.includes(origin);
+    const isProduction = process.env.NODE_ENV === 'production';
+    
+    // Strict CORS: Reject wildcard origins in production mode
+    if (isProduction && (allowedOrigins.includes('*') || origin === '*')) {
+      return callback(new Error(`Wildcard CORS origin is forbidden in production`), false);
+    }
+
+    let isAllowed = (!isProduction && allowedOrigins.includes('*')) || allowedOrigins.includes(origin);
     
     if (!isAllowed) {
       try {
@@ -71,16 +80,32 @@ app.use(cors({
   credentials: true
 }));
 
-// HTTP Defense Security Headers
+// HTTP Defense Security Headers (OWASP MASVS-NETWORK / OWASP Top 10)
 app.use((req, res, next) => {
+  // Content Security Policy
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; script-src 'self' 'unsafe-inline' https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https: blob:; connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com http://localhost:* ws://localhost:* https://*.vercel.app; object-src 'none'; frame-ancestors 'none'; base-uri 'self';"
+  );
+  // Strict Transport Security (HSTS)
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+  // Content Type Sniffing Prevention
   res.setHeader('X-Content-Type-Options', 'nosniff');
+  // Clickjacking Prevention
   res.setHeader('X-Frame-Options', 'DENY');
+  // Legacy XSS Filter
   res.setHeader('X-XSS-Protection', '1; mode=block');
+  // Referrer Policy
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  // Hardware Feature & Sensor Permissions Policy
+  res.setHeader('Permissions-Policy', 'camera=(self), microphone=(), geolocation=(self)');
+  // Cross-Origin Isolation & Popups for OAuth
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
   next();
 });
 
-app.use(express.json({ limit: '10mb' }));
+// Enforce 500kb request payload limit to defend against memory exhaustion DoS attacks
+app.use(express.json({ limit: '500kb' }));
 
 // Request Logging Middleware
 app.use((req, res, next) => {
@@ -108,6 +133,7 @@ app.get('/', (req, res) => {
 
 // Mount Routes
 app.use('/api', healthRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api', adminRoutes);
 app.use('/api', telemetryRoutes);
 app.use('/api', irrigationRoutes);

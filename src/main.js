@@ -137,6 +137,13 @@ class AgriSpectraApp {
   async init() {
     console.log("[AgriSpectra] Initializing role-based precision agriculture platform...");
 
+    // Bind firestoreService to current user's isolated farm chamber
+    try {
+      firestoreService.setActiveUser(this.currentUser);
+    } catch (e) {
+      console.warn("[AgriSpectraApp] Setting active user note:", e);
+    }
+
     // Apply the active theme
     this.applyTheme(this.currentTheme);
 
@@ -222,6 +229,41 @@ class AgriSpectraApp {
       if (user) {
         this.activeRoleView = user.role || 'Farm Owner';
       }
+      try {
+        firestoreService.setActiveUser(user);
+      } catch (e) {
+        console.warn("[AgriSpectraApp] Error binding active user chamber:", e);
+      }
+
+      // Re-subscribe to real-time collections for the newly active user's isolation chamber
+      if (typeof this.unsubscribePlots === 'function') this.unsubscribePlots();
+      this.unsubscribePlots = firestoreService.subscribePlots((plots) => {
+        this.plots = plots;
+        if (this.plots.length > 0 && !this.plots.some(p => p.id === this.selectedPlotId)) {
+          this.selectedPlotId = this.plots[0].id;
+          try { localStorage.setItem('agrispectra_selected_plot', this.selectedPlotId); } catch (e) {}
+        }
+        if (this.currentUser) this.render();
+      });
+
+      if (typeof this.unsubscribeCropCatalog === 'function') this.unsubscribeCropCatalog();
+      this.unsubscribeCropCatalog = firestoreService.subscribeCropCatalog((crops) => {
+        this.cropCatalog = crops;
+        if (this.currentUser) this.render();
+      });
+
+      if (typeof this.unsubscribeRecommendations === 'function') this.unsubscribeRecommendations();
+      this.unsubscribeRecommendations = firestoreService.subscribeActionRecommendations((recs) => {
+        this.actionRecommendations = recs;
+        if (this.currentUser) this.render();
+      });
+
+      if (typeof this.unsubscribeLogs === 'function') this.unsubscribeLogs();
+      this.unsubscribeLogs = firestoreService.subscribeIrrigationLogs((logs) => {
+        this.irrigationLogs = logs;
+        if (this.currentUser) this.render();
+      });
+
       this.render();
     });
 

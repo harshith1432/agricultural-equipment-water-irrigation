@@ -64,30 +64,30 @@ export function createAIIntelligenceView({
           </span>
         </div>
 
-        <!-- Multi-Modal Data Ingestion Matrix -->
-        <div class="grid grid-cols-4 gap-2 pt-2 border-t border-emerald-700/40 text-center">
-          <div class="bg-white/10 rounded-2xl p-2 flex flex-col items-center min-w-0">
-            <span class="text-[9px] text-emerald-100 font-medium leading-tight text-center break-words min-h-[22px] flex items-center justify-center w-full">${t('param_moisture')}</span>
-            <span class="text-sm font-black font-mono mt-0.5 text-white whitespace-nowrap">42.2%</span>
-            <span class="text-[8px] text-emerald-300">LABART 8-in-1</span>
+        <!-- Multi-Modal Data Ingestion Matrix (Clean 2x2 on mobile, 4x1 on tablet) -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-3 border-t border-emerald-700/40 text-center">
+          <div class="bg-white/10 rounded-2xl p-2.5 flex flex-col items-center justify-between min-w-0">
+            <span class="text-[10px] text-emerald-100 font-medium leading-tight text-center break-words min-h-[22px] flex items-center justify-center w-full">${t('param_moisture')}</span>
+            <span class="text-sm sm:text-base font-black font-mono my-1 text-white whitespace-nowrap overflow-hidden text-ellipsis">42.2%</span>
+            <span class="text-[9px] text-emerald-300/90 font-mono">LABART 8-in-1</span>
           </div>
 
-          <div class="bg-white/10 rounded-2xl p-2 flex flex-col items-center min-w-0">
-            <span class="text-[9px] text-emerald-100 font-medium leading-tight text-center break-words min-h-[22px] flex items-center justify-center w-full">${t('canopy_vitality')}</span>
-            <span class="text-sm font-black font-mono mt-0.5 text-white whitespace-nowrap">84 / 100</span>
-            <span class="text-[8px] text-emerald-300">VIS-NIR Spec</span>
+          <div class="bg-white/10 rounded-2xl p-2.5 flex flex-col items-center justify-between min-w-0">
+            <span class="text-[10px] text-emerald-100 font-medium leading-tight text-center break-words min-h-[22px] flex items-center justify-center w-full">${t('canopy_vitality')}</span>
+            <span class="text-sm sm:text-base font-black font-mono my-1 text-white whitespace-nowrap overflow-hidden text-ellipsis">84 / 100</span>
+            <span class="text-[9px] text-emerald-300/90 font-mono">VIS-NIR Spec</span>
           </div>
 
-          <div class="bg-white/10 rounded-2xl p-2 flex flex-col items-center min-w-0">
-            <span class="text-[9px] text-emerald-100 font-medium leading-tight text-center break-words min-h-[22px] flex items-center justify-center w-full">${t('vapor_pressure_deficit')}</span>
-            <span class="text-sm font-black font-mono mt-0.5 text-white whitespace-nowrap">1.25 kPa</span>
-            <span class="text-[8px] text-emerald-300">Open-Meteo</span>
+          <div class="bg-white/10 rounded-2xl p-2.5 flex flex-col items-center justify-between min-w-0">
+            <span class="text-[10px] text-emerald-100 font-medium leading-tight text-center break-words min-h-[22px] flex items-center justify-center w-full">${t('vapor_pressure_deficit')}</span>
+            <span class="text-sm sm:text-base font-black font-mono my-1 text-white whitespace-nowrap overflow-hidden text-ellipsis">1.25 kPa</span>
+            <span class="text-[9px] text-emerald-300/90 font-mono">Open-Meteo</span>
           </div>
 
-          <div class="bg-white/10 rounded-2xl p-2 flex flex-col items-center min-w-0">
-            <span class="text-[9px] text-emerald-100 font-medium leading-tight text-center break-words min-h-[22px] flex items-center justify-center w-full">${t('flow_today')}</span>
-            <span class="text-sm font-black font-mono mt-0.5 text-white whitespace-nowrap">1,845 L</span>
-            <span class="text-[8px] text-emerald-300">Drip Hub</span>
+          <div class="bg-white/10 rounded-2xl p-2.5 flex flex-col items-center justify-between min-w-0">
+            <span class="text-[10px] text-emerald-100 font-medium leading-tight text-center break-words min-h-[22px] flex items-center justify-center w-full">${t('flow_today')}</span>
+            <span class="text-sm sm:text-base font-black font-mono my-1 text-white whitespace-nowrap overflow-hidden text-ellipsis">1,845 L</span>
+            <span class="text-[9px] text-emerald-300/90 font-mono">Drip Hub</span>
           </div>
         </div>
 

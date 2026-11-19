@@ -13,7 +13,6 @@
 
 import { createAppNavigationHeader } from './AppNavigationHeader.js';
 import { createBottomNavBar } from './BottomNavBar.js';
-import { createNetworkConnectivityBanner } from './NetworkConnectivityBanner.js';
 import { createFieldOverviewDashboard } from './dashboards/FieldOverviewDashboard.js';
 import { createIrrigationManagementView } from './dashboards/IrrigationManagementView.js';
 import { createSpectroscopyAnalysisView } from './dashboards/SpectroscopyAnalysisView.js';
@@ -71,12 +70,7 @@ export function createNativeMobileAppView({
   // Compute pending synergy recommendations count for bottom badge
   const pendingSynergyCount = (actionRecommendations || []).filter(r => r?.status === 'PENDING').length;
 
-  // 1. Top Network Connectivity Banner (Online Synced / Offline Cached / BLE Direct)
-  const connectivityBanner = createNetworkConnectivityBanner();
-  connectivityBanner.element.classList.add('flex-shrink-0');
-  container.appendChild(connectivityBanner.element);
-
-  // 2. Create Top Header
+  // 1. Create Top Header
   const header = createAppNavigationHeader({
     plots: activePlots,
     selectedPlotId: currentPlotId,

@@ -1,13 +1,20 @@
 /**
- * AgriSpectra Flow & Field - Unified Cloud Firestore & Offline Data Service
+ * AgriSpectra Flow & Field - Unified Cloud Firestore & Multi-Tenant Isolated Data Service
  * 
  * Architecture & Invariants:
  *  - Direct live connection to Cloud Firestore `(default)` database with automatic offline persistence.
+ *  - Dynamic multi-tenant user isolation chambers:
+ *      * carlos (`farm-carlos-valley-1`): Sonoma Valley Drip Vineyard (6 crop zones: Potato, Tomato, Bell Pepper, Corn, Wheat, Cotton)
+ *      * elena (`farm-elena-research-2`): Salinas Agronomy Research Hub (Research crops: Sugarcane, Paddy Rice, Chilli)
+ *      * mateo (`farm-mateo-hydraulic-3`): Central Valley Hydraulic Orchard (Orchard crops: Citrus, Almonds, Pistachio)
+ *      * guest (`farm-guest-local-0`): Offline Sandbox Parcel
+ *      * dynamically registered users: `farm_${uid}`
  *  - Real-time `onSnapshot` listeners syncing live telemetry directly into mobile app UI components.
  *  - Full document & collection operations for:
  *      * users/{userId}
  *      * farms/{farmId}
  *      * farms/{farmId}/plots/{plotId}
+ *      * farms/{farmId}/crops/{cropId}
  *      * farms/{farmId}/leafScans/{scanId}
  *      * farms/{farmId}/irrigationLogs/{logId} (Strict append-only water ledger)
  *      * farms/{farmId}/actionRecommendations/{recId}
@@ -34,13 +41,50 @@ import { db, isLiveFirebaseConfigured } from './config.js';
 import { mockFirestore } from './mockFirestore.js';
 import { backendSyncService } from './backendSyncService.js';
 
-export const FARM_ID = "farm-valley-1";
+export const FARM_ID = "farm-carlos-valley-1";
 
 export class FirestoreDataService {
   constructor() {
     this.db = db;
     this.useLive = Boolean(isLiveFirebaseConfigured && this.db !== null);
+    this.currentUser = null;
+    mockFirestore.currentFarmId = FARM_ID;
     console.log(`[FirestoreService] Active Backend Mode: ${this.useLive ? 'CLOUD FIRESTORE (LIVE & OFFLINE PERSISTENT)' : 'REACTIVE PERSISTENT LOCAL NO-SQL'}`);
+  }
+
+  get currentFarmId() {
+    return mockFirestore.currentFarmId || FARM_ID;
+  }
+
+  set currentFarmId(val) {
+    mockFirestore.currentFarmId = val || FARM_ID;
+  }
+
+  /**
+   * Set the active user and dynamically bind queries to that user's farm isolation chamber
+   * @param {Object} user
+   */
+  setActiveUser(user) {
+    this.currentUser = user;
+    let farmId = FARM_ID;
+    if (user) {
+      if (user.farmId) {
+        farmId = user.farmId;
+      } else if (user.uid === 'user-carlos-1' || user.uid === 'usr-demo-01' || user.uid === 'usr-ent-01') {
+        farmId = 'farm-carlos-valley-1';
+      } else if (user.uid === 'user-elena-2' || user.uid === 'usr-ent-03') {
+        farmId = 'farm-elena-research-2';
+      } else if (user.uid === 'user-mateo-3' || user.uid === 'usr-ent-04') {
+        farmId = 'farm-mateo-hydraulic-3';
+      } else if (user.uid === 'offline-guest' || user.uid === 'guest-offline-farmer') {
+        farmId = 'farm-guest-local-0';
+      } else if (user.uid) {
+        farmId = 'farm_' + user.uid;
+      }
+    }
+
+    mockFirestore.setActiveFarm(farmId, user);
+    return farmId;
   }
 
   // =========================================================================
@@ -90,14 +134,15 @@ export class FirestoreDataService {
     if (!userData || !userData.uid) throw new Error("User UID required to save profile.");
 
     const now = new Date();
+    const effectiveFarmId = userData.farmId || (userData.uid ? 'farm_' + userData.uid : this.currentFarmId);
     const profilePayload = {
       uid: userData.uid,
       email: userData.email,
       displayName: userData.displayName || userData.email?.split('@')[0] || "Farmer",
       photoURL: userData.photoURL || null,
       role: userData.role || "farm_owner",
-      farmId: userData.farmId || FARM_ID,
-      farmIds: userData.farmIds || [userData.farmId || FARM_ID],
+      farmId: effectiveFarmId,
+      farmIds: userData.farmIds || [effectiveFarmId],
       lastLoginAt: this.useLive ? serverTimestamp() : now.toISOString(),
       updatedAt: this.useLive ? serverTimestamp() : now.toISOString()
     };
@@ -136,10 +181,11 @@ export class FirestoreDataService {
    * Read farm root metadata
    * @param {string} farmId
    */
-  async getFarm(farmId = FARM_ID) {
+  async getFarm(farmId = this.currentFarmId) {
+    const targetFarm = farmId || this.currentFarmId;
     if (this.useLive) {
       try {
-        const farmRef = doc(this.db, "farms", farmId);
+        const farmRef = doc(this.db, "farms", targetFarm);
         const snap = await getDoc(farmRef);
         if (snap.exists()) {
           return { id: snap.id, ...snap.data() };
@@ -148,15 +194,23 @@ export class FirestoreDataService {
         console.warn("[FirestoreService] Error reading farm doc from Cloud Firestore:", err.message);
       }
     }
-    return mockFirestore.getChannelSnapshot('farm');
+    return mockFirestore.getChannelSnapshot('farm', targetFarm);
   }
 
   /**
    * Subscribe to real-time farm root updates
-   * @param {string} farmId
-   * @param {Function} callback
+   * Supports subscribeFarm(callback) or subscribeFarm(farmId, callback)
    */
-  subscribeFarm(farmId = FARM_ID, callback) {
+  subscribeFarm(arg1, arg2) {
+    let callback, farmId;
+    if (typeof arg1 === 'function') {
+      callback = arg1;
+      farmId = arg2 || this.currentFarmId;
+    } else {
+      farmId = arg1 || this.currentFarmId;
+      callback = arg2;
+    }
+
     if (this.useLive) {
       try {
         const farmRef = doc(this.db, "farms", farmId);
@@ -164,7 +218,7 @@ export class FirestoreDataService {
           if (snap.exists()) {
             callback({ id: snap.id, ...snap.data() });
           } else {
-            callback(mockFirestore.getChannelSnapshot('farm'));
+            callback(mockFirestore.getChannelSnapshot('farm', farmId));
           }
         }, (err) => {
           console.warn("[FirestoreService] Farm snapshot error, using local fallback:", err.message);
@@ -182,10 +236,11 @@ export class FirestoreDataService {
    * @param {string} farmId
    * @param {Object} data
    */
-  async updateFarm(farmId = FARM_ID, data) {
+  async updateFarm(farmId = this.currentFarmId, data = {}) {
+    const targetFarm = farmId || this.currentFarmId;
     if (this.useLive) {
       try {
-        const farmRef = doc(this.db, "farms", farmId);
+        const farmRef = doc(this.db, "farms", targetFarm);
         await updateDoc(farmRef, {
           ...data,
           updatedAt: serverTimestamp()
@@ -194,9 +249,11 @@ export class FirestoreDataService {
         console.warn("[FirestoreService] Live updateFarm error:", err.message);
       }
     }
-    if (mockFirestore.data.farmId === farmId) {
-      mockFirestore.data = { ...mockFirestore.data, ...data };
-      mockFirestore.saveData();
+
+    const farmData = mockFirestore.getFarmData(targetFarm);
+    Object.assign(farmData, data);
+    mockFirestore.saveData(targetFarm);
+    if (mockFirestore.normalizeFarmId(targetFarm) === mockFirestore.normalizeFarmId(this.currentFarmId)) {
       mockFirestore.notify('farm');
     }
     return { success: true };
@@ -207,33 +264,64 @@ export class FirestoreDataService {
   // =========================================================================
 
   /**
-   * Subscribe to Plots with real-time updates and offline synchronization
-   * @param {Function} callback
+   * Read all plots for a specific farm
    * @param {string} farmId
    */
-  subscribePlots(callback, farmId = FARM_ID) {
+  async getPlots(farmId = this.currentFarmId) {
+    const targetFarm = farmId || this.currentFarmId;
+    if (this.useLive) {
+      try {
+        const plotsRef = collection(this.db, "farms", targetFarm, "plots");
+        const snap = await getDocs(plotsRef);
+        if (!snap.empty) {
+          const plots = [];
+          snap.forEach(d => plots.push({ id: d.id, ...d.data() }));
+          plots.sort((a, b) => (a.plotNumber || 0) - (b.plotNumber || 0));
+          return plots;
+        }
+      } catch (err) {
+        console.warn("[FirestoreService] Live getPlots note, using local fallback:", err.message);
+      }
+    }
+    return mockFirestore.getPlots(targetFarm);
+  }
+
+  /**
+   * Subscribe to Plots with real-time updates and offline synchronization
+   * Supports subscribePlots(callback) or subscribePlots(callback, farmId)
+   */
+  subscribePlots(arg1, arg2) {
+    let callback, farmId;
+    if (typeof arg1 === 'function') {
+      callback = arg1;
+      farmId = arg2 || this.currentFarmId;
+    } else {
+      farmId = arg1 || this.currentFarmId;
+      callback = arg2;
+    }
+
     if (this.useLive) {
       try {
         const plotsRef = collection(this.db, "farms", farmId, "plots");
         return onSnapshot(plotsRef, (snapshot) => {
           if (snapshot.empty) {
-            callback(mockFirestore.getChannelSnapshot('plots'));
+            callback(mockFirestore.getChannelSnapshot('plots', farmId));
             return;
           }
           const plots = [];
           snapshot.forEach((doc) => {
             const plotData = { id: doc.id, ...doc.data() };
             plots.push(plotData);
-            // Synchronize with local mock Firestore cache so offline transitions are seamless
-            if (mockFirestore.data.plots) {
-              mockFirestore.data.plots[doc.id] = {
-                ...(mockFirestore.data.plots[doc.id] || {}),
+            const chamberData = mockFirestore.getFarmData(farmId);
+            if (chamberData.plots) {
+              chamberData.plots[doc.id] = {
+                ...(chamberData.plots[doc.id] || {}),
                 ...plotData
               };
             }
           });
           plots.sort((a, b) => (a.plotNumber || 0) - (b.plotNumber || 0));
-          mockFirestore.saveData();
+          mockFirestore.saveData(farmId);
           callback(plots);
         }, (error) => {
           console.warn("[FirestoreService] Live plots subscription error, using local fallback:", error);
@@ -248,25 +336,27 @@ export class FirestoreDataService {
 
   /**
    * Create a new plot/crop zone in Firestore under farms/{farmId}/plots/{plotId} and local reactive store.
-   * Auto-generates ID if not provided. Validates fields (name, crop, plotNumber, targetVwcMin, targetVwcMax, soilSensors, valve, growthStage).
+   * Auto-generates ID if not provided.
    * @param {Object} plotData
    * @param {string} farmId
    */
-  async createPlot(plotData = {}, farmId = FARM_ID) {
+  async createPlot(plotData = {}, farmId = this.currentFarmId) {
+    const targetFarm = farmId || this.currentFarmId;
+
     // 1. Write to local reactive store for 0ms instantaneous UI update
-    const createdPlot = mockFirestore.createPlot(plotData);
+    const createdPlot = mockFirestore.createPlot(plotData, targetFarm);
 
     // 2. Synchronize to Cloud Firestore if connected
     if (this.useLive) {
       try {
-        const plotRef = doc(this.db, "farms", farmId, "plots", createdPlot.id);
+        const plotRef = doc(this.db, "farms", targetFarm, "plots", createdPlot.id);
         const { id, ...firestorePayload } = createdPlot;
         await setDoc(plotRef, {
           ...firestorePayload,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         });
-        console.log(`[FirestoreService] Real-time Plot created in Cloud Firestore: ${createdPlot.id}`);
+        console.log(`[FirestoreService] Real-time Plot created in Cloud Firestore: ${createdPlot.id} under farm ${targetFarm}`);
       } catch (err) {
         console.warn("[FirestoreService] Cloud Firestore createPlot queued/buffered locally:", err.message);
       }
@@ -281,14 +371,15 @@ export class FirestoreDataService {
    * @param {Object} plotData
    * @param {string} farmId
    */
-  async updatePlot(plotId, plotData, farmId = FARM_ID) {
+  async updatePlot(plotId, plotData, farmId = this.currentFarmId) {
     if (!plotId) throw new Error("Plot ID is required for updatePlot.");
+    const targetFarm = farmId || this.currentFarmId;
 
-    const updated = mockFirestore.updatePlot(plotId, plotData);
+    const updated = mockFirestore.updatePlot(plotId, plotData, targetFarm);
 
     if (this.useLive) {
       try {
-        const plotRef = doc(this.db, "farms", farmId, "plots", plotId);
+        const plotRef = doc(this.db, "farms", targetFarm, "plots", plotId);
         await updateDoc(plotRef, {
           ...plotData,
           updatedAt: serverTimestamp()
@@ -298,23 +389,23 @@ export class FirestoreDataService {
         console.warn("[FirestoreService] Cloud updatePlot note:", err.message);
       }
     }
-    return { success: true, plot: updated || mockFirestore.data?.plots?.[plotId] };
+    return { success: true, plot: updated || mockFirestore.getFarmData(targetFarm)?.plots?.[plotId] };
   }
 
   /**
-   * Delete plot/crop from Firestore & reactive store, cleans up references,
-   * and triggers real-time listener updates so UI immediately reflects removal.
+   * Delete plot/crop from Firestore & reactive store
    * @param {string} plotId
    * @param {string} farmId
    */
-  async deletePlot(plotId, farmId = FARM_ID) {
+  async deletePlot(plotId, farmId = this.currentFarmId) {
     if (!plotId) throw new Error("Plot ID is required for deletePlot.");
+    const targetFarm = farmId || this.currentFarmId;
 
-    const result = mockFirestore.deletePlot(plotId);
+    const result = mockFirestore.deletePlot(plotId, targetFarm);
 
     if (this.useLive) {
       try {
-        const plotRef = doc(this.db, "farms", farmId, "plots", plotId);
+        const plotRef = doc(this.db, "farms", targetFarm, "plots", plotId);
         await deleteDoc(plotRef);
         console.log(`[FirestoreService] Real-time Plot deleted from Cloud Firestore: ${plotId}`);
       } catch (err) {
@@ -330,10 +421,11 @@ export class FirestoreDataService {
    * @param {string} plotId
    * @param {string} farmId
    */
-  async getPlot(plotId, farmId = FARM_ID) {
+  async getPlot(plotId, farmId = this.currentFarmId) {
+    const targetFarm = farmId || this.currentFarmId;
     if (this.useLive) {
       try {
-        const plotRef = doc(this.db, "farms", farmId, "plots", plotId);
+        const plotRef = doc(this.db, "farms", targetFarm, "plots", plotId);
         const snap = await getDoc(plotRef);
         if (snap.exists()) {
           return { id: snap.id, ...snap.data() };
@@ -342,15 +434,16 @@ export class FirestoreDataService {
         console.warn("[FirestoreService] Error reading plot doc from Cloud Firestore:", err.message);
       }
     }
-    return mockFirestore.data?.plots?.[plotId] || null;
+    return mockFirestore.getFarmData(targetFarm)?.plots?.[plotId] || null;
   }
 
   /**
-   * Actuate Solenoid Valve (Gate G1 to G6)
+   * Actuate Solenoid Valve (Gate G1 to G8)
    * Sends +12V pulse to latch OPEN, -12V reverse pulse to latch CLOSED.
    * Records immutable append-only log in irrigationLogs.
    */
-  async actuateValve({ plotId, gateId, action, durationMinutes = 20, triggeredBy = "MANUAL", operatorId = null }) {
+  async actuateValve({ plotId, gateId, action, durationMinutes = 20, triggeredBy = "MANUAL", operatorId = null, farmId = this.currentFarmId }) {
+    const targetFarm = farmId || this.currentFarmId;
     const now = new Date();
     const isOpening = action === "OPEN";
     const timerEnd = isOpening ? new Date(now.getTime() + durationMinutes * 60000).toISOString() : null;
@@ -365,7 +458,7 @@ export class FirestoreDataService {
         timerEnd: timerEnd
       },
       updatedAt: now.toISOString()
-    });
+    }, targetFarm);
 
     // 2. Record immutable append-only Irrigation Log
     const logDoc = {
@@ -377,19 +470,19 @@ export class FirestoreDataService {
       triggeredBy,
       operatorId: operatorId || (typeof localStorage !== 'undefined' ? JSON.parse(localStorage.getItem('agrispectra_auth_user') || '{}')?.uid : null) || null
     };
-    mockFirestore.addIrrigationLog(logDoc);
+    mockFirestore.addIrrigationLog(logDoc, targetFarm);
 
     // 3. Write directly to Cloud Firestore `(default)`
     if (this.useLive) {
       try {
-        const plotRef = doc(this.db, "farms", FARM_ID, "plots", plotId);
+        const plotRef = doc(this.db, "farms", targetFarm, "plots", plotId);
         await updateDoc(plotRef, {
           "valve.state": isOpening ? "OPEN" : "CLOSED",
           "valve.timerEnd": timerEnd,
           "updatedAt": serverTimestamp()
         });
 
-        const logsRef = collection(this.db, "farms", FARM_ID, "irrigationLogs");
+        const logsRef = collection(this.db, "farms", targetFarm, "irrigationLogs");
         await addDoc(logsRef, {
           ...logDoc,
           timestamp: serverTimestamp()
@@ -401,7 +494,7 @@ export class FirestoreDataService {
 
     // Direct asynchronous telemetry dispatch to Enterprise Backend Server
     backendSyncService.syncTelemetryPacket({
-      farmId: FARM_ID,
+      farmId: targetFarm,
       plotId,
       action: isOpening ? "OPEN" : "CLOSE",
       durationMinutes,
@@ -415,8 +508,9 @@ export class FirestoreDataService {
    * Emergency 1-tap "Shut Off All Valves"
    * Shuts off all active solenoid valves simultaneously.
    */
-  async emergencyShutOffAll() {
-    const plots = mockFirestore.getChannelSnapshot('plots') || [];
+  async emergencyShutOffAll(farmId = this.currentFarmId) {
+    const targetFarm = farmId || this.currentFarmId;
+    const plots = mockFirestore.getChannelSnapshot('plots', targetFarm) || [];
     let closedCount = 0;
 
     for (const plot of plots) {
@@ -426,7 +520,8 @@ export class FirestoreDataService {
           gateId: plot.valve.id,
           action: "CLOSE",
           durationMinutes: 0,
-          triggeredBy: "EMERGENCY"
+          triggeredBy: "EMERGENCY",
+          farmId: targetFarm
         });
         closedCount++;
       }
@@ -441,22 +536,23 @@ export class FirestoreDataService {
   /**
    * Update Plot Telemetry from MQTT or sensor cycle
    */
-  updatePlotTelemetry(plotId, soilSensors, totalLiters) {
+  updatePlotTelemetry(plotId, soilSensors, totalLiters, farmId = this.currentFarmId) {
+    const targetFarm = farmId || this.currentFarmId;
     mockFirestore.updatePlot(plotId, {
       soilSensors,
       totalLitersDelivered: totalLiters
-    });
+    }, targetFarm);
 
     if (this.useLive) {
       try {
-        const plotRef = doc(this.db, "farms", FARM_ID, "plots", plotId);
+        const plotRef = doc(this.db, "farms", targetFarm, "plots", plotId);
         updateDoc(plotRef, {
           soilSensors,
           totalLitersDelivered: totalLiters,
           updatedAt: serverTimestamp()
         }).catch(() => {});
       } catch (e) {
-        // Telemetry ticks are high-frequency; silent fallback
+        // High-frequency telemetry tick; silent fallback
       }
     }
   }
@@ -467,16 +563,25 @@ export class FirestoreDataService {
 
   /**
    * Subscribe to Leaf Spectroscopy Scans
-   * @param {Function} callback
+   * Supports subscribeLeafScans(callback) or subscribeLeafScans(callback, farmId)
    */
-  subscribeLeafScans(callback) {
+  subscribeLeafScans(arg1, arg2) {
+    let callback, farmId;
+    if (typeof arg1 === 'function') {
+      callback = arg1;
+      farmId = arg2 || this.currentFarmId;
+    } else {
+      farmId = arg1 || this.currentFarmId;
+      callback = arg2;
+    }
+
     if (this.useLive) {
       try {
-        const scansRef = collection(this.db, "farms", FARM_ID, "leafScans");
+        const scansRef = collection(this.db, "farms", farmId, "leafScans");
         const q = query(scansRef, orderBy("scannedAt", "desc"), limit(50));
         return onSnapshot(q, (snapshot) => {
           if (snapshot.empty) {
-            callback(mockFirestore.getChannelSnapshot('leafScans'));
+            callback(mockFirestore.getChannelSnapshot('leafScans', farmId));
             return;
           }
           const scans = [];
@@ -498,8 +603,11 @@ export class FirestoreDataService {
   /**
    * Save a newly acquired Leaf Spectroscopy Scan directly to Cloud Firestore
    * @param {Object} scanData
+   * @param {string} farmId
    */
-  async saveLeafScan(scanData) {
+  async saveLeafScan(scanData, farmId = this.currentFarmId) {
+    const targetFarm = farmId || this.currentFarmId;
+
     // 1. Add to local mock store and trigger closed-loop synergy evaluation
     const scanId = mockFirestore.addLeafScan({
       plotId: scanData.plotId,
@@ -511,12 +619,12 @@ export class FirestoreDataService {
       diseaseRisk: scanData.diseaseRisk,
       harvest: scanData.harvest,
       rawSpectrumPreview: (scanData.rawSpectrumPreview || []).slice(0, 30)
-    });
+    }, targetFarm);
 
     // 2. Write directly to Cloud Firestore collection `farms/{farmId}/leafScans`
     if (this.useLive) {
       try {
-        const scansRef = collection(this.db, "farms", FARM_ID, "leafScans");
+        const scansRef = collection(this.db, "farms", targetFarm, "leafScans");
         await addDoc(scansRef, {
           plotId: scanData.plotId,
           vitalityScore: Number(scanData.vitalityScore) || 0,
@@ -546,16 +654,24 @@ export class FirestoreDataService {
 
   /**
    * Subscribe to real-time Irrigation Logs
-   * @param {Function} callback
    */
-  subscribeIrrigationLogs(callback) {
+  subscribeIrrigationLogs(arg1, arg2) {
+    let callback, farmId;
+    if (typeof arg1 === 'function') {
+      callback = arg1;
+      farmId = arg2 || this.currentFarmId;
+    } else {
+      farmId = arg1 || this.currentFarmId;
+      callback = arg2;
+    }
+
     if (this.useLive) {
       try {
-        const logsRef = collection(this.db, "farms", FARM_ID, "irrigationLogs");
+        const logsRef = collection(this.db, "farms", farmId, "irrigationLogs");
         const q = query(logsRef, orderBy("timestamp", "desc"), limit(100));
         return onSnapshot(q, (snapshot) => {
           if (snapshot.empty) {
-            callback(mockFirestore.getChannelSnapshot('irrigationLogs'));
+            callback(mockFirestore.getChannelSnapshot('irrigationLogs', farmId));
             return;
           }
           const logs = [];
@@ -577,12 +693,14 @@ export class FirestoreDataService {
   /**
    * Direct record to Irrigation Logs
    * @param {Object} logData
+   * @param {string} farmId
    */
-  async recordIrrigationLog(logData) {
-    const id = mockFirestore.addIrrigationLog(logData);
+  async recordIrrigationLog(logData, farmId = this.currentFarmId) {
+    const targetFarm = farmId || this.currentFarmId;
+    const id = mockFirestore.addIrrigationLog(logData, targetFarm);
     if (this.useLive) {
       try {
-        const logsRef = collection(this.db, "farms", FARM_ID, "irrigationLogs");
+        const logsRef = collection(this.db, "farms", targetFarm, "irrigationLogs");
         await addDoc(logsRef, {
           ...logData,
           timestamp: serverTimestamp()
@@ -600,16 +718,24 @@ export class FirestoreDataService {
 
   /**
    * Subscribe to Closed-Loop Action Recommendations
-   * @param {Function} callback
    */
-  subscribeActionRecommendations(callback) {
+  subscribeActionRecommendations(arg1, arg2) {
+    let callback, farmId;
+    if (typeof arg1 === 'function') {
+      callback = arg1;
+      farmId = arg2 || this.currentFarmId;
+    } else {
+      farmId = arg1 || this.currentFarmId;
+      callback = arg2;
+    }
+
     if (this.useLive) {
       try {
-        const recsRef = collection(this.db, "farms", FARM_ID, "actionRecommendations");
+        const recsRef = collection(this.db, "farms", farmId, "actionRecommendations");
         const q = query(recsRef, orderBy("generatedAt", "desc"), limit(50));
         return onSnapshot(q, (snapshot) => {
           if (snapshot.empty) {
-            callback(mockFirestore.getChannelSnapshot('actionRecommendations'));
+            callback(mockFirestore.getChannelSnapshot('actionRecommendations', farmId));
             return;
           }
           const recs = [];
@@ -633,9 +759,11 @@ export class FirestoreDataService {
    * @param {string} recId
    * @param {"APPROVE"|"DISMISS"} action
    * @param {string} justification
+   * @param {string} farmId
    */
-  async handleRecommendationAction(recId, action, justification = "") {
-    const recs = mockFirestore.getChannelSnapshot('actionRecommendations') || [];
+  async handleRecommendationAction(recId, action, justification = "", farmId = this.currentFarmId) {
+    const targetFarm = farmId || this.currentFarmId;
+    const recs = mockFirestore.getChannelSnapshot('actionRecommendations', targetFarm) || [];
     const rec = recs.find(r => r.id === recId);
     if (!rec) return;
 
@@ -646,19 +774,20 @@ export class FirestoreDataService {
         gateId: rec.gateId,
         action: "OPEN",
         durationMinutes: rec.suggestedDurationMinutes || 25,
-        triggeredBy: "CLOSED_LOOP_SPECTROSCOPY"
+        triggeredBy: "CLOSED_LOOP_SPECTROSCOPY",
+        farmId: targetFarm
       });
-      mockFirestore.updateActionRecommendation(recId, { status: "APPROVED" });
+      mockFirestore.updateActionRecommendation(recId, { status: "APPROVED" }, targetFarm);
     } else if (action === "DISMISS") {
       mockFirestore.updateActionRecommendation(recId, { 
         status: "DISMISSED",
         dismissalJustification: justification || "Operator dismissed"
-      });
+      }, targetFarm);
     }
 
     if (this.useLive) {
       try {
-        const recRef = doc(this.db, "farms", FARM_ID, "actionRecommendations", recId);
+        const recRef = doc(this.db, "farms", targetFarm, "actionRecommendations", recId);
         await updateDoc(recRef, {
           status: action === "APPROVE" ? "APPROVED" : "DISMISSED",
           updatedAt: serverTimestamp()
@@ -672,12 +801,14 @@ export class FirestoreDataService {
   /**
    * Create an action recommendation document directly
    * @param {Object} recData
+   * @param {string} farmId
    */
-  async createActionRecommendation(recData) {
-    const id = mockFirestore.addActionRecommendation(recData);
+  async createActionRecommendation(recData, farmId = this.currentFarmId) {
+    const targetFarm = farmId || this.currentFarmId;
+    const id = mockFirestore.addActionRecommendation(recData, targetFarm);
     if (this.useLive) {
       try {
-        const recsRef = collection(this.db, "farms", FARM_ID, "actionRecommendations");
+        const recsRef = collection(this.db, "farms", targetFarm, "actionRecommendations");
         await addDoc(recsRef, {
           ...recData,
           status: "PENDING",
@@ -696,17 +827,14 @@ export class FirestoreDataService {
 
   /**
    * Save user dashboard and UI preferences
-   * Synchronizes with Cloud Firestore `userPreferences/{userId}` and local storage
    * @param {string} userId
    * @param {Object} preferences
    */
   async saveUserPreferences(userId, preferences = {}) {
-    const effectiveUid = userId || (typeof localStorage !== 'undefined' ? JSON.parse(localStorage.getItem('agrispectra_auth_user') || '{}')?.uid : null) || 'default';
+    const effectiveUid = userId || this.currentUser?.uid || (typeof localStorage !== 'undefined' ? JSON.parse(localStorage.getItem('agrispectra_auth_user') || '{}')?.uid : null) || 'default';
 
-    // 1. Instantly save to persistent local store (0ms UI latency)
     const localResult = mockFirestore.saveUserPreferences(effectiveUid, preferences);
 
-    // 2. Persist to Cloud Firestore if connected
     if (this.useLive) {
       try {
         const prefRef = doc(this.db, "userPreferences", effectiveUid);
@@ -726,11 +854,10 @@ export class FirestoreDataService {
 
   /**
    * Load user dashboard and UI preferences
-   * Fetches from Cloud Firestore or falls back gracefully to offline cache
    * @param {string} userId
    */
   async getUserPreferences(userId) {
-    const effectiveUid = userId || (typeof localStorage !== 'undefined' ? JSON.parse(localStorage.getItem('agrispectra_auth_user') || '{}')?.uid : null) || 'default';
+    const effectiveUid = userId || this.currentUser?.uid || (typeof localStorage !== 'undefined' ? JSON.parse(localStorage.getItem('agrispectra_auth_user') || '{}')?.uid : null) || 'default';
 
     if (this.useLive) {
       try {
@@ -755,7 +882,7 @@ export class FirestoreDataService {
    * @param {Function} callback
    */
   subscribeUserPreferences(userId, callback) {
-    const effectiveUid = userId || (typeof localStorage !== 'undefined' ? JSON.parse(localStorage.getItem('agrispectra_auth_user') || '{}')?.uid : null) || 'default';
+    const effectiveUid = userId || this.currentUser?.uid || (typeof localStorage !== 'undefined' ? JSON.parse(localStorage.getItem('agrispectra_auth_user') || '{}')?.uid : null) || 'default';
 
     if (this.useLive) {
       try {
@@ -786,56 +913,67 @@ export class FirestoreDataService {
 
   /**
    * Subscribe to real-time Crop Catalog updates
-   * @param {Function} callback
-   * @param {string} farmId
+   * Supports subscribeCropCatalog(callback) or subscribeCropCatalog(callback, farmId)
    */
-  subscribeCropCatalog(callback, farmId = FARM_ID) {
+  subscribeCropCatalog(arg1, arg2) {
+    let callback, farmId;
+    if (typeof arg1 === 'function') {
+      callback = arg1;
+      farmId = arg2 || this.currentFarmId;
+    } else {
+      farmId = arg1 || this.currentFarmId;
+      callback = arg2;
+    }
+
     if (this.useLive) {
       try {
         const cropsRef = collection(this.db, "farms", farmId, "crops");
         return onSnapshot(cropsRef, (snapshot) => {
           if (snapshot.empty) {
-            callback(mockFirestore.getCropCatalog());
+            callback(mockFirestore.getCropCatalog(farmId));
             return;
           }
           const crops = [];
           snapshot.forEach((doc) => {
             const cropData = { id: doc.id, ...doc.data() };
             crops.push(cropData);
-            if (mockFirestore.data.crops) {
-              mockFirestore.data.crops[doc.id] = cropData;
+            const chamberData = mockFirestore.getFarmData(farmId);
+            if (chamberData.crops) {
+              chamberData.crops[doc.id] = cropData;
             }
           });
           crops.sort((a, b) => a.name.localeCompare(b.name));
-          mockFirestore.saveData();
+          mockFirestore.saveData(farmId);
           callback(crops);
         }, (error) => {
           console.warn("[FirestoreService] Live crops subscription error, using local fallback:", error);
-          mockFirestore.subscribeCropCatalog(callback);
+          mockFirestore.subscribeCropCatalog(callback, farmId);
         });
       } catch (err) {
         console.warn("[FirestoreService] Live crops init error, falling back to local:", err);
       }
     }
-    return mockFirestore.subscribeCropCatalog(callback);
+    return mockFirestore.subscribeCropCatalog(callback, farmId);
   }
 
   /**
    * Get all crop types from catalog
    * @param {string} farmId
    */
-  async getCropCatalog(farmId = FARM_ID) {
+  async getCropCatalog(farmId = this.currentFarmId) {
+    const targetFarm = farmId || this.currentFarmId;
     if (this.useLive) {
       try {
-        const cropsRef = collection(this.db, "farms", farmId, "crops");
+        const cropsRef = collection(this.db, "farms", targetFarm, "crops");
         const snap = await getDocs(cropsRef);
         if (!snap.empty) {
           const crops = [];
           snap.forEach(d => {
             const c = { id: d.id, ...d.data() };
             crops.push(c);
-            if (mockFirestore.data.crops) {
-              mockFirestore.data.crops[d.id] = c;
+            const chamberData = mockFirestore.getFarmData(targetFarm);
+            if (chamberData.crops) {
+              chamberData.crops[d.id] = c;
             }
           });
           crops.sort((a, b) => a.name.localeCompare(b.name));
@@ -845,7 +983,7 @@ export class FirestoreDataService {
         console.warn("[FirestoreService] Live getCropCatalog note, using local fallback:", err.message);
       }
     }
-    return mockFirestore.getCropCatalog();
+    return mockFirestore.getCropCatalog(targetFarm);
   }
 
   /**
@@ -853,10 +991,11 @@ export class FirestoreDataService {
    * @param {string} cropId
    * @param {string} farmId
    */
-  async getCropType(cropId, farmId = FARM_ID) {
+  async getCropType(cropId, farmId = this.currentFarmId) {
+    const targetFarm = farmId || this.currentFarmId;
     if (this.useLive) {
       try {
-        const cropRef = doc(this.db, "farms", farmId, "crops", cropId);
+        const cropRef = doc(this.db, "farms", targetFarm, "crops", cropId);
         const snap = await getDoc(cropRef);
         if (snap.exists()) {
           return { id: snap.id, ...snap.data() };
@@ -865,27 +1004,27 @@ export class FirestoreDataService {
         console.warn("[FirestoreService] Live getCropType note, using local fallback:", err.message);
       }
     }
-    return mockFirestore.data?.crops?.[cropId] || null;
+    return mockFirestore.getFarmData(targetFarm)?.crops?.[cropId] || null;
   }
 
   /**
    * Insert a new crop type into Firestore and local reactive store
-   * Validates: name, scientificName, optimalVwcMin, optimalVwcMax, optimalPhMin, optimalPhMax, targetNitrogen, growthStages
    * @param {Object} cropData
    * @param {string} farmId
    */
-  async addCropType(cropData, farmId = FARM_ID) {
+  async addCropType(cropData, farmId = this.currentFarmId) {
     if (!cropData || !cropData.name) {
       throw new Error("Crop name is required to add crop type.");
     }
+    const targetFarm = farmId || this.currentFarmId;
 
     // 1. Write to local reactive store for 0ms instantaneous UI feedback
-    const createdCrop = mockFirestore.addCropType(cropData);
+    const createdCrop = mockFirestore.addCropType(cropData, targetFarm);
 
     // 2. Synchronize to Cloud Firestore if connected
     if (this.useLive) {
       try {
-        const cropRef = doc(this.db, "farms", farmId, "crops", createdCrop.id);
+        const cropRef = doc(this.db, "farms", targetFarm, "crops", createdCrop.id);
         const { id, ...firestorePayload } = createdCrop;
         await setDoc(cropRef, {
           ...firestorePayload,
@@ -907,14 +1046,15 @@ export class FirestoreDataService {
    * @param {Object} cropData
    * @param {string} farmId
    */
-  async updateCropType(cropId, cropData, farmId = FARM_ID) {
+  async updateCropType(cropId, cropData, farmId = this.currentFarmId) {
     if (!cropId) throw new Error("Crop ID is required to update crop type.");
+    const targetFarm = farmId || this.currentFarmId;
 
-    const updated = mockFirestore.updateCropType(cropId, cropData);
+    const updated = mockFirestore.updateCropType(cropId, cropData, targetFarm);
 
     if (this.useLive) {
       try {
-        const cropRef = doc(this.db, "farms", farmId, "crops", cropId);
+        const cropRef = doc(this.db, "farms", targetFarm, "crops", cropId);
         await updateDoc(cropRef, {
           ...cropData,
           updatedAt: serverTimestamp()
@@ -925,7 +1065,7 @@ export class FirestoreDataService {
       }
     }
 
-    return updated || mockFirestore.data?.crops?.[cropId];
+    return updated || mockFirestore.getFarmData(targetFarm)?.crops?.[cropId];
   }
 
   /**
@@ -933,14 +1073,15 @@ export class FirestoreDataService {
    * @param {string} cropId
    * @param {string} farmId
    */
-  async deleteCropType(cropId, farmId = FARM_ID) {
+  async deleteCropType(cropId, farmId = this.currentFarmId) {
     if (!cropId) throw new Error("Crop ID is required to delete crop type.");
+    const targetFarm = farmId || this.currentFarmId;
 
-    const result = mockFirestore.deleteCropType(cropId);
+    const result = mockFirestore.deleteCropType(cropId, targetFarm);
 
     if (this.useLive) {
       try {
-        const cropRef = doc(this.db, "farms", farmId, "crops", cropId);
+        const cropRef = doc(this.db, "farms", targetFarm, "crops", cropId);
         await deleteDoc(cropRef);
         console.log(`[FirestoreService] Real-time Crop Type deleted from Cloud Firestore: ${cropId}`);
       } catch (err) {
@@ -956,21 +1097,16 @@ export class FirestoreDataService {
   // =========================================================================
 
   /**
-   * Fetch aggregated usage statistics across the farm:
-   *  - Total liters delivered today (last 24h) and all-time
-   *  - Valve cycle count per plot
-   *  - Total leaf scans conducted
-   *  - Average canopy vitality
-   * 
-   * Seamlessly falls back to local cache if Firestore is offline or fails.
+   * Fetch aggregated usage statistics across the farm
    * @param {string} farmId
    */
-  async getAggregatedStats(farmId = FARM_ID) {
+  async getAggregatedStats(farmId = this.currentFarmId) {
+    const targetFarm = farmId || this.currentFarmId;
     if (this.useLive) {
       try {
-        const logsRef = collection(this.db, "farms", farmId, "irrigationLogs");
-        const scansRef = collection(this.db, "farms", farmId, "leafScans");
-        const plotsRef = collection(this.db, "farms", farmId, "plots");
+        const logsRef = collection(this.db, "farms", targetFarm, "irrigationLogs");
+        const scansRef = collection(this.db, "farms", targetFarm, "leafScans");
+        const plotsRef = collection(this.db, "farms", targetFarm, "plots");
 
         const [logsSnap, scansSnap, plotsSnap] = await Promise.all([
           getDocs(logsRef),
@@ -1011,7 +1147,7 @@ export class FirestoreDataService {
           : 85.0;
 
         return {
-          farmId,
+          farmId: targetFarm,
           totalLitersDeliveredToday: Math.round(totalLitersDeliveredToday * 10) / 10,
           totalLitersDeliveredAllTime: Math.round(totalLitersDeliveredAllTime * 10) / 10,
           valveCycleCountPerPlot,
@@ -1024,7 +1160,83 @@ export class FirestoreDataService {
       }
     }
 
-    return mockFirestore.getAggregatedStats(farmId);
+    return mockFirestore.getAggregatedStats(targetFarm);
+  }
+
+  // =========================================================================
+  // 10. Database Connection Verification API
+  // =========================================================================
+
+  /**
+   * Verifies whether the app is directly connected to the active database (Cloud Firestore or Isolated Local Chamber)
+   * Executes a write-and-read roundtrip test, checks query latency, and validates document sync counts.
+   * @returns {Promise<{ connected: boolean, mode: 'LIVE_CLOUD' | 'ISOLATED_LOCAL', latencyMs: number, farmId: string, userId: string, syncedCount: number, error: string | null }>}
+   */
+  async verifyDatabaseConnection() {
+    const startTime = Date.now();
+    const farmId = this.currentFarmId || FARM_ID;
+    const userId = this.currentUser?.uid || (typeof localStorage !== 'undefined' ? JSON.parse(localStorage.getItem('agrispectra_auth_user') || '{}')?.uid : null) || 'offline-grower';
+
+    // 1. If configured for Live Cloud Firestore, test direct cloud write & read
+    if (this.useLive) {
+      try {
+        const probeRef = doc(this.db, "farms", farmId, "_healthCheck", "connectivity_probe");
+        const probePayload = {
+          probeId: `probe_${Date.now()}`,
+          verifiedAt: serverTimestamp(),
+          clientUser: userId
+        };
+        await setDoc(probeRef, probePayload, { merge: true });
+        const snap = await getDoc(probeRef);
+        const latencyMs = Math.max(1, Date.now() - startTime);
+
+        if (snap.exists()) {
+          const plots = await this.getPlots(farmId);
+          return {
+            connected: true,
+            mode: 'LIVE_CLOUD',
+            latencyMs,
+            farmId,
+            userId,
+            syncedCount: Array.isArray(plots) ? plots.length : 0,
+            error: null
+          };
+        }
+      } catch (err) {
+        console.warn("[FirestoreService] Live Cloud verification probe failed, evaluating isolated local fallback:", err.message);
+      }
+    }
+
+    // 2. Validate Isolated Local Multi-Tenant Chamber (Local NoSQL Storage)
+    try {
+      const probeKey = `_health_probe_${Date.now()}`;
+      const probeVal = { verifiedAt: new Date().toISOString(), userId };
+      mockFirestore.saveUserPreferences(userId, { [probeKey]: probeVal });
+      const prefs = mockFirestore.getUserPreferences(userId);
+      const latencyMs = Math.max(1, Date.now() - startTime);
+      const plots = mockFirestore.getPlots(farmId);
+
+      const isVerified = Boolean(prefs && prefs[probeKey]);
+      return {
+        connected: isVerified,
+        mode: 'ISOLATED_LOCAL',
+        latencyMs,
+        farmId,
+        userId,
+        syncedCount: Array.isArray(plots) ? plots.length : 0,
+        error: isVerified ? null : 'Isolated local storage write/read verification failed.'
+      };
+    } catch (localErr) {
+      return {
+        connected: false,
+        mode: 'ISOLATED_LOCAL',
+        latencyMs: Math.max(1, Date.now() - startTime),
+        farmId,
+        userId,
+        syncedCount: 0,
+        error: localErr.message
+      };
+    }
   }
 }
 

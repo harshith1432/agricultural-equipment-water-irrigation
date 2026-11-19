@@ -36,7 +36,25 @@ rules_version = '2';
 //        * lastUpdated: timestamp
 //    - updatedAt: timestamp [optional]
 //
-// 3. Collection: farms/{farmId}/leafScans/{scanId}
+// 3. Collection: farms/{farmId}/crops/{cropId} (Agronomic Crop Catalog)
+//    - name: string (1..100 chars) [required]
+//    - optimalVwcMin: number (0.0..100.0, >= 0.0) [required]
+//    - optimalVwcMax: number (0.0..100.0, >= optimalVwcMin) [required]
+//    - optimalPhMin: number (0.0..14.0, >= 0.0) [required]
+//    - optimalPhMax: number (0.0..14.0, >= optimalPhMin) [required]
+//    - scientificName: string (0..150 chars) [optional]
+//    - targetNitrogen: number (0.0..2000.0) [optional]
+//    - growthStages: list of strings (max 50) [optional]
+//    - category: string (0..100 chars) [optional]
+//    - defaultCycleDays: number (0.0..5000.0) [optional]
+//    - areaHaDefault: number (0.0..100000.0) [optional]
+//    - id: string (0..100 chars) [optional]
+//    - notes: string (0..1000 chars) [optional]
+//    - description: string (0..1000 chars) [optional]
+//    - createdAt: timestamp [optional]
+//    - updatedAt: timestamp [optional]
+//
+// 4. Collection: farms/{farmId}/leafScans/{scanId}
 //    - plotId: string (1..20 chars, e.g. "plot-1" to "plot-6") [required, immutable]
 //    - scannedAt: timestamp [required, immutable]
 //    - vitalityScore: number (0.0..100.0) [required]
@@ -50,7 +68,7 @@ rules_version = '2';
 //    - gpsLocation: latlng OR map { latitude: number, longitude: number } [optional]
 //    - scannedBy: string (UID, 1..128 chars) [optional]
 //
-// 4. Collection: farms/{farmId}/irrigationLogs/{logId} (APPEND-ONLY LEDGER)
+// 5. Collection: farms/{farmId}/irrigationLogs/{logId} (APPEND-ONLY LEDGER)
 //    - plotId: string (1..20 chars) [required]
 //    - valveId: string (1..10 chars, e.g. "G1") [required]
 //    - action: string ('OPEN' | 'CLOSE' | 'EMERGENCY_SHUTOFF') [required]
@@ -61,7 +79,7 @@ rules_version = '2';
 //    - operatorId: string (UID, 1..128 chars) [optional]
 //    * Strict Invariant: No update or delete allowed once written!
 //
-// 5. Collection: farms/{farmId}/actionRecommendations/{recId}
+// 6. Collection: farms/{farmId}/actionRecommendations/{recId}
 //    - plotId: string (1..20 chars) [required, immutable]
 //    - status: string ('PENDING' | 'APPROVED' | 'DISMISSED' | 'EXECUTED') [required]
 //    - generatedAt: timestamp [required, immutable]
@@ -79,7 +97,7 @@ rules_version = '2';
 //    - resolvedBy: string (1..128 chars) [optional]
 //    - updatedAt: timestamp [optional]
 //
-// 6. Collection: users/{userId} (Strict PII & RBAC isolation)
+// 7. Collection: users/{userId} (Strict PII & RBAC isolation)
 //    - uid: string (1..128 chars) [optional/immutable]
 //    - email: string (RFC regex validated, 5..254 chars) [required]
 //    - role: string ('superadmin' | 'farm_owner' | 'agronomist' | 'field_operator') [required]
@@ -105,8 +123,12 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
+    function isOwner(targetId) {
+      return isAuthenticated() && (
+        request.auth.uid == targetId ||
+        targetId == 'farm_' + request.auth.uid ||
+        (farmExists(targetId) && getFarmData(targetId).get('ownerId', '') == request.auth.uid)
+      );
     }
 
     function isAdmin() {
@@ -162,9 +184,19 @@ service cloud.firestore {
       return get(farmDocPath(farmId)).data;
     }
 
+    function isFarmOwner(farmId) {
+      return isAuthenticated() && (
+        isAdmin() ||
+        farmId == 'farm_' + request.auth.uid ||
+        (request.auth.token.get('farmId', '') == farmId && request.auth.token.get('role', '') in ['farm_owner', 'owner']) ||
+        (farmExists(farmId) && getFarmData(farmId).get('ownerId', '') == request.auth.uid)
+      );
+    }
+
     function isFarmManager(farmId) {
       return isAuthenticated() && (
         isAdmin() ||
+        isFarmOwner(farmId) ||
         (request.auth.token.get('farmId', '') == farmId && request.auth.token.get('role', '') in ['manager', 'farm_owner', 'agronomist']) ||
         (farmExists(farmId) && (
           getFarmData(farmId).get('ownerId', '') == request.auth.uid ||
@@ -186,9 +218,25 @@ service cloud.firestore {
     function isFarmMember(farmId) {
       return isAuthenticated() && (
         isFarmOperator(farmId) ||
+        farmId == 'farm_' + request.auth.uid ||
         request.auth.token.get('farmId', '') == farmId ||
         (farmExists(farmId) && (
           (getFarmData(farmId).get('members', []) is list && request.auth.uid in getFarmData(farmId).get('members', []))
+        )) ||
+        (callerUserExists() && (
+          getCallerUserData().get('farmId', '') == farmId ||
+          (getCallerUserData().get('farmIds', []) is list && farmId in getCallerUserData().get('farmIds', []))
+        ))
+      );
+    }
+
+    function isMember(farmId) {
+      return isAuthenticated() && (
+        isFarmMember(farmId) ||
+        farmId == 'farm_' + request.auth.uid ||
+        (callerUserExists() && (
+          getCallerUserData().get('farmId', '') == farmId ||
+          (getCallerUserData().get('farmIds', []) is list && farmId in getCallerUserData().get('farmIds', []))
         ))
       );
     }
@@ -258,6 +306,33 @@ service cloud.firestore {
              (!('managers' in data) || isValidStringList(data.managers, 20)) &&
              (!('operators' in data) || isValidStringList(data.operators, 50)) &&
              (!('members' in data) || isValidStringList(data.members, 100)) &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    // Crop Validator (Domain Validator for farms/{farmId}/crops/{cropId})
+    function isValidCrop(data) {
+      return data.keys().hasAll(['name', 'optimalVwcMin', 'optimalVwcMax', 'optimalPhMin', 'optimalPhMax']) &&
+             data.keys().hasOnly([
+               'name', 'scientificName', 'optimalVwcMin', 'optimalVwcMax',
+               'optimalPhMin', 'optimalPhMax', 'targetNitrogen', 'growthStages',
+               'category', 'defaultCycleDays', 'areaHaDefault', 'createdAt',
+               'updatedAt', 'id', 'notes', 'description'
+             ]) &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 100 &&
+             data.optimalVwcMin is number && data.optimalVwcMin >= 0.0 && data.optimalVwcMin <= 100.0 &&
+             data.optimalVwcMax is number && data.optimalVwcMax >= data.optimalVwcMin && data.optimalVwcMax <= 100.0 &&
+             data.optimalPhMin is number && data.optimalPhMin >= 0.0 && data.optimalPhMin <= 14.0 &&
+             data.optimalPhMax is number && data.optimalPhMax >= data.optimalPhMin && data.optimalPhMax <= 14.0 &&
+             (!('scientificName' in data) || (data.scientificName is string && data.scientificName.size() <= 150)) &&
+             (!('targetNitrogen' in data) || (data.targetNitrogen is number && data.targetNitrogen >= 0.0 && data.targetNitrogen <= 2000.0)) &&
+             (!('growthStages' in data) || (data.growthStages is list && data.growthStages.size() <= 50)) &&
+             (!('category' in data) || (data.category is string && data.category.size() <= 100)) &&
+             (!('defaultCycleDays' in data) || (data.defaultCycleDays is number && data.defaultCycleDays >= 0.0 && data.defaultCycleDays <= 5000.0)) &&
+             (!('areaHaDefault' in data) || (data.areaHaDefault is number && data.areaHaDefault >= 0.0 && data.areaHaDefault <= 100000.0)) &&
+             (!('id' in data) || (data.id is string && data.id.size() <= 100)) &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() <= 1000)) &&
+             (!('description' in data) || (data.description is string && data.description.size() <= 1000)) &&
+             (!('createdAt' in data) || data.createdAt is timestamp) &&
              (!('updatedAt' in data) || data.updatedAt is timestamp);
     }
 
@@ -434,6 +509,13 @@ service cloud.firestore {
     match /farms/{farmId} {
       allow read: if isAuthenticated() && (
         isAdmin() ||
+        isOwner(farmId) ||
+        isMember(farmId) ||
+        farmId == 'farm_' + request.auth.uid ||
+        (callerUserExists() &&
+         'farmIds' in getCallerUserData() &&
+         getCallerUserData().farmIds is list &&
+         farmId in getCallerUserData().farmIds) ||
         resource.data.get('ownerId', '') == request.auth.uid ||
         (resource.data.get('managers', []) is list && request.auth.uid in resource.data.get('managers', [])) ||
         (resource.data.get('operators', []) is list && request.auth.uid in resource.data.get('operators', [])) ||
@@ -443,17 +525,17 @@ service cloud.firestore {
 
       allow create: if isAuthenticated() &&
                        isValidFarm(request.resource.data) &&
-                       (isAdmin() || request.resource.data.ownerId == request.auth.uid) &&
+                       (isAdmin() || request.resource.data.ownerId == request.auth.uid || farmId == 'farm_' + request.auth.uid) &&
                        isRecent(request.resource.data.createdAt);
 
       allow update: if isAuthenticated() &&
                        isValidFarm(request.resource.data) &&
-                       (isAdmin() || resource.data.ownerId == request.auth.uid ||
+                       (isAdmin() || resource.data.ownerId == request.auth.uid || isFarmOwner(farmId) ||
                         (resource.data.get('managers', []) is list && request.auth.uid in resource.data.get('managers', []))) &&
                        areImmutableFieldsUnchanged(['createdAt', 'ownerId']);
 
       allow delete: if isAuthenticated() &&
-                       (isAdmin() || resource.data.ownerId == request.auth.uid);
+                       (isAdmin() || resource.data.ownerId == request.auth.uid || isFarmOwner(farmId));
 
       // -----------------------------------------------------------
       // Plots Subcollection: farms/{farmId}/plots/{plotId}
@@ -469,6 +551,37 @@ service cloud.firestore {
                          areImmutableFieldsUnchanged(['plotNumber']);
 
         allow delete: if isFarmManager(farmId);
+      }
+
+      // -----------------------------------------------------------
+      // Crops Subcollection: farms/{farmId}/crops/{cropId}
+      // -----------------------------------------------------------
+      match /crops/{cropId} {
+        // Read allowed if user is member/operator/manager/owner of farmId or farmId == 'farm_' + request.auth.uid
+        allow read: if isAuthenticated() && (
+          isFarmMember(farmId) ||
+          isFarmOperator(farmId) ||
+          isFarmManager(farmId) ||
+          isFarmOwner(farmId) ||
+          isMember(farmId) ||
+          isOwner(farmId) ||
+          farmId == 'farm_' + request.auth.uid
+        );
+
+        // Create allowed if user is manager or owner of farmId
+        allow create: if isAuthenticated() &&
+                         (isFarmManager(farmId) || isFarmOwner(farmId) || isOwner(farmId)) &&
+                         isValidCrop(request.resource.data);
+
+        // Update allowed if user is manager or owner of farmId
+        allow update: if isAuthenticated() &&
+                         (isFarmManager(farmId) || isFarmOwner(farmId) || isOwner(farmId)) &&
+                         isValidCrop(request.resource.data) &&
+                         (!('createdAt' in resource.data) || request.resource.data.createdAt == resource.data.createdAt);
+
+        // Delete allowed if user is manager or owner of farmId
+        allow delete: if isAuthenticated() &&
+                         (isFarmManager(farmId) || isFarmOwner(farmId) || isOwner(farmId));
       }
 
       // -----------------------------------------------------------
