@@ -28,6 +28,8 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
+  confirmPasswordReset,
+  verifyPasswordResetCode,
   signOut as firebaseSignOut,
   onAuthStateChanged as firebaseOnAuthStateChanged,
   updateProfile
@@ -346,22 +348,36 @@ class AuthService {
     if (typeof Capacitor !== 'undefined' && typeof Capacitor.isNativePlatform === 'function' && Capacitor.isNativePlatform()) {
       try {
         console.log("[AuthService] Initiating Native Mobile Google Authentication...");
-        const result = await FirebaseAuthentication.signInWithGoogle();
+        const result = await FirebaseAuthentication.signInWithGoogle({ skipNativeAuth: true });
         console.log("[AuthService] Native Google Sign-In success:", result);
 
-        const nativeUser = result.user || result;
-        const googleEmail = nativeUser.email || (result.additionalUserInfo?.profile?.email) || "grower@agrispectra.io";
-        const googleName = nativeUser.displayName || nativeUser.name || googleEmail.split('@')[0];
-        const googlePhoto = nativeUser.photoUrl || nativeUser.imageUrl || null;
-        const googleUid = nativeUser.uid || this._generateSecureUid('usr_g');
-
-        // Link with web Firebase Auth instance if ID token is present
-        if (result.credential?.idToken && this.auth) {
+        // When skipNativeAuth is true, result contains credential.idToken or result.idToken
+        const idToken = result.credential?.idToken || result.idToken;
+        let tokenPayload = {};
+        if (idToken) {
           try {
-            const credential = GoogleAuthProvider.credential(result.credential.idToken);
+            const base64Url = idToken.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+            tokenPayload = JSON.parse(jsonPayload);
+          } catch (e) {
+            console.warn("[AuthService] Could not parse idToken JWT payload:", e);
+          }
+        }
+
+        const nativeUser = result.user || {};
+        const googleEmail = tokenPayload.email || nativeUser.email || (result.additionalUserInfo?.profile?.email) || "grower@agrispectra.io";
+        const googleName = tokenPayload.name || nativeUser.displayName || nativeUser.name || googleEmail.split('@')[0];
+        const googlePhoto = tokenPayload.picture || nativeUser.photoUrl || nativeUser.imageUrl || null;
+        const googleUid = tokenPayload.sub || nativeUser.uid || this._generateSecureUid('usr_g');
+
+        // Link with web Firebase Auth instance if ID token is present and accepted
+        if (idToken && this.auth) {
+          try {
+            const credential = GoogleAuthProvider.credential(idToken);
             await signInWithCredential(this.auth, credential);
           } catch (credErr) {
-            console.warn("[AuthService] Firebase credential sync note:", credErr.message);
+            console.warn("[AuthService] Firebase credential sync note (cross-project token):", credErr.message);
           }
         }
 
@@ -826,16 +842,103 @@ class AuthService {
     }
 
     try {
-      await sendPasswordResetEmail(this.auth, cleanEmail);
+      const continueUrl = (typeof window !== 'undefined' && window.location?.origin && !window.location.origin.startsWith('file:') && !window.location.origin.startsWith('capacitor:'))
+        ? window.location.origin
+        : undefined;
+
+      if (continueUrl) {
+        await sendPasswordResetEmail(this.auth, cleanEmail, {
+          url: continueUrl,
+          handleCodeInApp: true
+        });
+      } else {
+        await sendPasswordResetEmail(this.auth, cleanEmail);
+      }
     } catch (error) {
+      console.warn("[AuthSecurity] Password Reset notice:", error.code, error.message);
+      if (error.code === 'auth/unauthorized-domain') {
+        return {
+          success: false,
+          message: "Domain unauthorized: please ensure this domain is added to Firebase Auth Authorized Domains."
+        };
+      }
+      if (error.code === 'auth/too-many-requests') {
+        return {
+          success: false,
+          message: "Too many reset attempts. Please wait a few moments before trying again."
+        };
+      }
+      if (error.code === 'auth/network-request-failed') {
+        return {
+          success: false,
+          message: "Network error: Unable to reach authentication server. Please check your connection."
+        };
+      }
       // Security Defense: mask auth/user-not-found to prevent user enumeration
-      console.warn("[AuthSecurity] Password Reset notice:", error.code);
     }
 
     return {
       success: true,
       message: `If an account with that email exists, password reset instructions have been dispatched. Check your inbox or spam folder.`
     };
+  }
+
+  /**
+   * Verify password reset code (oobCode) from email action link
+   */
+  async verifyResetCode(oobCode) {
+    if (!oobCode || typeof oobCode !== 'string') {
+      return { success: false, message: "Invalid or missing password reset verification code." };
+    }
+    if (!this.auth) {
+      return { success: false, message: "Authentication service unavailable." };
+    }
+    try {
+      const email = await verifyPasswordResetCode(this.auth, oobCode);
+      return { success: true, email };
+    } catch (err) {
+      console.warn("[AuthService] Verify reset code failed:", err.code, err.message);
+      let message = "This password reset link is invalid, expired, or has already been used.";
+      if (err.code === 'auth/expired-action-code') {
+        message = "The password reset link has expired. Please request a new link.";
+      } else if (err.code === 'auth/invalid-action-code') {
+        message = "This password reset link is invalid or has already been used.";
+      }
+      return { success: false, code: err.code, message };
+    }
+  }
+
+  /**
+   * Confirm and save new password using reset code (oobCode)
+   */
+  async confirmNewPassword(oobCode, newPassword) {
+    if (!oobCode || typeof oobCode !== 'string') {
+      return { success: false, message: "Invalid or missing password reset verification code." };
+    }
+    if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 6) {
+      return { success: false, message: "New password must be at least 6 characters long." };
+    }
+    if (!this.auth) {
+      return { success: false, message: "Authentication service unavailable." };
+    }
+    try {
+      await confirmPasswordReset(this.auth, oobCode, newPassword);
+      return {
+        success: true,
+        message: "Your password has been successfully updated! You can now sign in with your new credentials."
+      };
+    } catch (err) {
+      console.error("[AuthService] Confirm password reset failed:", err.code, err.message);
+      let message = "Failed to update password. Please request a new reset link.";
+      if (err.code === 'auth/expired-action-code') {
+        message = "The password reset link has expired. Please request a new link.";
+      } else if (err.code === 'auth/invalid-action-code') {
+        message = "This password reset link is invalid or has already been used.";
+      } else if (err.code === 'auth/weak-password') {
+        message = "Password is too weak. Please include at least 6 characters with mixed letters and numbers.";
+      }
+      return { success: false, code: err.code, message };
+    }
   }
 
   /**
@@ -1252,6 +1355,8 @@ export const signInWithGoogle = (options) => authService.signInWithGoogle(option
 export const signInWithEmail = (email, password) => authService.signInWithEmail(email, password);
 export const signUpWithEmail = (...args) => authService.signUpWithEmail(...args);
 export const sendPasswordReset = (email) => authService.sendPasswordReset(email);
+export const verifyResetCode = (oobCode) => authService.verifyResetCode(oobCode);
+export const confirmNewPassword = (oobCode, newPassword) => authService.confirmNewPassword(oobCode, newPassword);
 export const signOutUser = () => authService.signOutUser();
 export const signOut = () => authService.signOut();
 export const getCurrentUser = () => authService.getCurrentUser();

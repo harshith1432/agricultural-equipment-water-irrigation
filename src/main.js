@@ -282,6 +282,22 @@ class AgriSpectraApp {
         this.showOnboarding();
       }, 250);
     }
+
+    // 7. Check for Firebase Auth Action handler parameters (e.g. Password Reset link clicked from email)
+    if (typeof window !== 'undefined') {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const authMode = urlParams.get('mode');
+        const oobCode = urlParams.get('oobCode');
+        if (authMode === 'resetPassword' && oobCode) {
+          setTimeout(() => {
+            this.openAuthModal('RESET_PASSWORD', { oobCode });
+          }, 350);
+        }
+      } catch (e) {
+        console.warn("[AgriSpectraApp] Auth action parameter check note:", e);
+      }
+    }
   }
 
   render() {
@@ -858,11 +874,16 @@ class AgriSpectraApp {
     document.body.appendChild(carousel);
   }
 
-  openAuthModal(initialMode = 'SIGN_IN') {
+  openAuthModal(initialMode = 'SIGN_IN', options = {}) {
     const modal = createAuthModal({
       initialMode,
+      oobCode: options.oobCode || null,
       onClose: () => {
         if (modal.parentNode) modal.parentNode.removeChild(modal);
+        if (window.history && window.history.replaceState) {
+          const cleanUrl = window.location.pathname;
+          window.history.replaceState({}, document.title, cleanUrl);
+        }
       },
       onAuthSuccess: (user) => {
         this.currentUser = user;

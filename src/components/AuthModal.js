@@ -16,16 +16,34 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
-export function createAuthModal({ initialMode = 'SIGN_IN', onClose, onAuthSuccess }) {
+export function createAuthModal({ initialMode = 'SIGN_IN', oobCode = null, onClose, onAuthSuccess }) {
   const overlay = document.createElement('div');
   overlay.className = "fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-md overflow-y-auto animate-fadeIn select-none";
 
-  let mode = initialMode; // 'SIGN_IN' | 'SIGN_UP' | 'FORGOT_PASSWORD'
+  let mode = initialMode; // 'SIGN_IN' | 'SIGN_UP' | 'FORGOT_PASSWORD' | 'RESET_PASSWORD'
+  let currentOobCode = oobCode;
+  let verifiedEmail = null;
   let showPassword = false;
   let rememberMe = true;
   let selectedRole = 'Farm Owner'; // 'Farm Owner' | 'Agronomist' | 'Field Tech'
   let bannerState = null; // { type: 'success' | 'error', message: string }
   let isSubmitting = false;
+
+  // If launched directly with a password reset action code, verify it immediately
+  if (mode === 'RESET_PASSWORD' && currentOobCode) {
+    authService.verifyResetCode(currentOobCode).then(res => {
+      if (res.success) {
+        verifiedEmail = res.email;
+        bannerState = { type: 'success', message: `Identity verified for ${res.email}. Enter your new password below.` };
+      } else {
+        bannerState = { type: 'error', message: res.message };
+      }
+      render();
+    }).catch(err => {
+      bannerState = { type: 'error', message: err.message || 'Failed to verify recovery link.' };
+      render();
+    });
+  }
 
   function render() {
     overlay.innerHTML = `
@@ -62,16 +80,16 @@ export function createAuthModal({ initialMode = 'SIGN_IN', onClose, onAuthSucces
             <div class="min-w-0 flex-1">
               <span class="text-[11px] font-mono tracking-widest uppercase text-emerald-300 font-bold block truncate">AgriSpectra Access</span>
               <h2 class="text-lg sm:text-xl font-extrabold tracking-tight text-white leading-tight break-words">
-                ${mode === 'SIGN_IN' ? 'Welcome Back, Grower' : (mode === 'SIGN_UP' ? 'Create Farm Workspace' : 'Reset Farm Access')}
+                ${mode === 'SIGN_IN' ? 'Welcome Back, Grower' : (mode === 'SIGN_UP' ? 'Create Farm Workspace' : (mode === 'RESET_PASSWORD' ? 'Set New Password' : 'Reset Farm Access'))}
               </h2>
             </div>
           </div>
           <p class="text-xs text-emerald-100/80 mt-2 font-medium">
-            ${mode === 'SIGN_IN' ? 'Access your 6-zone precision irrigation & leaf spectroscopy portal' : (mode === 'SIGN_UP' ? 'Equip your team with closed-loop telemetry & chemometrics' : 'Enter your registered email to receive instantaneous recovery steps')}
+            ${mode === 'SIGN_IN' ? 'Access your 6-zone precision irrigation & leaf spectroscopy portal' : (mode === 'SIGN_UP' ? 'Equip your team with closed-loop telemetry & chemometrics' : (mode === 'RESET_PASSWORD' ? 'Create a secure new password for your farm account' : 'Enter your registered email to receive instantaneous recovery steps'))}
           </p>
 
           <!-- Sign In / Sign Up Mode Segmented Tabs -->
-          ${mode !== 'FORGOT_PASSWORD' ? `
+          ${(mode === 'SIGN_IN' || mode === 'SIGN_UP') ? `
             <div class="mt-4 flex bg-black/25 p-1 rounded-2xl border border-white/10 backdrop-blur-sm">
               <button type="button" id="tab-mode-signin" class="flex-1 py-1.5 rounded-xl text-xs font-bold transition text-center ${mode === 'SIGN_IN' ? 'bg-white text-[#1E462A] shadow-md' : 'text-emerald-100/80 hover:text-white'}">
                 Sign In
@@ -103,7 +121,7 @@ export function createAuthModal({ initialMode = 'SIGN_IN', onClose, onAuthSucces
         <div class="p-6 space-y-4">
           
           <!-- One-Tap Google Sign-In High-End Button -->
-          ${mode !== 'FORGOT_PASSWORD' ? `
+          ${(mode === 'SIGN_IN' || mode === 'SIGN_UP') ? `
             <button id="google-auth-btn" class="w-full min-h-[48px] px-4 py-2.5 rounded-2xl bg-white hover:bg-stone-50 text-stone-800 font-semibold text-sm border border-[#DDD5C7] shadow-sm hover:shadow flex items-center justify-center gap-3 transition-all duration-200 cursor-pointer active:scale-[0.98]">
               <!-- Official Multi-Color Google G SVG -->
               <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24">
@@ -148,63 +166,19 @@ export function createAuthModal({ initialMode = 'SIGN_IN', onClose, onAuthSucces
 
           <form id="auth-main-form" class="space-y-3.5">
             
-            <!-- SIGN UP FIELDS: Full Name & Farm Name & Role -->
-            ${mode === 'SIGN_UP' ? `
+            ${mode === 'RESET_PASSWORD' ? `
+              <!-- RESET PASSWORD VIEW -->
+              ${verifiedEmail ? `
+                <div class="p-3 bg-emerald-50 border border-emerald-300 rounded-xl flex items-center gap-2.5 text-xs text-emerald-900">
+                  <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  <span>Verified Account: <strong class="font-bold">${escapeHtml(verifiedEmail)}</strong></span>
+                </div>
+              ` : ''}
+
               <div>
-                <label class="block text-xs font-bold text-[#1E462A] mb-1">Full Name</label>
+                <label class="block text-xs font-bold text-[#1E462A] mb-1">New Password</label>
                 <div class="relative">
-                  <input type="text" id="auth-name-input" required placeholder="e.g. Sarah Jenkins" class="w-full min-h-[46px] px-3.5 py-2.5 rounded-xl bg-white border border-[#DDD5C7] text-stone-900 placeholder-stone-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#10B981] focus:border-transparent transition" />
-                </div>
-              </div>
-
-              <div>
-                <label class="block text-xs font-bold text-[#1E462A] mb-1">Farm / Enterprise Name</label>
-                <div class="relative">
-                  <input type="text" id="auth-farm-input" required placeholder="e.g. Sonoma Valley Parcel" class="w-full min-h-[46px] px-3.5 py-2.5 rounded-xl bg-white border border-[#DDD5C7] text-stone-900 placeholder-stone-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#10B981] focus:border-transparent transition" />
-                </div>
-              </div>
-
-              <div>
-                <label class="block text-xs font-bold text-[#1E462A] mb-1.5">Operational Role</label>
-                <div class="grid grid-cols-3 gap-2">
-                  ${['Farm Owner', 'Agronomist', 'Field Tech'].map(r => `
-                    <button type="button" data-role="${r}" class="role-select-btn min-h-[46px] px-2 py-2 rounded-xl text-xs font-bold border transition text-center flex flex-col items-center justify-center cursor-pointer ${
-                      selectedRole === r 
-                        ? 'bg-[#1E462A] text-white border-[#1E462A] shadow-md shadow-emerald-950/20' 
-                        : 'bg-white text-stone-700 border-[#DDD5C7] hover:bg-stone-50'
-                    }">
-                      <span class="leading-tight">${r}</span>
-                    </button>
-                  `).join('')}
-                </div>
-              </div>
-            ` : ''}
-
-            <!-- EMAIL ADDRESS FIELD (Present in all modes) -->
-            <div>
-              <label class="block text-xs font-bold text-[#1E462A] mb-1">Work Email</label>
-              <div class="relative">
-                <input type="email" id="auth-email-input" required placeholder="grower@agrispectra.io" class="w-full min-h-[46px] px-3.5 py-2.5 rounded-xl bg-white border border-[#DDD5C7] text-stone-900 placeholder-stone-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#10B981] focus:border-transparent transition" />
-                <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none text-stone-400">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"/></svg>
-                </div>
-              </div>
-            </div>
-
-            <!-- PASSWORD FIELD (Sign In & Sign Up) -->
-            ${mode !== 'FORGOT_PASSWORD' ? `
-              <div>
-                <div class="flex items-center justify-between mb-1">
-                  <label class="block text-xs font-bold text-[#1E462A]">Password</label>
-                  ${mode === 'SIGN_IN' ? `
-                    <button type="button" id="auth-goto-forgot" class="text-xs text-[#10B981] hover:text-[#059669] font-bold transition hover:underline cursor-pointer">
-                      Forgot Password?
-                    </button>
-                  ` : ''}
-                </div>
-                <div class="relative">
-                  <input type="${showPassword ? 'text' : 'password'}" id="auth-password-input" required minlength="6" placeholder="••••••••••••" class="w-full min-h-[46px] px-3.5 pr-12 py-2.5 rounded-xl bg-white border border-[#DDD5C7] text-stone-900 placeholder-stone-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#10B981] focus:border-transparent transition" />
-                  <!-- Eye toggle button -->
+                  <input type="${showPassword ? 'text' : 'password'}" id="auth-new-password-input" required minlength="6" placeholder="At least 6 characters" class="w-full min-h-[46px] px-3.5 pr-12 py-2.5 rounded-xl bg-white border border-[#DDD5C7] text-stone-900 placeholder-stone-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#10B981] focus:border-transparent transition" />
                   <button type="button" id="auth-toggle-pwd" class="absolute inset-y-0 right-0 px-3.5 min-h-[46px] flex items-center text-stone-400 hover:text-stone-700 transition cursor-pointer" title="${showPassword ? 'Hide password' : 'Show password'}">
                     ${showPassword ? `
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"/></svg>
@@ -215,16 +189,96 @@ export function createAuthModal({ initialMode = 'SIGN_IN', onClose, onAuthSucces
                 </div>
               </div>
 
-              <!-- Remember Me Toggle (Sign In only) -->
-              ${mode === 'SIGN_IN' ? `
-                <div class="flex items-center gap-2 pt-1">
-                  <input type="checkbox" id="auth-remember-check" ${rememberMe ? 'checked' : ''} class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-stone-300 cursor-pointer" />
-                  <label for="auth-remember-check" class="text-xs text-stone-600 select-none cursor-pointer">
-                    Stay authenticated on this field device
-                  </label>
+              <div>
+                <label class="block text-xs font-bold text-[#1E462A] mb-1">Confirm New Password</label>
+                <div class="relative">
+                  <input type="${showPassword ? 'text' : 'password'}" id="auth-confirm-password-input" required minlength="6" placeholder="Re-enter new password" class="w-full min-h-[46px] px-3.5 pr-12 py-2.5 rounded-xl bg-white border border-[#DDD5C7] text-stone-900 placeholder-stone-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#10B981] focus:border-transparent transition" />
+                </div>
+              </div>
+            ` : `
+              <!-- SIGN UP FIELDS: Full Name & Farm Name & Role -->
+              ${mode === 'SIGN_UP' ? `
+                <div>
+                  <label class="block text-xs font-bold text-[#1E462A] mb-1">Full Name</label>
+                  <div class="relative">
+                    <input type="text" id="auth-name-input" required placeholder="e.g. Sarah Jenkins" class="w-full min-h-[46px] px-3.5 py-2.5 rounded-xl bg-white border border-[#DDD5C7] text-stone-900 placeholder-stone-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#10B981] focus:border-transparent transition" />
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-bold text-[#1E462A] mb-1">Farm / Enterprise Name</label>
+                  <div class="relative">
+                    <input type="text" id="auth-farm-input" required placeholder="e.g. Sonoma Valley Parcel" class="w-full min-h-[46px] px-3.5 py-2.5 rounded-xl bg-white border border-[#DDD5C7] text-stone-900 placeholder-stone-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#10B981] focus:border-transparent transition" />
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-bold text-[#1E462A] mb-1.5">Operational Role</label>
+                  <div class="grid grid-cols-3 gap-2">
+                    ${['Farm Owner', 'Agronomist', 'Field Tech'].map(r => `
+                      <button type="button" data-role="${r}" class="role-select-btn min-h-[46px] px-2 py-2 rounded-xl text-xs font-bold border transition text-center flex flex-col items-center justify-center cursor-pointer ${
+                        selectedRole === r 
+                          ? 'bg-[#1E462A] text-white border-[#1E462A] shadow-md shadow-emerald-950/20' 
+                          : 'bg-white text-stone-700 border-[#DDD5C7] hover:bg-stone-50'
+                      }">
+                        <span class="leading-tight">${r}</span>
+                      </button>
+                    `).join('')}
+                  </div>
                 </div>
               ` : ''}
-            ` : ''}
+
+              <!-- EMAIL ADDRESS FIELD (Sign In, Sign Up, Forgot Password) -->
+              <div>
+                <label class="block text-xs font-bold text-[#1E462A] mb-1">
+                  ${mode === 'FORGOT_PASSWORD' ? 'Registered Account Email' : 'Work Email'}
+                </label>
+                <div class="relative">
+                  <input type="email" id="auth-email-input" required placeholder="grower@agrispectra.io" class="w-full min-h-[46px] px-3.5 py-2.5 rounded-xl bg-white border border-[#DDD5C7] text-stone-900 placeholder-stone-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#10B981] focus:border-transparent transition" />
+                  <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none text-stone-400">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"/></svg>
+                  </div>
+                </div>
+                ${mode === 'FORGOT_PASSWORD' ? `
+                  <p class="text-[11px] text-stone-500 mt-1">We will send an instant password recovery link directly to your inbox via our configured SMTP mailer.</p>
+                ` : ''}
+              </div>
+
+              <!-- PASSWORD FIELD (Sign In & Sign Up) -->
+              ${(mode === 'SIGN_IN' || mode === 'SIGN_UP') ? `
+                <div>
+                  <div class="flex items-center justify-between mb-1">
+                    <label class="block text-xs font-bold text-[#1E462A]">Password</label>
+                    ${mode === 'SIGN_IN' ? `
+                      <button type="button" id="auth-goto-forgot" class="text-xs text-[#10B981] hover:text-[#059669] font-bold transition hover:underline cursor-pointer">
+                        Forgot Password?
+                      </button>
+                    ` : ''}
+                  </div>
+                  <div class="relative">
+                    <input type="${showPassword ? 'text' : 'password'}" id="auth-password-input" required minlength="6" placeholder="••••••••••••" class="w-full min-h-[46px] px-3.5 pr-12 py-2.5 rounded-xl bg-white border border-[#DDD5C7] text-stone-900 placeholder-stone-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#10B981] focus:border-transparent transition" />
+                    <!-- Eye toggle button -->
+                    <button type="button" id="auth-toggle-pwd" class="absolute inset-y-0 right-0 px-3.5 min-h-[46px] flex items-center text-stone-400 hover:text-stone-700 transition cursor-pointer" title="${showPassword ? 'Hide password' : 'Show password'}">
+                      ${showPassword ? `
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"/></svg>
+                      ` : `
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                      `}
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Remember Me Toggle (Sign In only) -->
+                ${mode === 'SIGN_IN' ? `
+                  <div class="flex items-center gap-2 pt-1">
+                    <input type="checkbox" id="auth-remember-check" ${rememberMe ? 'checked' : ''} class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-stone-300 cursor-pointer" />
+                    <label for="auth-remember-check" class="text-xs text-stone-600 select-none cursor-pointer">
+                      Stay authenticated on this field device
+                    </label>
+                  </div>
+                ` : ''}
+              ` : ''}
+            `}
 
             <!-- Primary Action Button -->
             <button type="submit" id="auth-submit-btn" ${isSubmitting ? 'disabled' : ''} class="w-full min-h-[48px] px-4 py-3 rounded-2xl bg-gradient-to-r from-[#1E462A] to-[#10B981] hover:from-[#173821] hover:to-[#059669] text-white font-bold text-sm shadow-md shadow-emerald-950/20 flex items-center justify-center gap-2 transition duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed mt-2">
@@ -237,7 +291,7 @@ export function createAuthModal({ initialMode = 'SIGN_IN', onClose, onAuthSucces
               ` : (
                 mode === 'SIGN_IN' 
                   ? 'Sign In to Farm' 
-                  : (mode === 'SIGN_UP' ? 'Create Farm Account' : 'Send Password Reset Link')
+                  : (mode === 'SIGN_UP' ? 'Create Farm Account' : (mode === 'RESET_PASSWORD' ? 'Save New Password' : 'Send Password Reset Link'))
               )}
             </button>
           </form>
@@ -402,6 +456,53 @@ export function createAuthModal({ initialMode = 'SIGN_IN', onClose, onAuthSucces
     if (form) {
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
+
+        // Handle RESET_PASSWORD mode
+        if (mode === 'RESET_PASSWORD') {
+          const newPassword = overlay.querySelector('#auth-new-password-input')?.value;
+          const confirmPassword = overlay.querySelector('#auth-confirm-password-input')?.value;
+
+          if (!newPassword || newPassword.length < 6) {
+            bannerState = { type: 'error', message: 'New password must be at least 6 characters long.' };
+            render();
+            return;
+          }
+          if (newPassword !== confirmPassword) {
+            bannerState = { type: 'error', message: 'Passwords do not match. Please verify and re-type.' };
+            render();
+            return;
+          }
+
+          if (!currentOobCode) {
+            bannerState = { type: 'error', message: 'Reset token is missing. Please request a new password reset link.' };
+            render();
+            return;
+          }
+
+          isSubmitting = true;
+          bannerState = null;
+          render();
+
+          try {
+            const res = await authService.confirmNewPassword(currentOobCode, newPassword);
+            if (!res.success) throw new Error(res.message);
+            isSubmitting = false;
+            bannerState = { type: 'success', message: res.message };
+            render();
+
+            setTimeout(() => {
+              mode = 'SIGN_IN';
+              bannerState = { type: 'success', message: 'Password updated! Please sign in with your new password.' };
+              render();
+            }, 1800);
+          } catch (err) {
+            isSubmitting = false;
+            bannerState = { type: 'error', message: err.message || 'Failed to update password.' };
+            render();
+          }
+          return;
+        }
+
         const email = overlay.querySelector('#auth-email-input')?.value?.trim();
         const password = overlay.querySelector('#auth-password-input')?.value;
 
