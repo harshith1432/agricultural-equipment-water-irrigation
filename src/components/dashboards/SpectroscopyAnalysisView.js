@@ -20,6 +20,7 @@ import {
 } from '../../hardware/spectrometerUSBAdapter.js';
 import { leafClipDevice } from '../../hardware/webBluetoothLeafClip.js';
 import { createCalibrationModal } from '../CalibrationWizard.js';
+import { createBluetoothDevicePickerModal } from '../BluetoothDevicePickerModal.js';
 
 export function createSpectroscopyAnalysisView({
   plot = null,
@@ -154,6 +155,21 @@ export function createSpectroscopyAnalysisView({
             <span class="w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-slate-400'}"></span>
             <span class="font-mono text-[11px]">${getReadableSpectroMode(connectionMode)}</span>
           </div>
+
+          <!-- Direct In-App Bluetooth Spectroscope Button -->
+          <button 
+            type="button" 
+            id="btn-mobile-connect-ble"
+            class="px-3 py-1 rounded-full text-xs font-bold transition flex items-center gap-1.5 active:scale-95 cursor-pointer ${
+              leafClipDevice.isConnected 
+                ? 'bg-emerald-400/25 text-emerald-100 border border-emerald-400/40' 
+                : 'bg-emerald-400 hover:bg-emerald-300 text-slate-950 shadow-md font-extrabold'
+            }"
+            title="Scan & Connect Bluetooth Spectroscope"
+          >
+            <svg class="w-3.5 h-3.5 ${leafClipDevice.isConnected ? 'text-emerald-300' : 'text-slate-950'}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="7 7 17 17 12 22 12 2 17 7 7 17"/></svg>
+            <span>${leafClipDevice.isConnected ? (leafClipDevice.deviceInfo?.model || 'BlueNRG_Chat Connected') : 'Connect BlueNRG Bluetooth'}</span>
+          </button>
 
           ${isCalibrated ? `
             <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-200 border border-blue-400/30">
@@ -621,6 +637,16 @@ export function createSpectroscopyAnalysisView({
     });
     container.querySelector('#confirm-spectro-settings-btn')?.addEventListener('click', () => {
       settingsModal?.classList.add('hidden');
+    });
+
+    // Direct In-App Bluetooth Spectroscope Modal Trigger
+    container.querySelector('#btn-mobile-connect-ble')?.addEventListener('click', () => {
+      createBluetoothDevicePickerModal({
+        onConnected: (res) => {
+          handleModeChange(CONNECTION_MODES.BLUETOOTH_BLE);
+          render();
+        }
+      });
     });
 
     // Mode Switcher

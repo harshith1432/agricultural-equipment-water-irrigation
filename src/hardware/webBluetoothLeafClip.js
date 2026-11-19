@@ -265,7 +265,7 @@ export class LeafClipBluetoothDevice {
     if (BleClient && isNativePlatform) {
       try {
         console.log("[BLE] Initializing Native Capacitor BLE Client...");
-        await BleClient.initialize();
+        await BleClient.initialize({ androidNeverForLocation: false });
         this.connectionStatus = 'PAIRING';
         this.emit('connectionChange', { status: 'PAIRING', simulated: false, backend: 'CAPACITOR_BLE' });
 
@@ -478,7 +478,7 @@ export class LeafClipBluetoothDevice {
 
     if (BleClient && isNativePlatform) {
       try {
-        await BleClient.initialize();
+        await BleClient.initialize({ androidNeverForLocation: false });
         await BleClient.requestLEScan({}, (result) => {
           if (result) {
             const dev = result.device || result;
@@ -653,7 +653,7 @@ export class LeafClipBluetoothDevice {
 
     if (BleClient && isNativePlatform) {
       try {
-        await BleClient.initialize();
+        await BleClient.initialize({ androidNeverForLocation: false });
         await BleClient.connect(deviceId, () => {
           this.isConnected = false;
           this.connectionStatus = 'DISCONNECTED';

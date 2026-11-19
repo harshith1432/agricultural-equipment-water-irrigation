@@ -423,10 +423,9 @@ export function createSpectroscopyStudio({
       return;
     }
 
-    if (leafClipDevice.isCapacitor) {
-      handleOpenDevicePicker();
-      return;
-    }
+    // Always open in-app device picker modal directly inside the mobile app
+    handleOpenDevicePicker();
+    return;
 
     isPairing = true;
     updateBluetoothControls();

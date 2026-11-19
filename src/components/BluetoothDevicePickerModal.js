@@ -136,6 +136,8 @@ export function createBluetoothDevicePickerModal({ onConnected, onDismiss } = {}
   }
 
   function render() {
+    const isNativePlatform = typeof window !== 'undefined' &&
+      (window.Capacitor?.isNativePlatform?.() || window.Capacitor?.getPlatform?.() === 'android');
     const enrichedList = discoveredDevices.map(enrichDevice);
 
     const filtered = enrichedList.filter(dev => {
@@ -377,18 +379,26 @@ export function createBluetoothDevicePickerModal({ onConnected, onDismiss } = {}
         }).join('')}
       </div>
 
-      <!-- Web Bluetooth Direct Browser Selector Trigger -->
+      <!-- Bottom Platform Bar -->
       <div class="pt-4 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
-        <button 
-          id="btn-trigger-web-ble"
-          class="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-mono font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-750 border border-slate-700 flex items-center justify-center gap-2 transition cursor-pointer"
-        >
-          <svg class="w-4 h-4 text-emeraldGlow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="7 7 17 17 12 22 12 2 17 7 7 17"/></svg>
-          <span>Open Browser Native Bluetooth Chooser</span>
-        </button>
+        ${isNativePlatform ? `
+          <div class="flex items-center gap-2 text-xs font-mono text-emerald-400">
+            <span class="w-2 h-2 rounded-full bg-emeraldGlow animate-ping"></span>
+            <span>Mobile In-App BLE 5.0 Active • Tap Connect to pair directly</span>
+          </div>
+        ` : `
+          <button 
+            type="button" 
+            id="btn-trigger-web-ble"
+            class="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-mono font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-750 border border-slate-700 flex items-center justify-center gap-2 transition cursor-pointer"
+          >
+            <svg class="w-4 h-4 text-emeraldGlow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="7 7 17 17 12 22 12 2 17 7 7 17"/></svg>
+            <span>Open Browser Native Bluetooth Chooser</span>
+          </button>
+        `}
 
         <span class="text-[11px] font-mono text-slate-400 text-center sm:text-right">
-          Compatible with ST BlueNRG Chat, nRF52840, nRF52832 & STM32WB
+          Direct In-App Pairing with ST BlueNRG Chat & nRF52
         </span>
       </div>
     `;
@@ -413,7 +423,7 @@ export function createBluetoothDevicePickerModal({ onConnected, onDismiss } = {}
       startScan();
     });
 
-    modal.querySelector('#btn-trigger-web-ble').addEventListener('click', async () => {
+    modal.querySelector('#btn-trigger-web-ble')?.addEventListener('click', async () => {
       try {
         closeModal();
         const res = await leafClipDevice.connect({ forceSimulation: false });

@@ -17,6 +17,8 @@
 
 import { icon } from '../utils/icons.js';
 import { t, getLocale, setLocale, SUPPORTED_LOCALES, onLocaleChange, getCropName, getRoleName } from '../utils/i18n.js';
+import { createBluetoothDevicePickerModal } from './BluetoothDevicePickerModal.js';
+import { leafClipDevice } from '../hardware/webBluetoothLeafClip.js';
 
 export function createAppNavigationHeader({
   plots = [],
@@ -319,6 +321,29 @@ export function createAppNavigationHeader({
               <span class="text-[10px] font-mono uppercase tracking-wider text-slate-500 font-bold">Farm Management & Diagnostics</span>
               
               <div class="space-y-1.5">
+                <!-- Bluetooth Spectroscope In-App Scanner -->
+                <button 
+                  type="button" 
+                  id="menu-btn-ble-scanner"
+                  class="w-full bg-white hover:bg-emerald-50/60 border border-slate-200/80 rounded-xl p-3 shadow-sm text-left flex items-center justify-between text-xs transition cursor-pointer"
+                >
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-emerald-50 text-[#0E5431] flex items-center justify-center shrink-0">
+                      ${icon('bluetooth', 'w-4 h-4')}
+                    </div>
+                    <div>
+                      <div class="font-bold text-slate-800 flex items-center gap-1.5">
+                        <span>${t('menu_ble_spectroscope', 'Bluetooth Spectroscope (BlueNRG)')}</span>
+                        <span class="px-1.5 py-0.5 rounded text-[8px] font-mono ${leafClipDevice.isConnected ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700'} font-bold">
+                          ${leafClipDevice.isConnected ? 'CONNECTED' : 'DISCONNECTED'}
+                        </span>
+                      </div>
+                      <div class="text-[10px] text-slate-500">${t('menu_ble_spectroscope_sub', 'In-App Direct Scan for BlueNRG_Chat')}</div>
+                    </div>
+                  </div>
+                  ${icon('chevronRight', 'w-3.5 h-3.5 text-slate-400')}
+                </button>
+
                 <!-- Crops & Field Zones Manager -->
                 <button 
                   type="button" 
@@ -589,6 +614,16 @@ export function createAppNavigationHeader({
     });
 
     // Diagnostics buttons inside 3-Dot drawer
+    header.querySelector('#menu-btn-ble-scanner')?.addEventListener('click', () => {
+      isMoreMenuOpen = false;
+      moreMenuModal?.classList.add('hidden');
+      createBluetoothDevicePickerModal({
+        onConnected: () => {
+          render();
+        }
+      });
+    });
+
     header.querySelector('#menu-btn-crop-zone-manager')?.addEventListener('click', () => {
       isMoreMenuOpen = false;
       moreMenuModal?.classList.add('hidden');
