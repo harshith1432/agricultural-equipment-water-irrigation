@@ -87,6 +87,32 @@ export class FirestoreDataService {
     return farmId;
   }
 
+  /**
+   * Helper to dispatch a Cloud Firestore mutation.
+   * Runs in non-blocking background task with bounded timeout (1200ms) race safeguard.
+   * Ensures callers and UI components are never blocked or frozen by Firestore network latency.
+   * @param {Function} mutationFn Async function executing the Cloud Firestore write
+   * @param {string} desc Operation description for diagnostics
+   * @param {number} timeoutMs Max wait time for bounded race (default 1200ms)
+   */
+  _dispatchCloudMutation(mutationFn, desc = 'mutation', timeoutMs = 1200) {
+    if (!this.useLive || !this.db) return;
+
+    (async () => {
+      try {
+        await Promise.race([
+          mutationFn(),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error(`Bounded cloud timeout (${timeoutMs}ms)`)), timeoutMs)
+          )
+        ]);
+        console.log(`[FirestoreService] Real-time ${desc} synced to Cloud Firestore.`);
+      } catch (err) {
+        console.warn(`[FirestoreService] Cloud ${desc} buffered/backgrounded:`, err.message);
+      }
+    })();
+  }
+
   // =========================================================================
   // 1. User Profiles: users/{userId}
   // =========================================================================
@@ -147,17 +173,7 @@ export class FirestoreDataService {
       updatedAt: this.useLive ? serverTimestamp() : now.toISOString()
     };
 
-    if (this.useLive) {
-      try {
-        const userRef = doc(this.db, "users", userData.uid);
-        await setDoc(userRef, profilePayload, { merge: true });
-        console.log(`[FirestoreService] Saved user profile in Cloud Firestore: ${userData.uid}`);
-      } catch (err) {
-        console.warn("[FirestoreService] Failed to write user profile to Cloud Firestore, buffered locally:", err.message);
-      }
-    }
-
-    // Mirror to local cache
+    // Mirror to local cache synchronously (0ms)
     try {
       if (typeof localStorage !== 'undefined') {
         localStorage.setItem("agrispectra_offline_profile", JSON.stringify({
@@ -168,6 +184,14 @@ export class FirestoreDataService {
       }
     } catch (e) {
       // Ignore
+    }
+
+    if (this.useLive) {
+      this._dispatchCloudMutation(async () => {
+        const userRef = doc(this.db, "users", userData.uid);
+        await setDoc(userRef, profilePayload, { merge: true });
+        console.log(`[FirestoreService] Saved user profile in Cloud Firestore: ${userData.uid}`);
+      }, `saveUserProfile (${userData.uid})`);
     }
 
     return profilePayload;
@@ -238,24 +262,26 @@ export class FirestoreDataService {
    */
   async updateFarm(farmId = this.currentFarmId, data = {}) {
     const targetFarm = farmId || this.currentFarmId;
-    if (this.useLive) {
-      try {
-        const farmRef = doc(this.db, "farms", targetFarm);
-        await updateDoc(farmRef, {
-          ...data,
-          updatedAt: serverTimestamp()
-        });
-      } catch (err) {
-        console.warn("[FirestoreService] Live updateFarm error:", err.message);
-      }
-    }
 
+    // 1. Update local reactive store & write synchronously to localStorage (0ms)
     const farmData = mockFirestore.getFarmData(targetFarm);
     Object.assign(farmData, data);
     mockFirestore.saveData(targetFarm);
     if (mockFirestore.normalizeFarmId(targetFarm) === mockFirestore.normalizeFarmId(this.currentFarmId)) {
       mockFirestore.notify('farm');
     }
+
+    // 2. Synchronize to Cloud Firestore in background with bounded timeout
+    if (this.useLive) {
+      this._dispatchCloudMutation(async () => {
+        const farmRef = doc(this.db, "farms", targetFarm);
+        await updateDoc(farmRef, {
+          ...data,
+          updatedAt: serverTimestamp()
+        });
+      }, `updateFarm (${targetFarm})`);
+    }
+
     return { success: true };
   }
 
@@ -343,12 +369,13 @@ export class FirestoreDataService {
   async createPlot(plotData = {}, farmId = this.currentFarmId) {
     const targetFarm = farmId || this.currentFarmId;
 
-    // 1. Write to local reactive store for 0ms instantaneous UI update
+    // 1. Write to local reactive store and localStorage synchronously (0ms instantaneous UI update)
     const createdPlot = mockFirestore.createPlot(plotData, targetFarm);
+    mockFirestore.saveData(targetFarm);
 
-    // 2. Synchronize to Cloud Firestore if connected
+    // 2. Synchronize to Cloud Firestore in background with bounded timeout safeguard
     if (this.useLive) {
-      try {
+      this._dispatchCloudMutation(async () => {
         const plotRef = doc(this.db, "farms", targetFarm, "plots", createdPlot.id);
         const { id, ...firestorePayload } = createdPlot;
         await setDoc(plotRef, {
@@ -357,9 +384,7 @@ export class FirestoreDataService {
           updatedAt: serverTimestamp()
         });
         console.log(`[FirestoreService] Real-time Plot created in Cloud Firestore: ${createdPlot.id} under farm ${targetFarm}`);
-      } catch (err) {
-        console.warn("[FirestoreService] Cloud Firestore createPlot queued/buffered locally:", err.message);
-      }
+      }, `createPlot (${createdPlot.id})`);
     }
 
     return createdPlot;
@@ -375,20 +400,22 @@ export class FirestoreDataService {
     if (!plotId) throw new Error("Plot ID is required for updatePlot.");
     const targetFarm = farmId || this.currentFarmId;
 
+    // 1. Update local reactive store & write synchronously to localStorage (0ms)
     const updated = mockFirestore.updatePlot(plotId, plotData, targetFarm);
+    mockFirestore.saveData(targetFarm);
 
+    // 2. Synchronize to Cloud Firestore in background with bounded timeout safeguard
     if (this.useLive) {
-      try {
+      this._dispatchCloudMutation(async () => {
         const plotRef = doc(this.db, "farms", targetFarm, "plots", plotId);
         await updateDoc(plotRef, {
           ...plotData,
           updatedAt: serverTimestamp()
         });
         console.log(`[FirestoreService] Live Plot updated in Cloud Firestore: ${plotId}`);
-      } catch (err) {
-        console.warn("[FirestoreService] Cloud updatePlot note:", err.message);
-      }
+      }, `updatePlot (${plotId})`);
     }
+
     return { success: true, plot: updated || mockFirestore.getFarmData(targetFarm)?.plots?.[plotId] };
   }
 
@@ -401,16 +428,17 @@ export class FirestoreDataService {
     if (!plotId) throw new Error("Plot ID is required for deletePlot.");
     const targetFarm = farmId || this.currentFarmId;
 
+    // 1. Delete from local reactive store & write synchronously to localStorage (0ms)
     const result = mockFirestore.deletePlot(plotId, targetFarm);
+    mockFirestore.saveData(targetFarm);
 
+    // 2. Synchronize to Cloud Firestore in background with bounded timeout safeguard
     if (this.useLive) {
-      try {
+      this._dispatchCloudMutation(async () => {
         const plotRef = doc(this.db, "farms", targetFarm, "plots", plotId);
         await deleteDoc(plotRef);
         console.log(`[FirestoreService] Real-time Plot deleted from Cloud Firestore: ${plotId}`);
-      } catch (err) {
-        console.warn("[FirestoreService] Cloud deletePlot note:", err.message);
-      }
+      }, `deletePlot (${plotId})`);
     }
 
     return result;
@@ -471,10 +499,11 @@ export class FirestoreDataService {
       operatorId: operatorId || (typeof localStorage !== 'undefined' ? JSON.parse(localStorage.getItem('agrispectra_auth_user') || '{}')?.uid : null) || null
     };
     mockFirestore.addIrrigationLog(logDoc, targetFarm);
+    mockFirestore.saveData(targetFarm);
 
-    // 3. Write directly to Cloud Firestore `(default)`
+    // 3. Write directly to Cloud Firestore in background with bounded timeout safeguard
     if (this.useLive) {
-      try {
+      this._dispatchCloudMutation(async () => {
         const plotRef = doc(this.db, "farms", targetFarm, "plots", plotId);
         await updateDoc(plotRef, {
           "valve.state": isOpening ? "OPEN" : "CLOSED",
@@ -487,9 +516,7 @@ export class FirestoreDataService {
           ...logDoc,
           timestamp: serverTimestamp()
         });
-      } catch (err) {
-        console.warn("[FirestoreService] Cloud Firestore valve actuation write queued/buffered:", err.message);
-      }
+      }, `actuateValve (${gateId} -> ${action})`);
     }
 
     // Direct asynchronous telemetry dispatch to Enterprise Backend Server
@@ -620,10 +647,11 @@ export class FirestoreDataService {
       harvest: scanData.harvest,
       rawSpectrumPreview: (scanData.rawSpectrumPreview || []).slice(0, 30)
     }, targetFarm);
+    mockFirestore.saveData(targetFarm);
 
-    // 2. Write directly to Cloud Firestore collection `farms/{farmId}/leafScans`
+    // 2. Write directly to Cloud Firestore in background with bounded timeout safeguard
     if (this.useLive) {
-      try {
+      this._dispatchCloudMutation(async () => {
         const scansRef = collection(this.db, "farms", targetFarm, "leafScans");
         await addDoc(scansRef, {
           plotId: scanData.plotId,
@@ -637,9 +665,7 @@ export class FirestoreDataService {
           scannedAt: serverTimestamp()
         });
         console.log(`[FirestoreService] Saved leaf scan directly to Cloud Firestore: ${scanId}`);
-      } catch (e) {
-        console.warn("[FirestoreService] Failed to write live scan to Cloud Firestore:", e.message);
-      }
+      }, `saveLeafScan (${scanId})`);
     }
 
     // Direct asynchronous sync to Enterprise Backend Server
@@ -698,16 +724,16 @@ export class FirestoreDataService {
   async recordIrrigationLog(logData, farmId = this.currentFarmId) {
     const targetFarm = farmId || this.currentFarmId;
     const id = mockFirestore.addIrrigationLog(logData, targetFarm);
+    mockFirestore.saveData(targetFarm);
+
     if (this.useLive) {
-      try {
+      this._dispatchCloudMutation(async () => {
         const logsRef = collection(this.db, "farms", targetFarm, "irrigationLogs");
         await addDoc(logsRef, {
           ...logData,
           timestamp: serverTimestamp()
         });
-      } catch (e) {
-        console.warn("[FirestoreService] Direct log write error:", e.message);
-      }
+      }, `recordIrrigationLog (${id})`);
     }
     return id;
   }
@@ -784,17 +810,16 @@ export class FirestoreDataService {
         dismissalJustification: justification || "Operator dismissed"
       }, targetFarm);
     }
+    mockFirestore.saveData(targetFarm);
 
     if (this.useLive) {
-      try {
+      this._dispatchCloudMutation(async () => {
         const recRef = doc(this.db, "farms", targetFarm, "actionRecommendations", recId);
         await updateDoc(recRef, {
           status: action === "APPROVE" ? "APPROVED" : "DISMISSED",
           updatedAt: serverTimestamp()
         });
-      } catch (e) {
-        console.warn("[FirestoreService] Cloud update recommendation status note:", e.message);
-      }
+      }, `handleRecommendationAction (${recId})`);
     }
   }
 
@@ -806,17 +831,17 @@ export class FirestoreDataService {
   async createActionRecommendation(recData, farmId = this.currentFarmId) {
     const targetFarm = farmId || this.currentFarmId;
     const id = mockFirestore.addActionRecommendation(recData, targetFarm);
+    mockFirestore.saveData(targetFarm);
+
     if (this.useLive) {
-      try {
+      this._dispatchCloudMutation(async () => {
         const recsRef = collection(this.db, "farms", targetFarm, "actionRecommendations");
         await addDoc(recsRef, {
           ...recData,
           status: "PENDING",
           generatedAt: serverTimestamp()
         });
-      } catch (e) {
-        console.warn("[FirestoreService] Live recommendation creation error:", e.message);
-      }
+      }, `createActionRecommendation (${id})`);
     }
     return id;
   }
@@ -836,7 +861,7 @@ export class FirestoreDataService {
     const localResult = mockFirestore.saveUserPreferences(effectiveUid, preferences);
 
     if (this.useLive) {
-      try {
+      this._dispatchCloudMutation(async () => {
         const prefRef = doc(this.db, "userPreferences", effectiveUid);
         await setDoc(prefRef, {
           ...preferences,
@@ -844,9 +869,7 @@ export class FirestoreDataService {
           updatedAt: serverTimestamp()
         }, { merge: true });
         console.log(`[FirestoreService] Saved user preferences to Cloud Firestore: ${effectiveUid}`);
-      } catch (err) {
-        console.warn("[FirestoreService] Could not write user preferences to Cloud Firestore, cached locally:", err.message);
-      }
+      }, `saveUserPreferences (${effectiveUid})`);
     }
 
     return localResult;
@@ -1018,12 +1041,13 @@ export class FirestoreDataService {
     }
     const targetFarm = farmId || this.currentFarmId;
 
-    // 1. Write to local reactive store for 0ms instantaneous UI feedback
+    // 1. Write to local reactive store & write synchronously to localStorage (0ms instantaneous UI feedback)
     const createdCrop = mockFirestore.addCropType(cropData, targetFarm);
+    mockFirestore.saveData(targetFarm);
 
-    // 2. Synchronize to Cloud Firestore if connected
+    // 2. Synchronize to Cloud Firestore in background with bounded timeout safeguard
     if (this.useLive) {
-      try {
+      this._dispatchCloudMutation(async () => {
         const cropRef = doc(this.db, "farms", targetFarm, "crops", createdCrop.id);
         const { id, ...firestorePayload } = createdCrop;
         await setDoc(cropRef, {
@@ -1032,9 +1056,7 @@ export class FirestoreDataService {
           updatedAt: serverTimestamp()
         });
         console.log(`[FirestoreService] Real-time Crop Type created in Cloud Firestore: ${createdCrop.id}`);
-      } catch (err) {
-        console.warn("[FirestoreService] Cloud addCropType note, cached locally:", err.message);
-      }
+      }, `addCropType (${createdCrop.id})`);
     }
 
     return createdCrop;
@@ -1050,19 +1072,20 @@ export class FirestoreDataService {
     if (!cropId) throw new Error("Crop ID is required to update crop type.");
     const targetFarm = farmId || this.currentFarmId;
 
+    // 1. Update local reactive store & write synchronously to localStorage (0ms)
     const updated = mockFirestore.updateCropType(cropId, cropData, targetFarm);
+    mockFirestore.saveData(targetFarm);
 
+    // 2. Synchronize to Cloud Firestore in background with bounded timeout safeguard
     if (this.useLive) {
-      try {
+      this._dispatchCloudMutation(async () => {
         const cropRef = doc(this.db, "farms", targetFarm, "crops", cropId);
         await updateDoc(cropRef, {
           ...cropData,
           updatedAt: serverTimestamp()
         });
         console.log(`[FirestoreService] Real-time Crop Type updated in Cloud Firestore: ${cropId}`);
-      } catch (err) {
-        console.warn("[FirestoreService] Cloud updateCropType note:", err.message);
-      }
+      }, `updateCropType (${cropId})`);
     }
 
     return updated || mockFirestore.getFarmData(targetFarm)?.crops?.[cropId];
@@ -1077,16 +1100,17 @@ export class FirestoreDataService {
     if (!cropId) throw new Error("Crop ID is required to delete crop type.");
     const targetFarm = farmId || this.currentFarmId;
 
+    // 1. Delete from local reactive store & write synchronously to localStorage (0ms)
     const result = mockFirestore.deleteCropType(cropId, targetFarm);
+    mockFirestore.saveData(targetFarm);
 
+    // 2. Synchronize to Cloud Firestore in background with bounded timeout safeguard
     if (this.useLive) {
-      try {
+      this._dispatchCloudMutation(async () => {
         const cropRef = doc(this.db, "farms", targetFarm, "crops", cropId);
         await deleteDoc(cropRef);
         console.log(`[FirestoreService] Real-time Crop Type deleted from Cloud Firestore: ${cropId}`);
-      } catch (err) {
-        console.warn("[FirestoreService] Cloud deleteCropType note:", err.message);
-      }
+      }, `deleteCropType (${cropId})`);
     }
 
     return result;
@@ -1177,7 +1201,7 @@ export class FirestoreDataService {
     const farmId = this.currentFarmId || FARM_ID;
     const userId = this.currentUser?.uid || (typeof localStorage !== 'undefined' ? JSON.parse(localStorage.getItem('agrispectra_auth_user') || '{}')?.uid : null) || 'offline-grower';
 
-    // 1. If configured for Live Cloud Firestore, test direct cloud write & read
+    // 1. If configured for Live Cloud Firestore, test direct cloud write & read with bounded timeout
     if (this.useLive) {
       try {
         const probeRef = doc(this.db, "farms", farmId, "_healthCheck", "connectivity_probe");
@@ -1186,8 +1210,14 @@ export class FirestoreDataService {
           verifiedAt: serverTimestamp(),
           clientUser: userId
         };
-        await setDoc(probeRef, probePayload, { merge: true });
-        const snap = await getDoc(probeRef);
+        await Promise.race([
+          setDoc(probeRef, probePayload, { merge: true }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("Cloud probe write timeout")), 1500))
+        ]);
+        const snap = await Promise.race([
+          getDoc(probeRef),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("Cloud probe read timeout")), 1200))
+        ]);
         const latencyMs = Math.max(1, Date.now() - startTime);
 
         if (snap.exists()) {

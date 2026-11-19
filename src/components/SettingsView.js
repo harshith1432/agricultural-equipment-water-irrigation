@@ -14,6 +14,7 @@
  */
 import { icon } from '../utils/icons.js';
 import { authService } from '../firebase/authService.js';
+import { firestoreService } from '../firebase/firestoreService.js';
 import { t, onLocaleChange, getLocale, setLocale, SUPPORTED_LOCALES } from '../utils/i18n.js';
 import { setOnboardingCompleted } from './OnboardingCarousel.js';
 
@@ -62,12 +63,27 @@ export function createSettingsView({
     try {
       localStorage.setItem('agrispectra_farm_targets', JSON.stringify(farmTargets));
     } catch (e) {}
+
+    // Immediate non-blocking sync to firestoreService & multi-tenant preferences (0ms)
+    try {
+      const user = currentUser || authService.getCurrentUser();
+      const uid = user?.uid || 'default';
+      firestoreService.saveUserPreferences(uid, { farmTargets }).catch(() => {});
+      firestoreService.updateFarm(firestoreService.currentFarmId, { targets: farmTargets }).catch(() => {});
+    } catch (e) {}
   }
 
   function savePulseTiming(ms) {
     pulseTimingMs = ms;
     try {
       localStorage.setItem('agrispectra_solenoid_pulse_ms', String(ms));
+    } catch (e) {}
+
+    // Immediate non-blocking sync to firestoreService (0ms)
+    try {
+      const user = currentUser || authService.getCurrentUser();
+      const uid = user?.uid || 'default';
+      firestoreService.saveUserPreferences(uid, { solenoidPulseMs: ms }).catch(() => {});
     } catch (e) {}
   }
 
@@ -145,7 +161,7 @@ export function createSettingsView({
 
         <div class="space-y-3 text-xs">
           <div>
-            <label class="font-bold text-slate-700 dark:text-slate-300 block mb-1">Full Name</label>
+            <label class="font-bold text-slate-700 dark:text-slate-300 block mb-1">${t('full_name_label', 'Full Name')}</label>
             <input 
               type="text" 
               id="profile-name-input" 
@@ -155,7 +171,7 @@ export function createSettingsView({
           </div>
 
           <div>
-            <label class="font-bold text-slate-700 dark:text-slate-300 block mb-1">Work Email</label>
+            <label class="font-bold text-slate-700 dark:text-slate-300 block mb-1">${t('work_email_label', 'Work Email')}</label>
             <input 
               type="email" 
               id="profile-email-input" 
@@ -166,7 +182,7 @@ export function createSettingsView({
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <div>
-              <label class="font-bold text-slate-700 dark:text-slate-300 block mb-1">Farm / Parcel</label>
+              <label class="font-bold text-slate-700 dark:text-slate-300 block mb-1">${t('farm_parcel_label', 'Farm / Parcel')}</label>
               <input 
                 type="text" 
                 id="profile-farm-input" 
@@ -181,10 +197,10 @@ export function createSettingsView({
                 id="profile-role-select" 
                 class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500"
               >
-                <option value="Farm Owner" ${user.role === 'Farm Owner' ? 'selected' : ''}>Farm Owner</option>
-                <option value="Agronomist" ${user.role === 'Agronomist' ? 'selected' : ''}>Agronomist</option>
-                <option value="Field Tech" ${user.role === 'Field Tech' ? 'selected' : ''}>Field Tech</option>
-                <option value="Super Admin" ${user.role === 'Super Admin' ? 'selected' : ''}>Super Admin</option>
+                <option value="Farm Owner" ${user.role === 'Farm Owner' ? 'selected' : ''}>${t('role_farm_owner', 'Farm Owner')}</option>
+                <option value="Agronomist" ${user.role === 'Agronomist' ? 'selected' : ''}>${t('role_agronomist', 'Agronomist')}</option>
+                <option value="Field Tech" ${user.role === 'Field Tech' ? 'selected' : ''}>${t('role_field_tech', 'Field Tech')}</option>
+                <option value="Super Admin" ${user.role === 'Super Admin' ? 'selected' : ''}>${t('role_super_admin', 'Super Admin')}</option>
               </select>
             </div>
           </div>
@@ -361,14 +377,14 @@ export function createSettingsView({
         <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
           <h3 class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
             ${icon('activity', 'w-4 h-4 text-[#0E5431] dark:text-emerald-400')}
-            <span>Hardware Diagnostics & Network Status</span>
+            <span>${t('hardware_diag_title')}</span>
           </h3>
           <span class="px-2 py-0.5 rounded-full text-[10px] font-bold font-mono ${
             (typeof navigator !== 'undefined' && navigator.onLine)
               ? 'bg-emerald-100 text-[#0E5431] dark:bg-emerald-950/60 dark:text-emerald-300'
               : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
           }">
-            ${(typeof navigator !== 'undefined' && navigator.onLine) ? 'ONLINE SYNCED' : 'OFFLINE CACHED'}
+            ${(typeof navigator !== 'undefined' && navigator.onLine) ? t('online_synced_caps') : t('offline_cached_caps')}
           </span>
         </div>
 
@@ -376,35 +392,35 @@ export function createSettingsView({
           <div class="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
             <div class="flex items-center gap-2">
               <span class="w-2 h-2 rounded-full ${typeof navigator !== 'undefined' && navigator.onLine ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}"></span>
-              <span class="font-medium text-slate-700 dark:text-slate-300">Cloud Firestore & REST API</span>
+              <span class="font-medium text-slate-700 dark:text-slate-300">${t('cloud_firestore_sync')}</span>
             </div>
             <span class="font-mono text-[11px] font-bold text-slate-900 dark:text-white">
-              ${typeof navigator !== 'undefined' && navigator.onLine ? 'CONNECTED' : 'BUFFERING'}
+              ${typeof navigator !== 'undefined' && navigator.onLine ? t('status_connected_caps') : t('status_buffering_caps')}
             </span>
           </div>
 
           <div class="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
             <div class="flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-teal-400 animate-pulse"></span>
-              <span class="font-medium text-slate-700 dark:text-slate-300">Leaf-Clip Spectrometer BLE 5.0</span>
+              <span class="font-medium text-slate-700 dark:text-slate-300">${t('leaf_clip_ble')}</span>
             </div>
-            <span class="font-mono text-[11px] font-bold text-teal-600 dark:text-teal-400">PAIRED & STREAMING</span>
+            <span class="font-mono text-[11px] font-bold text-teal-600 dark:text-teal-400">${t('paired_streaming')}</span>
           </div>
 
           <div class="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
             <div class="flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-              <span class="font-medium text-slate-700 dark:text-slate-300">LABART 8-in-1 Soil Sensor</span>
+              <span class="font-medium text-slate-700 dark:text-slate-300">${t('labart_soil_sensor')}</span>
             </div>
-            <span class="font-mono text-[11px] font-bold text-[#0E5431] dark:text-emerald-400">MODBUS RTU OK</span>
+            <span class="font-mono text-[11px] font-bold text-[#0E5431] dark:text-emerald-400">${t('modbus_ok')}</span>
           </div>
 
           <div class="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
             <div class="flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-blue-500"></span>
-              <span class="font-medium text-slate-700 dark:text-slate-300">Bi-Stable Solenoid Gate Controller</span>
+              <span class="font-medium text-slate-700 dark:text-slate-300">${t('solenoid_controller')}</span>
             </div>
-            <span class="font-mono text-[11px] font-bold text-blue-600 dark:text-blue-400">6 GATES READY</span>
+            <span class="font-mono text-[11px] font-bold text-blue-600 dark:text-blue-400">${t('gates_ready')}</span>
           </div>
         </div>
 
@@ -414,7 +430,7 @@ export function createSettingsView({
           class="w-full py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-[#0E5431] dark:text-emerald-300 font-bold text-xs flex items-center justify-center gap-1.5 transition active:scale-98"
         >
           ${icon('refresh', 'w-3.5 h-3.5')}
-          <span>Force Cloud Telemetry Sync</span>
+          <span>${t('force_sync_btn')}</span>
         </button>
       </div>
 
@@ -487,7 +503,19 @@ export function createSettingsView({
         authService.currentUser = updated;
         try {
           localStorage.setItem('agrispectra_current_user', JSON.stringify(updated));
+          localStorage.setItem('agrispectra_auth_user', JSON.stringify(updated));
         } catch (e) {}
+
+        // Immediate non-blocking sync to firestoreService (0ms) without delay or page freeze
+        try {
+          if (updated.uid) {
+            firestoreService.saveUserProfile(updated).catch(() => {});
+          }
+          if (farm) {
+            firestoreService.updateFarm(firestoreService.currentFarmId, { name: farm }).catch(() => {});
+          }
+        } catch (e) {}
+
         bannerMessage = "Profile updated successfully.";
         render();
       }

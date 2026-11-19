@@ -16,7 +16,7 @@
  */
 
 import { icon } from '../utils/icons.js';
-import { t, getLocale, setLocale, SUPPORTED_LOCALES, onLocaleChange } from '../utils/i18n.js';
+import { t, getLocale, setLocale, SUPPORTED_LOCALES, onLocaleChange, getCropName } from '../utils/i18n.js';
 
 export function createAppNavigationHeader({
   plots = [],
@@ -128,14 +128,14 @@ export function createAppNavigationHeader({
               class="min-h-[32px] px-2.5 py-1 rounded-full bg-[#092B19]/90 hover:bg-[#092B19] border border-emerald-500/30 text-xs font-medium text-emerald-100 flex items-center gap-1.5 transition max-w-[210px] truncate"
             >
               ${icon('mapPin', 'w-3.5 h-3.5 text-emerald-400 flex-shrink-0')}
-              <span class="truncate">Zone ${currentPlot.plotNumber}: ${currentPlot.crop}</span>
+              <span class="truncate">${t('zone_label')} ${currentPlot.plotNumber}: ${getCropName(currentPlot.crop)}</span>
               ${icon('chevronDown', 'w-3 h-3 text-emerald-400 flex-shrink-0')}
             </button>
 
             <!-- Zone Dropdown Menu -->
             <div id="header-zone-dropdown" class="hidden absolute left-0 mt-2 w-64 rounded-2xl bg-[#092B19] border border-emerald-600/40 shadow-2xl p-1.5 z-50 text-xs">
               <div class="px-2.5 py-1 text-[10px] uppercase font-mono text-emerald-400/80 border-b border-white/10 mb-1 flex items-center justify-between">
-                <span>Field Zones (${plots.length} Active)</span>
+                <span>${(t('field_zones_active') || 'Field Zones ({count} Active)').replace('{count}', plots.length)}</span>
                 <span class="text-[9px] text-emerald-300/70 font-sans">Live DB</span>
               </div>
               <div class="max-h-56 overflow-y-auto space-y-0.5 no-scrollbar">
@@ -146,7 +146,7 @@ export function createAppNavigationHeader({
                     class="zone-select-option w-full text-left px-2.5 py-2 rounded-xl flex items-center justify-between text-white hover:bg-white/10 transition ${p.id === currentPlot.id ? 'bg-white/15 font-bold text-emerald-300' : ''}"
                   >
                     <div class="flex flex-col min-w-0">
-                      <span class="font-medium truncate">Zone ${p.plotNumber}: ${p.crop}</span>
+                      <span class="font-medium truncate">${t('zone_label')} ${p.plotNumber}: ${getCropName(p.crop)}</span>
                       <span class="text-[10px] text-emerald-300/70 font-mono truncate">${p.name || ''}</span>
                     </div>
                     ${p.id === currentPlot.id ? icon('check', 'w-3.5 h-3.5 text-emerald-300 flex-shrink-0') : ''}
@@ -242,7 +242,7 @@ export function createAppNavigationHeader({
             <div class="flex items-center justify-between">
               <label class="text-xs font-bold text-emerald-200 flex items-center gap-1.5">
                 ${icon('globe', 'w-3.5 h-3.5 text-emerald-400')}
-                <span>${t('menu_language')} (7 Languages)</span>
+                <span>${t('menu_language')} (${SUPPORTED_LOCALES.length} Languages)</span>
               </label>
               <span class="text-[10px] text-emerald-400 font-mono">${activeLocale.native}</span>
             </div>

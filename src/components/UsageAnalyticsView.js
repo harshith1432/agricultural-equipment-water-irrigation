@@ -10,7 +10,7 @@
  */
 import { icon } from '../utils/icons.js';
 import { irrigationControllerAdapter } from '../hardware/irrigationControllerAdapter.js';
-import { t, onLocaleChange } from '../utils/i18n.js';
+import { t, onLocaleChange, getCropName } from '../utils/i18n.js';
 
 export function createUsageAnalyticsView({
   plots = [],
@@ -126,7 +126,7 @@ export function createUsageAnalyticsView({
 
         <!-- Timeframe Segmented Switcher -->
         <div class="pt-2 border-t border-emerald-700/40 flex items-center justify-between">
-          <span class="text-xs text-emerald-200/90 font-medium">Time Horizon:</span>
+          <span class="text-xs text-emerald-200/90 font-medium">${t('time_horizon', 'Time Horizon:')}</span>
           <div class="inline-flex bg-black/25 p-1 rounded-xl border border-white/10">
             ${[
               { id: 'today', label: t('scope_today') },
@@ -176,24 +176,24 @@ export function createUsageAnalyticsView({
             ${icon('droplet', 'w-4 h-4 text-[#0E5431] dark:text-emerald-400')}
             <span>${t('usage_per_zone')}</span>
           </h3>
-          <span class="text-[10px] text-slate-500 font-mono">6 Sub-Parcels</span>
+          <span class="text-[10px] text-slate-500 font-mono">${t('sub_parcels', '6 Sub-Parcels')}</span>
         </div>
 
         <div class="space-y-2.5">
           ${zoneData.map(z => {
             const pct = Math.round((z.deliveredLiters / maxZoneLiters) * 100);
             return `
-              <div class="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-100 dark:border-slate-800 space-y-1.5">
+              <div class="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-855 border border-slate-100 dark:border-slate-800 space-y-1.5">
                 <div class="flex items-center justify-between text-xs">
                   <div class="flex items-center gap-2">
                     <span class="w-6 h-6 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-[#0E5431] dark:text-emerald-300 flex items-center justify-center font-bold font-mono text-[11px]">
                       Z${z.zoneNumber}
                     </span>
-                    <span class="font-bold text-slate-800 dark:text-white">${z.crop}</span>
+                    <span class="font-bold text-slate-800 dark:text-white">${getCropName(z.crop)}</span>
                   </div>
                   <div class="text-right font-mono">
                     <span class="font-bold text-slate-900 dark:text-white">${z.deliveredLiters.toLocaleString()} L</span>
-                    <span class="text-[10px] text-slate-400 ml-1">(${z.cycles} cycles)</span>
+                    <span class="text-[10px] text-slate-400 ml-1">(${z.cycles} ${t('cycles', 'cycles')})</span>
                   </div>
                 </div>
 
@@ -212,22 +212,22 @@ export function createUsageAnalyticsView({
         <div class="flex items-center justify-between">
           <h3 class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
             ${icon('gauge', 'w-4 h-4 text-blue-600')}
-            <span>Valve Endurance & Latch Health</span>
+            <span>${t('valve_endurance_title', 'Valve Endurance & Latch Health')}</span>
           </h3>
-          <span class="text-[10px] font-mono text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md font-bold">Rated 100,000 Cycles</span>
+          <span class="text-[10px] font-mono text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md font-bold">${t('valve_endurance_rating', 'Rated 100,000 Cycles')}</span>
         </div>
 
         <div class="grid grid-cols-2 gap-2 text-xs">
           <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-100 dark:border-slate-800">
-            <span class="text-[10px] text-slate-400 block">Avg Pulse Duration</span>
+            <span class="text-[10px] text-slate-400 block">${t('avg_pulse_duration', 'Avg Pulse Duration')}</span>
             <span class="font-bold font-mono text-slate-800 dark:text-white mt-0.5 block">50 ms ±12V</span>
-            <span class="text-[9.5px] text-emerald-600 font-mono">Zero continuous power</span>
+            <span class="text-[9.5px] text-emerald-600 font-mono">${t('zero_continuous_power', 'Zero continuous power')}</span>
           </div>
 
           <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-100 dark:border-slate-800">
-            <span class="text-[10px] text-slate-400 block">Mainline Dynamic Pressure</span>
+            <span class="text-[10px] text-slate-400 block">${t('mainline_dynamic_pressure', 'Mainline Dynamic Pressure')}</span>
             <span class="font-bold font-mono text-slate-800 dark:text-white mt-0.5 block">${telemetryMetrics.mainlinePressureBar || 2.42} Bar</span>
-            <span class="text-[9.5px] text-emerald-600 font-mono">Nominal (1.8 - 3.0 Bar)</span>
+            <span class="text-[9.5px] text-emerald-600 font-mono">${t('pressure_nominal_range', 'Nominal (1.8 - 3.0 Bar)')}</span>
           </div>
         </div>
       </div>
@@ -239,7 +239,7 @@ export function createUsageAnalyticsView({
             ${icon('spectroscopy', 'w-4 h-4 text-teal-600')}
             <span>${t('recent_scans_archive')}</span>
           </h3>
-          <span class="text-[10px] text-teal-700 font-mono font-bold">${defaultScanHistory.length} Scans Cached</span>
+          <span class="text-[10px] text-teal-700 font-mono font-bold">${defaultScanHistory.length} ${t('scans_cached', 'Scans Cached')}</span>
         </div>
 
         <div class="space-y-2">
@@ -252,14 +252,14 @@ export function createUsageAnalyticsView({
                     ${s.plotId.replace('plot-', 'Z')}
                   </div>
                   <div>
-                    <h4 class="text-xs font-bold text-slate-900 dark:text-white">${s.crop}</h4>
+                    <h4 class="text-xs font-bold text-slate-900 dark:text-white">${getCropName(s.crop)}</h4>
                     <p class="text-[10px] text-slate-400 font-mono">${timeStr} • ${s.nitrogen}</p>
                   </div>
                 </div>
 
                 <div class="text-right font-mono">
                   <div class="text-xs font-bold ${s.vitality > 75 ? 'text-emerald-600' : 'text-amber-500'}">
-                    ${s.vitality}% Vitality
+                    ${s.vitality}% ${t('vitality_label', 'Vitality')}
                   </div>
                   <div class="text-[10px] text-slate-400">
                     NDVI: ${s.ndvi} • LWI: ${s.lwi}

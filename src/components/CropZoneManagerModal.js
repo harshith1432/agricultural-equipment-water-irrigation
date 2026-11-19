@@ -19,7 +19,7 @@
 import { firestoreService, FARM_ID } from '../firebase/firestoreService.js';
 import { INITIAL_FARM_DATA, PRESEEDED_CROPS } from '../firebase/mockFirestore.js';
 import { icon } from '../utils/icons.js';
-import { t, onLocaleChange } from '../utils/i18n.js';
+import { t, onLocaleChange, getCropName, getStageName } from '../utils/i18n.js';
 
 function stripLeadingPlus(text) {
   if (!text) return '';
@@ -307,16 +307,16 @@ export function createCropZoneManagerModal({
                     <div class="min-w-0 flex-1">
                       <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
                         <h4 class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
-                          ${escapeHtml(p.crop || 'Crop')}
+                          ${escapeHtml(getCropName(p.crop || 'Crop'))}
                         </h4>
                         <span class="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold shrink-0 ${
                           isOpen ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
                         }">
-                          ${isOpen ? 'VALVE ON' : 'VALVE IDLE'}
+                          ${isOpen ? t('valve_status_on', 'VALVE ON') : t('valve_status_off', 'VALVE IDLE')}
                         </span>
                         ${isSelected ? `
                           <span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#0E5431] text-white shrink-0">
-                            Active Plot
+                            ${t('active_plot_badge', 'Active Plot')}
                           </span>
                         ` : ''}
                       </div>
@@ -328,16 +328,16 @@ export function createCropZoneManagerModal({
                       <!-- Sub-badges -->
                       <div class="flex items-center gap-1.5 sm:gap-2 mt-2 flex-wrap text-[10px] min-w-0">
                         <span class="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-[#0E5431] dark:text-emerald-300 font-medium border border-emerald-600/10 whitespace-nowrap">
-                          Stage: ${escapeHtml(p.stage || 'Vegetative')}
+                          ${t('growth_stage_label', 'Stage')}: ${escapeHtml(getStageName(p.stage || 'Vegetative'))}
                         </span>
                         <span class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700/60 text-slate-700 dark:text-slate-300 font-mono whitespace-nowrap">
-                          Target VWC: ${p.targetVwcMin || 20}%–${p.targetVwcMax || 35}%
+                          ${t('target_vwc_label', 'Target VWC')}: ${p.targetVwcMin || 20}%–${p.targetVwcMax || 35}%
                         </span>
                         <span class="px-2 py-0.5 rounded-md bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 font-mono shrink-0 whitespace-nowrap">
                           ${escapeHtml(gateId)}
                         </span>
                         <span class="px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 whitespace-nowrap">
-                          Soil: ${escapeHtml(p.soilType || 'Clay Loam')}
+                          ${t('soil_type_label', 'Soil')}: ${escapeHtml(p.soilType || 'Clay Loam')}
                         </span>
                       </div>
                     </div>
@@ -353,7 +353,7 @@ export function createCropZoneManagerModal({
                         class="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-emerald-50 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:text-[#0E5431] text-[11px] font-semibold transition whitespace-nowrap active:scale-95"
                         title="Select this zone as active"
                       >
-                        Select
+                        ${t('btn_select', 'Select')}
                       </button>
                     ` : ''}
 
@@ -383,8 +383,8 @@ export function createCropZoneManagerModal({
 
                 <!-- Live Moisture telemetry bar -->
                 <div class="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between text-[10px] text-slate-500 font-mono">
-                  <span>Current Soil VWC: <strong class="text-slate-800 dark:text-slate-200">${avgVwc}%</strong></span>
-                  <span>Flow: <strong>${p.valve?.flowRate || 480} LPH</strong></span>
+                  <span>${t('mean_soil_vwc', 'Mean Soil VWC')}: <strong class="text-slate-800 dark:text-slate-200">${avgVwc}%</strong></span>
+                  <span>${t('nominal_flow_rate_label', 'Flow')}: <strong>${p.valve?.flowRate || 480} LPH</strong></span>
                 </div>
               </div>
             `;
@@ -1105,6 +1105,7 @@ export function createCropZoneManagerModal({
     if (zoneForm) {
       zoneForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+        if (isSaving) return; // Prevent duplicate submissions
 
         const plotNumber = Number(overlay.querySelector('#input-zone-number')?.value) || (plots.length + 1);
         const name = overlay.querySelector('#input-zone-name')?.value.trim() || `Zone ${plotNumber}`;
@@ -1117,10 +1118,13 @@ export function createCropZoneManagerModal({
 
         isSaving = true;
         const saveBtn = overlay.querySelector('#btn-save-zone');
-        if (saveBtn) saveBtn.setAttribute('disabled', 'disabled');
+        if (saveBtn) {
+          saveBtn.setAttribute('disabled', 'disabled');
+          const btnSpan = saveBtn.querySelector('span');
+          if (btnSpan) btnSpan.textContent = 'Saving...';
+        }
 
         try {
-
           if (subView === 'edit_zone' && editingZoneId) {
             await firestoreService.updatePlot(editingZoneId, {
               plotNumber,
@@ -1136,6 +1140,9 @@ export function createCropZoneManagerModal({
                 flowRate: 480.0
               }
             });
+            subView = 'list';
+            editingZoneId = null;
+            isSaving = false;
             showToast(`Zone ${plotNumber} updated in database.`);
           } else {
             const created = await firestoreService.createPlot({
@@ -1152,13 +1159,15 @@ export function createCropZoneManagerModal({
                 flowRate: 480.0
               }
             });
+            subView = 'list';
+            editingZoneId = null;
+            isSaving = false;
+            if (created && created.id) {
+              currentSelectedPlotId = created.id;
+              if (typeof onSelectPlot === 'function') onSelectPlot(created.id);
+            }
             showToast(`New Zone ${plotNumber} created in database!`);
-            currentSelectedPlotId = created.id;
-            if (typeof onSelectPlot === 'function') onSelectPlot(created.id);
           }
-
-          subView = 'list';
-          editingZoneId = null;
         } catch (err) {
           console.error("Error saving zone:", err);
           showToast(`Failed to save zone: ${err.message}`, 'error');
@@ -1174,6 +1183,7 @@ export function createCropZoneManagerModal({
     if (cropForm) {
       cropForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+        if (isSaving) return; // Prevent duplicate submissions
 
         const name = overlay.querySelector('#input-crop-name')?.value.trim();
         const scientificName = overlay.querySelector('#input-crop-scientific')?.value.trim() || `${name} sp.`;
@@ -1186,10 +1196,13 @@ export function createCropZoneManagerModal({
 
         isSaving = true;
         const saveBtn = overlay.querySelector('#btn-save-crop');
-        if (saveBtn) saveBtn.setAttribute('disabled', 'disabled');
+        if (saveBtn) {
+          saveBtn.setAttribute('disabled', 'disabled');
+          const btnSpan = saveBtn.querySelector('span');
+          if (btnSpan) btnSpan.textContent = 'Saving...';
+        }
 
         try {
-
           if (subView === 'edit_crop' && editingCropId) {
             await firestoreService.updateCropType(editingCropId, {
               name,
@@ -1201,6 +1214,9 @@ export function createCropZoneManagerModal({
               targetNitrogen,
               category
             });
+            subView = 'list';
+            editingCropId = null;
+            isSaving = false;
             showToast(`Crop '${name}' updated in catalog.`);
           } else {
             await firestoreService.addCropType({
@@ -1213,11 +1229,11 @@ export function createCropZoneManagerModal({
               targetNitrogen,
               category
             });
+            subView = 'list';
+            editingCropId = null;
+            isSaving = false;
             showToast(`Crop '${name}' added to catalog!`);
           }
-
-          subView = 'list';
-          editingCropId = null;
         } catch (err) {
           console.error("Error saving crop type:", err);
           showToast(`Failed to save crop: ${err.message}`, 'error');

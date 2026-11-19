@@ -10,8 +10,10 @@
  *   - Leaf-to-Valve Synergy Action Cards
  *   - Field Zone Valve Actuation Cards
  * Persists preferences in localStorage ('agrispectra_dashboard_widgets').
+ * Fully localized across all 8 supported languages.
  */
 import { icon } from '../utils/icons.js';
+import { t, onLocaleChange } from '../utils/i18n.js';
 
 export const DASHBOARD_WIDGETS_KEY = 'agrispectra_dashboard_widgets';
 
@@ -56,58 +58,61 @@ export function createDashboardSettingsModal({ onClose, onSettingsChanged }) {
 
   let currentSettings = getDashboardWidgetSettings();
 
-  const WIDGET_DEFINITIONS = [
-    {
-      id: 'weather_hero',
-      name: 'Weather & Sunlight Arc Hero',
-      desc: 'Ambient temperature, humidity, wind, and daylight sunrise/sunset arc.',
-      icon: 'sun'
-    },
-    {
-      id: 'plot_canvas',
-      name: '1-Acre 6-Zone Plot Canvas',
-      desc: 'Interactive 2x3 field layout with live water ripples and soil moisture heatmaps.',
-      icon: 'mapPin'
-    },
-    {
-      id: 'vitality_gauge',
-      name: 'Crop Vitality Speedometer Gauge',
-      desc: 'Canopy health vitality meter (5–100%) and NDVI vegetative condition.',
-      icon: 'gauge'
-    },
-    {
-      id: 'pressure_meter',
-      name: 'Mainline Pressure Transducer',
-      desc: 'Real-time piezo-resistive line pressure (Bar & PSI) and overpressure surge alerts.',
-      icon: 'activity'
-    },
-    {
-      id: 'water_ledger',
-      name: 'Daily Water Volume Ledger',
-      desc: 'Instantaneous flow rate (L/hr) and cumulative liters delivered today.',
-      icon: 'droplet'
-    },
-    {
-      id: 'quick_modules',
-      name: 'Core Category Hubs',
-      desc: '4-Card quick launcher for Soil 8-in-1, Drip Hub, Spectroscopy, and AI.',
-      icon: 'layers'
-    },
-    {
-      id: 'synergy_recommendations',
-      name: 'Closed-Loop Synergy Recommendations',
-      desc: 'Autonomous Leaf-to-Valve action cards triggered by water stress detection.',
-      icon: 'synergy'
-    },
-    {
-      id: 'zone_valves',
-      name: 'Field Zone Solenoid Controls',
-      desc: 'Direct valve quick-irrigate buttons and root-zone moisture progress bars.',
-      icon: 'power'
-    }
-  ];
+  function getWidgets() {
+    return [
+      {
+        id: 'weather_hero',
+        name: t('widget_weather_hero_title', 'Weather & Sunlight Arc Hero'),
+        desc: t('widget_weather_hero_desc', 'Ambient temperature, humidity, wind, and daylight sunrise/sunset arc.'),
+        icon: 'sun'
+      },
+      {
+        id: 'plot_canvas',
+        name: t('widget_plot_canvas_title', '1-Acre 6-Zone Plot Canvas'),
+        desc: t('widget_plot_canvas_desc', 'Interactive 2x3 field layout with live water ripples and soil moisture heatmaps.'),
+        icon: 'mapPin'
+      },
+      {
+        id: 'vitality_gauge',
+        name: t('widget_vitality_gauge_title', 'Crop Vitality Speedometer Gauge'),
+        desc: t('widget_vitality_gauge_desc', 'Canopy health vitality meter (5–100%) and NDVI vegetative condition.'),
+        icon: 'gauge'
+      },
+      {
+        id: 'pressure_meter',
+        name: t('widget_pressure_meter_title', 'Mainline Pressure Transducer'),
+        desc: t('widget_pressure_meter_desc', 'Real-time piezo-resistive line pressure (Bar & PSI) and overpressure surge alerts.'),
+        icon: 'activity'
+      },
+      {
+        id: 'water_ledger',
+        name: t('widget_water_ledger_title', 'Daily Water Volume Ledger'),
+        desc: t('widget_water_ledger_desc', 'Instantaneous flow rate (L/hr) and cumulative liters delivered today.'),
+        icon: 'droplet'
+      },
+      {
+        id: 'quick_modules',
+        name: t('widget_quick_modules_title', 'Core Category Hubs'),
+        desc: t('widget_quick_modules_desc', '4-Card quick launcher for Soil 8-in-1, Drip Hub, Spectroscopy, and AI.'),
+        icon: 'layers'
+      },
+      {
+        id: 'synergy_recommendations',
+        name: t('widget_synergy_recommendations_title', 'Closed-Loop Synergy Recommendations'),
+        desc: t('widget_synergy_recommendations_desc', 'Autonomous Leaf-to-Valve action cards triggered by water stress detection.'),
+        icon: 'synergy'
+      },
+      {
+        id: 'zone_valves',
+        name: t('widget_zone_valves_title', 'Field Zone Valve Controls'),
+        desc: t('widget_zone_valves_desc', 'Individual hydraulic solenoid toggles, flow status pills, and root VWC bars.'),
+        icon: 'power'
+      }
+    ];
+  }
 
   function render() {
+    const widgets = getWidgets();
     const activeCount = Object.values(currentSettings).filter(Boolean).length;
 
     overlay.innerHTML = `
@@ -124,15 +129,15 @@ export function createDashboardSettingsModal({ onClose, onSettingsChanged }) {
               ${icon('sliders', 'w-5 h-5')}
             </div>
             <div>
-              <h2 class="text-base font-bold text-white tracking-tight">Dashboard Bento Customizer</h2>
-              <p class="text-[11px] text-emerald-200/80">Configure visible cards on your farm overview</p>
+              <h2 class="text-base font-bold text-white tracking-tight">${t('customize_bento_title', 'Dashboard Bento Customizer')}</h2>
+              <p class="text-[11px] text-emerald-200/80">${t('customize_bento_desc', 'Configure visible cards on your farm overview')}</p>
             </div>
           </div>
 
           <div class="mt-3 pt-2 border-t border-emerald-700/50 flex items-center justify-between text-xs text-emerald-200">
-            <span>Enabled Cards: <strong class="text-white">${activeCount} of ${WIDGET_DEFINITIONS.length}</strong></span>
+            <span>Enabled Cards: <strong class="text-white">${activeCount} of ${widgets.length}</strong></span>
             <button type="button" id="reset-defaults-btn" class="text-emerald-300 hover:text-white font-bold underline cursor-pointer text-[11px]">
-              Reset Defaults
+              ${t('reset_defaults', 'Reset Defaults')}
             </button>
           </div>
         </div>
@@ -145,35 +150,35 @@ export function createDashboardSettingsModal({ onClose, onSettingsChanged }) {
           </div>
           <div class="grid grid-cols-4 gap-1 p-1.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-inner">
             <div class="col-span-4 h-5 rounded-lg text-[9px] font-bold flex items-center justify-center transition-all ${currentSettings.weather_hero ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 opacity-40'}">
-              Weather Arc Hero
+              ${t('widget_weather_hero_title')}
             </div>
             <div class="col-span-2 h-6 rounded-lg text-[9px] font-bold flex items-center justify-center transition-all ${currentSettings.pressure_meter ? 'bg-emerald-100 dark:bg-emerald-950/60 text-[#0E5431] dark:text-emerald-300 border border-emerald-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 opacity-40'}">
-              Pressure
+              ${t('pressure')}
             </div>
             <div class="col-span-2 h-6 rounded-lg text-[9px] font-bold flex items-center justify-center transition-all ${currentSettings.vitality_gauge ? 'bg-teal-100 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 border border-teal-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 opacity-40'}">
-              Vitality
+              ${t('vitality_label', 'Vitality')}
             </div>
             <div class="col-span-4 h-5 rounded-lg text-[9px] font-bold flex items-center justify-center transition-all ${currentSettings.water_ledger ? 'bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border border-blue-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 opacity-40'}">
-              Water Volume Ledger
+              ${t('widget_water_ledger_title')}
             </div>
             <div class="col-span-4 h-6 rounded-lg text-[9px] font-bold flex items-center justify-center transition-all ${currentSettings.plot_canvas ? 'bg-emerald-50 dark:bg-emerald-950/60 text-[#0E5431] dark:text-emerald-300 border border-emerald-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 opacity-40'}">
-              1-Acre 6-Zone Field Canvas
+              ${t('widget_plot_canvas_title')}
             </div>
             <div class="col-span-4 h-5 rounded-lg text-[9px] font-bold flex items-center justify-center transition-all ${currentSettings.quick_modules ? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 opacity-40'}">
-              Core Quick Hubs
+              ${t('widget_quick_modules_title')}
             </div>
             <div class="col-span-4 h-5 rounded-lg text-[9px] font-bold flex items-center justify-center transition-all ${currentSettings.synergy_recommendations ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 border border-amber-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 opacity-40'}">
-              Synergy Recommendations
+              ${t('widget_synergy_recommendations_title')}
             </div>
             <div class="col-span-4 h-5 rounded-lg text-[9px] font-bold flex items-center justify-center transition-all ${currentSettings.zone_valves ? 'bg-emerald-100 dark:bg-emerald-950/60 text-[#0E5431] dark:text-emerald-300 border border-emerald-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 opacity-40'}">
-              Field Zone Valve Actuations
+              ${t('widget_zone_valves_title')}
             </div>
           </div>
         </div>
 
         <!-- Scrollable List of Widget Toggles -->
         <div class="p-5 max-h-[60vh] overflow-y-auto space-y-2.5">
-          ${WIDGET_DEFINITIONS.map(widget => {
+          ${widgets.map(widget => {
             const isChecked = Boolean(currentSettings[widget.id]);
             return `
               <label class="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200/80 dark:border-slate-800 cursor-pointer hover:border-emerald-500/40 transition">
@@ -210,7 +215,7 @@ export function createDashboardSettingsModal({ onClose, onSettingsChanged }) {
             id="modal-cancel-btn"
             class="min-h-[42px] px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 transition cursor-pointer"
           >
-            Cancel
+            ${t('dialog_cancel', 'Cancel')}
           </button>
 
           <button 
@@ -218,7 +223,7 @@ export function createDashboardSettingsModal({ onClose, onSettingsChanged }) {
             id="modal-save-btn"
             class="min-h-[42px] px-5 py-2 rounded-xl text-xs font-bold bg-[#0E5431] hover:bg-[#093d23] text-white shadow-md shadow-emerald-950/20 transition cursor-pointer active:scale-95"
           >
-            Save Layout
+            ${t('save_layout', 'Save Layout')}
           </button>
         </div>
 
@@ -260,6 +265,8 @@ export function createDashboardSettingsModal({ onClose, onSettingsChanged }) {
     }
     if (onClose) onClose();
   }
+
+  onLocaleChange(() => render());
 
   render();
   return overlay;

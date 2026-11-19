@@ -4,7 +4,7 @@
  * confirmed by multi-depth FDR soil telemetry.
  */
 import { ttsEngine } from '../audio/voiceReadoutTTS.js';
-import { t, onLocaleChange } from '../utils/i18n.js';
+import { t, onLocaleChange, getCropName } from '../utils/i18n.js';
 
 function escapeHtml(str) {
   if (str === null || str === undefined) return '';
@@ -62,7 +62,7 @@ export function createClosedLoopSynergySection(recommendations = [], onAction) {
                   <span class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-[#0E5431] text-white">
                     GATE ${escapeHtml(rec.gateId || 'G' + rec.plotNumber)}
                   </span>
-                  <span class="text-xs font-bold text-slate-900 dark:text-white truncate">${escapeHtml(rec.crop)} (Zone ${escapeHtml(rec.plotNumber)})</span>
+                  <span class="text-xs font-bold text-slate-900 dark:text-white truncate">${escapeHtml(getCropName(rec.crop))} (${t('zone_label', 'Zone')} ${escapeHtml(rec.plotNumber)})</span>
                   <span class="text-[10px] font-mono font-bold text-amber-800 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/60 px-2 py-0.5 rounded-md border border-amber-400/30 shrink-0">
                     ${t('water_stress_confirmed')}
                   </span>

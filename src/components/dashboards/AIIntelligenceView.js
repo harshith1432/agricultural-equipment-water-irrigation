@@ -117,21 +117,21 @@ export function createAIIntelligenceView({
                 </div>
                 <div>
                   <h4 class="text-xs font-bold text-slate-900 dark:text-white">${t('water_stress_confirmed')}</h4>
-                  <p class="text-[11px] text-slate-500">Zone 2 Tomato canopy • 450L root pulse</p>
+                  <p class="text-[11px] text-slate-500">${t('zone_tomato_pulse', 'Zone 2 Tomato canopy • 450L root pulse')}</p>
                 </div>
               </div>
 
               <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 font-mono">
-                96% Impact
+                96% ${t('impact_badge', 'Impact')}
               </span>
             </div>
 
             <p class="text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-850 p-2.5 rounded-2xl border border-slate-200 dark:border-slate-700">
-              Spectroscopy detects Leaf Water Index dip (0.84), while LABART probe indicates dry root boundary at 30cm depth.
+              ${t('ai_rec1_desc', 'Spectroscopy detects Leaf Water Index dip (0.84), while LABART probe indicates dry root boundary at 30cm depth.')}
             </p>
 
             <div class="flex items-center justify-between pt-1 flex-wrap gap-2">
-              <span class="text-[10px] font-mono text-slate-400">Target: Gate 2 • 25 Minutes</span>
+              <span class="text-[10px] font-mono text-slate-400">${t('target_gate2_time', 'Target: Gate 2 • 25 Minutes')}</span>
               <div class="flex items-center gap-2">
                 <button 
                   type="button" 
@@ -170,21 +170,21 @@ export function createAIIntelligenceView({
                 </div>
                 <div>
                   <h4 class="text-xs font-bold text-slate-900 dark:text-white">${t('fertilizer_prescr')}</h4>
-                  <p class="text-[11px] text-slate-500">Inject 14 kg/acre liquid Urea via Venturi bypass</p>
+                  <p class="text-[11px] text-slate-500">${t('ai_urea_desc', 'Inject 14 kg/acre liquid Urea via Venturi bypass')}</p>
                 </div>
               </div>
 
               <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 font-mono">
-                92% Impact
+                92% ${t('impact_badge', 'Impact')}
               </span>
             </div>
 
             <p class="text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-850 p-2.5 rounded-2xl border border-slate-200 dark:border-slate-700">
-              Red edge reflectance (NDRE 0.28) and soil available Nitrogen (68 mg/kg) fall below tuber expansion thresholds.
+              ${t('ai_rec2_desc', 'Red edge reflectance (NDRE 0.28) and soil available Nitrogen (68 mg/kg) fall below tuber expansion thresholds.')}
             </p>
 
             <div class="flex items-center justify-between pt-1 flex-wrap gap-2">
-              <span class="text-[10px] font-mono text-slate-400">Venturi Doser • Line G1</span>
+              <span class="text-[10px] font-mono text-slate-400">${t('venturi_doser_line', 'Venturi Doser • Line G1')}</span>
               <div class="flex items-center gap-2">
                 <button 
                   type="button" 

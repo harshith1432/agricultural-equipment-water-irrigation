@@ -293,8 +293,8 @@ export function createIrrigationManagementView({
                     <button 
                       type="button" 
                       data-delete-valve-id="${escapeHtml(valve.id)}"
-                      class="p-1.5 rounded-full hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition shrink-0"
-                      title="Remove Valve"
+                      class="p-1.5 rounded-full hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition shrink-0 cursor-pointer"
+                      title="${t('remove_valve_title', 'Remove Valve')}"
                     >
                       ${icon('trash', 'w-3.5 h-3.5')}
                     </button>
@@ -314,7 +314,7 @@ export function createIrrigationManagementView({
               ${icon('calendar', 'w-4 h-4 text-[#0E5431]')}
               <span>${t('schedules_title')}</span>
             </h3>
-            <p class="text-[11px] text-slate-500">Autonomous hardware watchdog closes valves on timer expiry</p>
+            <p class="text-[11px] text-slate-500">${t('watchdog_desc', 'Autonomous hardware watchdog closes valves on timer expiry')}</p>
           </div>
 
           <button 
@@ -558,7 +558,7 @@ export function createIrrigationManagementView({
     modal.innerHTML = `
       <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 max-w-sm w-full shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
         <div class="flex items-center justify-between border-b pb-2">
-          <h3 class="text-sm font-bold text-slate-900 dark:text-white">Add New Solenoid Valve</h3>
+          <h3 class="text-sm font-bold text-slate-900 dark:text-white">${t('add_valve_title', 'Add New Solenoid Valve')}</h3>
           <button type="button" id="close-add-valve-modal" class="text-slate-400 hover:text-slate-600">
             ${icon('x', 'w-4 h-4')}
           </button>
@@ -566,24 +566,24 @@ export function createIrrigationManagementView({
 
         <div class="space-y-3 text-xs">
           <div>
-            <label class="font-bold text-slate-700 dark:text-slate-300">Valve Name</label>
+            <label class="font-bold text-slate-700 dark:text-slate-300">${t('valve_name_label', 'Valve Name')}</label>
             <input type="text" id="new-valve-name" value="Zone ${nextNum} Lateral Drip" class="w-full mt-1 px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white" />
           </div>
 
           <div>
-            <label class="font-bold text-slate-700 dark:text-slate-300">Gate Identifier</label>
+            <label class="font-bold text-slate-700 dark:text-slate-300">${t('gate_identifier_label', 'Gate Identifier')}</label>
             <input type="text" id="new-valve-gate" value="G${nextNum}" class="w-full mt-1 px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white uppercase font-mono" />
           </div>
 
           <div>
-            <label class="font-bold text-slate-700 dark:text-slate-300">Nominal Flow Rate (LPH)</label>
+            <label class="font-bold text-slate-700 dark:text-slate-300">${t('nominal_flow_rate_label', 'Nominal Flow Rate (LPH)')}</label>
             <input type="number" id="new-valve-flow" value="450" class="w-full mt-1 px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white" />
           </div>
         </div>
 
         <div class="flex items-center gap-2 pt-2">
           <button type="button" id="confirm-add-valve" class="flex-1 py-2 rounded-full bg-[#0E5431] text-white text-xs font-bold hover:bg-[#093820] transition">
-            Save Valve
+            ${t('save_valve_btn', 'Save Valve')}
           </button>
         </div>
       </div>
@@ -621,7 +621,7 @@ export function createIrrigationManagementView({
     modal.innerHTML = `
       <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 max-w-sm w-full shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
         <div class="flex items-center justify-between border-b pb-2">
-          <h3 class="text-sm font-bold text-slate-900 dark:text-white">Add Irrigation Schedule</h3>
+          <h3 class="text-sm font-bold text-slate-900 dark:text-white">${t('add_schedule_title', 'Add Irrigation Schedule')}</h3>
           <button type="button" id="close-add-sch-modal" class="text-slate-400 hover:text-slate-600">
             ${icon('x', 'w-4 h-4')}
           </button>
@@ -629,35 +629,35 @@ export function createIrrigationManagementView({
 
         <div class="space-y-3 text-xs">
           <div>
-            <label class="font-bold text-slate-700 dark:text-slate-300">Target Valve</label>
+            <label class="font-bold text-slate-700 dark:text-slate-300">${t('select_valve_label', 'Target Valve')}</label>
             <select id="sch-valve-select" class="w-full mt-1 px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white">
               ${valves.map(v => `<option value="${escapeHtml(v.id)}">${escapeHtml(v.gateIdentifier)} - ${escapeHtml(v.name)}</option>`).join('')}
             </select>
           </div>
 
           <div>
-            <label class="font-bold text-slate-700 dark:text-slate-300">Slot Name</label>
+            <label class="font-bold text-slate-700 dark:text-slate-300">${t('schedule_slot_name_label', 'Slot Name')}</label>
             <input type="text" id="sch-slot-name" value="Evening Soak" class="w-full mt-1 px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white" />
           </div>
 
           <div class="grid grid-cols-2 gap-2">
             <div>
-              <label class="font-bold text-slate-700 dark:text-slate-300">Start Time</label>
+              <label class="font-bold text-slate-700 dark:text-slate-300">${t('start_time_label', 'Start Time')}</label>
               <input type="time" id="sch-start" value="18:00" class="w-full mt-1 px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono" />
             </div>
             <div>
-              <label class="font-bold text-slate-700 dark:text-slate-300">End Time</label>
+              <label class="font-bold text-slate-700 dark:text-slate-300">${t('end_time_label', 'End Time')}</label>
               <input type="time" id="sch-end" value="18:35" class="w-full mt-1 px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono" />
             </div>
           </div>
 
           <div class="grid grid-cols-2 gap-2">
             <div>
-              <label class="font-bold text-slate-700 dark:text-slate-300">Target Volume (L)</label>
+              <label class="font-bold text-slate-700 dark:text-slate-300">${t('target_volume_label', 'Target Volume (L)')}</label>
               <input type="number" id="sch-vol" value="300" class="w-full mt-1 px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white" />
             </div>
             <div>
-              <label class="font-bold text-slate-700 dark:text-slate-300">Flow Limit (L/min)</label>
+              <label class="font-bold text-slate-700 dark:text-slate-300">${t('flow_limit_label', 'Flow Limit (L/min)')}</label>
               <input type="number" id="sch-flow" value="15.0" class="w-full mt-1 px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white" />
             </div>
           </div>
@@ -665,7 +665,7 @@ export function createIrrigationManagementView({
 
         <div class="flex items-center gap-2 pt-2">
           <button type="button" id="confirm-add-sch" class="flex-1 py-2 rounded-full bg-[#0E5431] text-white text-xs font-bold hover:bg-[#093820] transition">
-            Save Schedule
+            ${t('save_schedule_btn', 'Save Schedule')}
           </button>
         </div>
       </div>

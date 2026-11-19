@@ -12,7 +12,7 @@
  */
 
 import { icon } from '../../utils/icons.js';
-import { t, onLocaleChange } from '../../utils/i18n.js';
+import { t, onLocaleChange, getCropName } from '../../utils/i18n.js';
 import { 
   labartSoilSensorUSB, 
   CONNECTION_MODES, 
@@ -177,12 +177,12 @@ export function createSoilAnalysisView({
           <div class="flex items-center justify-between pt-2 border-t border-emerald-700/40 flex-wrap gap-2">
             <span class="text-xs text-emerald-100 font-medium shrink-0">${t('crop_selector')}:</span>
             <select id="soil-crop-select" class="min-h-[34px] px-3 py-1 rounded-xl bg-white/15 border border-white/25 text-xs font-bold text-white focus:outline-none cursor-pointer flex-1 max-w-[220px]">
-              <option value="POTATO" class="text-slate-900" ${selectedCropKey === 'POTATO' ? 'selected' : ''}>Potatoes (Scab pH Sensitive)</option>
-              <option value="TOMATO" class="text-slate-900" ${selectedCropKey === 'TOMATO' ? 'selected' : ''}>Tomatoes (High K Feeder)</option>
-              <option value="BELL_PEPPER" class="text-slate-900" ${selectedCropKey === 'BELL_PEPPER' ? 'selected' : ''}>Bell Peppers (Moisture Sensitive)</option>
-              <option value="WHEAT" class="text-slate-900" ${selectedCropKey === 'WHEAT' ? 'selected' : ''}>Wheat (Crown Root Phase)</option>
-              <option value="MAIZE" class="text-slate-900" ${selectedCropKey === 'MAIZE' ? 'selected' : ''}>Corn / Maize (High N Feeder)</option>
-              <option value="COTTON" class="text-slate-900" ${selectedCropKey === 'COTTON' ? 'selected' : ''}>Cotton (Salt Tolerant)</option>
+              <option value="POTATO" class="text-slate-900" ${selectedCropKey === 'POTATO' ? 'selected' : ''}>${t('crop_potato_opt', 'Potatoes (Scab pH Sensitive)')}</option>
+              <option value="TOMATO" class="text-slate-900" ${selectedCropKey === 'TOMATO' ? 'selected' : ''}>${t('crop_tomato_opt', 'Tomatoes (High K Feeder)')}</option>
+              <option value="BELL_PEPPER" class="text-slate-900" ${selectedCropKey === 'BELL_PEPPER' ? 'selected' : ''}>${t('crop_pepper_opt', 'Bell Peppers (Moisture Sensitive)')}</option>
+              <option value="WHEAT" class="text-slate-900" ${selectedCropKey === 'WHEAT' ? 'selected' : ''}>${t('crop_wheat_opt', 'Wheat (Crown Root Phase)')}</option>
+              <option value="MAIZE" class="text-slate-900" ${selectedCropKey === 'MAIZE' ? 'selected' : ''}>${t('crop_maize_opt', 'Corn / Maize (High N Feeder)')}</option>
+              <option value="COTTON" class="text-slate-900" ${selectedCropKey === 'COTTON' ? 'selected' : ''}>${t('crop_cotton_opt', 'Cotton (Salt Tolerant)')}</option>
             </select>
           </div>
         </div>
@@ -327,7 +327,7 @@ export function createSoilAnalysisView({
 
             <div class="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 flex flex-col min-w-0 overflow-hidden">
               <span class="text-[10px] text-slate-500 truncate">${t('cond_target_crop_label')}:</span>
-              <span class="font-bold text-[#0E5431] dark:text-emerald-300 mt-0.5 truncate">${activeCrop.name}</span>
+              <span class="font-bold text-[#0E5431] dark:text-emerald-300 mt-0.5 truncate">${getCropName(activeCrop.name)}</span>
             </div>
           </div>
 
@@ -364,7 +364,7 @@ export function createSoilAnalysisView({
             <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5">
               <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                 ${icon('settings', 'w-4 h-4 text-[#0E5431]')}
-                <span>Soil Sensor Hardware Settings</span>
+                <span>${t('soil_hardware_settings', 'Soil Sensor Hardware Settings')}</span>
               </h3>
               <button type="button" id="close-settings-modal" class="p-1 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
                 ${icon('x', 'w-4 h-4')}
@@ -375,16 +375,16 @@ export function createSoilAnalysisView({
             <div class="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-700/50 text-xs space-y-1.5">
               <div class="flex items-center gap-2 font-bold text-[#0E5431] dark:text-emerald-300">
                 <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-                <span>Auto-Detection Active (Plug & Play)</span>
+                <span>${t('auto_detection_active', 'Auto-Detection Active (Plug & Play)')}</span>
               </div>
               <p class="text-[11px] text-emerald-800 dark:text-emerald-200/90 leading-relaxed">
-                Connect your USB-C probe or turn on Bluetooth; the app automatically detects the hardware and streams telemetry with zero configuration needed.
+                ${t('soil_auto_detect_desc', 'Connect your USB-C probe or turn on Bluetooth; the app automatically detects the hardware and streams telemetry with zero configuration needed.')}
               </p>
             </div>
 
             <!-- Manual Override Interface (Compact options if needed) -->
             <div class="space-y-1.5">
-              <span class="text-xs font-bold text-slate-700 dark:text-slate-300">Manual Interface Override:</span>
+              <span class="text-xs font-bold text-slate-700 dark:text-slate-300">${t('manual_interface_override', 'Manual Interface Override:')}</span>
               <div class="grid grid-cols-3 gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl">
                 <button 
                   type="button" 
@@ -396,7 +396,7 @@ export function createSoilAnalysisView({
                   }"
                 >
                   ${icon('usb', 'w-3.5 h-3.5')}
-                  <span class="text-[10px]">USB Type-C</span>
+                  <span class="text-[10px]">${t('mode_usb')}</span>
                 </button>
 
                 <button 
@@ -409,7 +409,7 @@ export function createSoilAnalysisView({
                   }"
                 >
                   ${icon('bluetooth', 'w-3.5 h-3.5')}
-                  <span class="text-[10px]">Bluetooth</span>
+                  <span class="text-[10px]">${t('bluetooth')}</span>
                 </button>
 
                 <button 
@@ -422,7 +422,7 @@ export function createSoilAnalysisView({
                   }"
                 >
                   ${icon('wifi', 'w-3.5 h-3.5')}
-                  <span class="text-[10px]">Cloud Ingest</span>
+                  <span class="text-[10px]">${t('cloud_ingest', 'Cloud Ingest')}</span>
                 </button>
               </div>
             </div>
@@ -430,16 +430,16 @@ export function createSoilAnalysisView({
             <!-- Hardware Specifications -->
             <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 text-xs space-y-1 font-mono text-[11px] text-slate-600 dark:text-slate-300">
               <div class="flex justify-between">
-                <span>Protocol:</span>
+                <span>${t('protocol_label', 'Protocol:')}</span>
                 <span class="font-bold text-slate-800 dark:text-white">Modbus RTU RS485</span>
               </div>
               <div class="flex justify-between">
-                <span>Baud Rate:</span>
+                <span>${t('baud_rate_label', 'Baud Rate:')}</span>
                 <span class="font-bold text-slate-800 dark:text-white">9600 bps (8-N-1)</span>
               </div>
               <div class="flex justify-between">
-                <span>Probe:</span>
-                <span class="font-bold text-slate-800 dark:text-white">5-Prong 316L Steel</span>
+                <span>${t('probe_label', 'Probe:')}</span>
+                <span class="font-bold text-slate-800 dark:text-white">${t('probe_material', '5-Prong 316L Steel')}</span>
               </div>
             </div>
 
@@ -448,7 +448,7 @@ export function createSoilAnalysisView({
               id="confirm-settings-btn"
               class="w-full py-2.5 rounded-full bg-[#0E5431] text-white text-xs font-bold hover:bg-[#083820] transition active:scale-95 shadow-sm"
             >
-              Done
+              ${t('apply_and_close', 'Apply & Close')}
             </button>
           </div>
         </div>
@@ -557,9 +557,9 @@ export function createSoilAnalysisView({
         <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
           <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
             ${icon('history', 'w-4 h-4 text-[#0E5431]')}
-            <span>LABART 8-in-1 Soil Log</span>
+            <span>${t('soil_history_title', 'Soil 8-in-1 Sensor History Log')}</span>
           </h3>
-          <button type="button" id="close-history-modal" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+          <button type="button" id="close-history-modal" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer">
             ${icon('x', 'w-4 h-4')}
           </button>
         </div>
