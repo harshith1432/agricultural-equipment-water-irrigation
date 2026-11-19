@@ -36,7 +36,10 @@ export function createAppNavigationHeader({
   onOpenAuthModal
 }) {
   const header = document.createElement('header');
-  header.className = "w-full bg-[#0E5431] text-white select-none z-30 transition-all duration-300 shadow-md relative";
+  header.className = "w-full bg-[#0E5431] text-white select-none z-50 shadow-md";
+  if (typeof header.setAttribute === 'function') {
+    header.setAttribute('style', 'backdrop-filter: none !important; -webkit-backdrop-filter: none !important; transform: none !important; filter: none !important;');
+  }
 
   let currentPlot = plots.find(p => p.id === selectedPlotId) || plots[0] || {
     id: 'plot-1',
@@ -197,8 +200,8 @@ export function createAppNavigationHeader({
       <!-- ===================================================================== -->
       <!-- 3-DOT OVERFLOW FEATURE DRAWER / ACTION SHEET MODAL                     -->
       <!-- ===================================================================== -->
-      <div id="header-more-menu-modal" class="${isMoreMenuOpen ? '' : 'hidden'} fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 animate-fadeIn">
-        <div class="bg-[#0B3D23] border border-emerald-600/30 rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-md max-h-[88vh] overflow-y-auto no-scrollbar text-white p-5 flex flex-col space-y-4">
+      <div id="header-more-menu-modal" class="${isMoreMenuOpen ? '' : 'hidden'} fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
+        <div class="bg-[#0B3D23] border border-emerald-600/30 rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-md max-h-[88vh] overflow-y-auto no-scrollbar text-white p-5 flex flex-col space-y-4 animate-fadeIn">
           
           <!-- Modal Header -->
           <div class="flex items-center justify-between pb-3 border-b border-emerald-700/40">
@@ -412,8 +415,8 @@ export function createAppNavigationHeader({
       <!-- ===================================================================== -->
       <!-- SAFETY CONFIRMATION DIALOG (Guards Against Accidental Triggering)      -->
       <!-- ===================================================================== -->
-      <div id="safety-confirm-dialog" class="${isConfirmShutoffOpen ? '' : 'hidden'} fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fadeIn">
-        <div class="bg-[#0B3D23] border border-rose-500/40 rounded-3xl shadow-2xl max-w-sm w-full p-5 text-white space-y-4">
+      <div id="safety-confirm-dialog" class="${isConfirmShutoffOpen ? '' : 'hidden'} fixed inset-0 z-[110] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+        <div class="bg-[#0B3D23] border border-rose-500/40 rounded-3xl shadow-2xl max-w-sm w-full p-5 text-white space-y-4 animate-fadeIn">
           <div class="w-12 h-12 rounded-2xl bg-rose-500/20 text-rose-400 mx-auto flex items-center justify-center border border-rose-500/30">
             ${icon('alert', 'w-6 h-6')}
           </div>

@@ -395,6 +395,9 @@ export const DICTIONARY = {
     "crop_onion": "Onion",
     "crop_garlic": "Garlic",
     "crop_maize": "Corn / Maize",
+    "crop_leafy_greens": "Leafy Greens",
+    "stage_head_expansion": "Head Expansion Phase",
+    "stage_root_growth": "Active Root Growth",
     "customize_bento_title": "Dashboard Bento Customizer",
     "customize_bento_desc": "Toggle cards and telemetry widgets visible on your Home screen.",
     "reset_defaults": "Reset Defaults",
@@ -852,6 +855,9 @@ export const DICTIONARY = {
     "crop_onion": "ಈರುಳ್ಳಿ",
     "crop_garlic": "ಬೆಳ್ಳುಳ್ಳಿ",
     "crop_maize": "ಮೆಕ್ಕೆಜೋಳ",
+    "crop_leafy_greens": "ಹಸಿರು ಸೊಪ್ಪುಗಳು",
+    "stage_head_expansion": "ಎಲೆ ಹೆಡ್ ಬೆಳವಣಿಗೆ ಹಂತ",
+    "stage_root_growth": "ಸಕ್ರಿಯ ಬೇರು ಬೆಳವಣಿಗೆ",
     "customize_bento_title": "ಡ್ಯಾಶ್‌ಬೋರ್ಡ್ ಬೆಂಟೊ ಗ್ರಾಹಕೀಕರಣ",
     "customize_bento_desc": "ನಿಮ್ಮ ಮುಖಪುಟದಲ್ಲಿ ಗೋಚರಿಸುವ ಕಾರ್ಡ್‌ಗಳು ಮತ್ತು ವಿಜೆಟ್‌ಗಳನ್ನು ಆನ್/ಆಫ್ ಮಾಡಿ.",
     "reset_defaults": "ಪೂರ್ವನಿಯೋಜಿತಕ್ಕೆ ಮರುಹೊಂದಿಸಿ",
@@ -1309,6 +1315,9 @@ export const DICTIONARY = {
     "crop_onion": "प्याज",
     "crop_garlic": "लहसुन",
     "crop_maize": "मक्का",
+    "crop_leafy_greens": "पत्तेदार सब्जियां",
+    "stage_head_expansion": "हेड विस्तार चरण",
+    "stage_root_growth": "सक्रिय जड़ विकास",
     "customize_bento_title": "डैशबोर्ड बेंटो कस्टमाइज़ करें",
     "customize_bento_desc": "अपनी होम स्क्रीन पर दिखने वाले कार्ड और विजेट टॉगल करें।",
     "reset_defaults": "डिफ़ॉल्ट पर रीसेट करें",
@@ -1766,6 +1775,9 @@ export const DICTIONARY = {
     "crop_onion": "ఉల్లిపాయ",
     "crop_garlic": "వెల్లుల్లి",
     "crop_maize": "మొక్కజొన్న",
+    "crop_leafy_greens": "ఆకుకూరలు",
+    "stage_head_expansion": "తల విస్తరణ దశ",
+    "stage_root_growth": "క్రియాశీల వేరు పెరుగుదల",
     "customize_bento_title": "డాష్‌బోర్డ్ బెంటో అనుకూలీకరించండి",
     "customize_bento_desc": "మీ హోమ్ స్క్రీన్‌పై కనిపించే కార్డ్‌లు మరియు విడ్జెట్‌లను ఆన్/ఆఫ్ చేయండి.",
     "reset_defaults": "డిఫాల్ట్‌లకు రీసెట్ చేయండి",
@@ -2223,6 +2235,9 @@ export const DICTIONARY = {
     "crop_onion": "வெங்காயம்",
     "crop_garlic": "பூண்டு",
     "crop_maize": "மக்காச்சோளம்",
+    "crop_leafy_greens": "கீரைகள்",
+    "stage_head_expansion": "தலை விரிவடையும் நிலை",
+    "stage_root_growth": "சுறுசுறுப்பான வேர் வளர்ச்சி",
     "customize_bento_title": "டாஷ்போர்டு பென்டோவை தனிப்பயனாக்குங்கள்",
     "customize_bento_desc": "முகப்புத் திரையில் தோன்றும் கார்டுகள் மற்றும் விட்ஜெட்களை இயக்கவும்/முடக்கவும்.",
     "reset_defaults": "இயல்புநிலைக்கு மீட்டமை",
@@ -2680,6 +2695,9 @@ export const DICTIONARY = {
     "crop_onion": "ഉള്ളി",
     "crop_garlic": "വെളുത്തുള്ളി",
     "crop_maize": "ചോളം",
+    "crop_leafy_greens": "ഇലക്കറികൾ",
+    "stage_head_expansion": "ഹെഡ് വികസന ഘട്ടം",
+    "stage_root_growth": "സജീവ വേരുകളുടെ വളർച്ച",
     "customize_bento_title": "ഡാഷ്‌ബോർഡ് ബെന്റോ ഇഷ്ടാനുസൃതമാക്കുക",
     "customize_bento_desc": "നിങ്ങളുടെ ഹോം സ്ക്രീനിൽ കാണുന്ന കാർഡുകളും വിജറ്റുകളും മാറ്റുക.",
     "reset_defaults": "ഡിഫോൾട്ടിലേക്ക് പുനഃസ്ഥാപിക്കുക",
@@ -3137,6 +3155,9 @@ export const DICTIONARY = {
     "crop_onion": "कांदा",
     "crop_garlic": "लसूण",
     "crop_maize": "मका",
+    "crop_leafy_greens": "पालेभाज्या",
+    "stage_head_expansion": "हेड विस्तार टप्पा",
+    "stage_root_growth": "सक्रिय मूळ वाढ",
     "customize_bento_title": "डॅशबोर्ड बेंटो सानुकूलित करा",
     "customize_bento_desc": "तुमच्या होम स्क्रीनवर दिसणारे कार्ड आणि विजेट्स टॉगल करा.",
     "reset_defaults": "डीफॉल्टवर रीसेट करा",
@@ -3594,6 +3615,9 @@ export const DICTIONARY = {
     "crop_onion": "Cebolla",
     "crop_garlic": "Ajo",
     "crop_maize": "Maíz",
+    "crop_leafy_greens": "Verduras de Hoja",
+    "stage_head_expansion": "Fase de Expansión de Cabeza",
+    "stage_root_growth": "Crecimiento Radicular Activo",
     "customize_bento_title": "Personalizar Bento del Panel",
     "customize_bento_desc": "Active o desactive las tarjetas y widgets visibles en su pantalla de inicio.",
     "reset_defaults": "Restablecer Valores Predeterminados",
@@ -3768,6 +3792,7 @@ export function getCropName(cropName) {
   if (/ginger/i.test(str)) return t('crop_ginger', str);
   if (/onion/i.test(str)) return t('crop_onion', str);
   if (/garlic/i.test(str)) return t('crop_garlic', str);
+  if (/leafy|greens|lettuce|spinach/i.test(str)) return t('crop_leafy_greens', str);
 
   return str;
 }
@@ -3789,6 +3814,8 @@ export function getStageName(stageName) {
   if (/crown/i.test(str)) return t('stage_crown_root');
   if (/yield/i.test(str)) return t('stage_yield_formation', str);
   if (/germin/i.test(str)) return t('stage_germination', str);
+  if (/head(\s+expansion)?/i.test(str)) return t('stage_head_expansion', str);
+  if (/active\s+root/i.test(str)) return t('stage_root_growth', str);
 
   return str;
 }
