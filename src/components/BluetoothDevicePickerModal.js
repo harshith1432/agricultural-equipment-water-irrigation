@@ -11,74 +11,9 @@
 
 import { leafClipDevice, BLE_SERVICES } from '../hardware/webBluetoothLeafClip.js';
 import { icon } from '../utils/icons.js';
+import { escapeHtml } from '../utils/sanitizer.js';
 
-export const DEFAULT_BLE_PRESETS = [
-  {
-    deviceId: "02:80:E1:00:00:AA",
-    id: "02:80:E1:00:00:AA",
-    name: "BlueNRG_Chat",
-    rssi: -60,
-    protocol: "ST BlueNRG Chat",
-    mac: "02:80:E1:00:00:AA",
-    isBlueNrg: true,
-    isNrf: false,
-    recommended: true,
-    type: "STMicroelectronics B-L475E-IOT01A2 (SPBTLE-RF)",
-    battery: 98
-  },
-  {
-    deviceId: "NRF52-NUS-9948",
-    id: "NRF52-NUS-9948",
-    name: "NRF52_AgriSpectra_NUS (Nordic nRF52840)",
-    rssi: -58,
-    protocol: "Nordic UART Service (NUS)",
-    mac: "C4:57:18:2B:99:A1",
-    isNrf: true,
-    isBlueNrg: false,
-    recommended: true,
-    type: "Leaf-Clip Spectroscope",
-    battery: 96
-  },
-  {
-    deviceId: "NRF52-TOOLBOX-SPEC",
-    id: "NRF52-TOOLBOX-SPEC",
-    name: "nRF_UART_Spectro_v2 (Nordic Semi)",
-    rssi: -64,
-    protocol: "Nordic UART Service (NUS)",
-    mac: "E2:15:90:3A:4C:12",
-    isNrf: true,
-    isBlueNrg: false,
-    recommended: true,
-    type: "Handheld Spectroscope",
-    battery: 88
-  },
-  {
-    deviceId: "STM32WB55-CH76",
-    id: "STM32WB55-CH76",
-    name: "STM32WB55_VIS_NIR_CH76",
-    rssi: -72,
-    protocol: "Fallback FFE0 Custom GATT",
-    mac: "00:80:E1:26:BC:54",
-    isNrf: false,
-    isBlueNrg: false,
-    recommended: false,
-    type: "VIS-NIR Spectrometer",
-    battery: 79
-  },
-  {
-    deviceId: "SPECTRA-NODE-ESP32",
-    id: "SPECTRA-NODE-ESP32",
-    name: "ESP32_SpectraClip_Node_A",
-    rssi: -67,
-    protocol: "Nordic UART Service (NUS)",
-    mac: "D4:36:39:BC:81:42",
-    isNrf: false,
-    isBlueNrg: false,
-    recommended: false,
-    type: "Field Spectroscope Node",
-    battery: 84
-  }
-];
+export const DEFAULT_BLE_PRESETS = [];
 
 export function enrichDevice(dev) {
   if (!dev) return dev;
@@ -226,7 +161,7 @@ export function createBluetoothDevicePickerModal({ onConnected, onDismiss } = {}
           <input 
             type="text" 
             id="ble-search-input" 
-            value="${searchQuery}"
+            value="${escapeHtml(searchQuery)}"
             placeholder="Search by BlueNRG, Chat, ST, 02:80, NRF, MAC..."
             class="w-full pl-9 pr-3 py-2 bg-slate-800/90 text-xs rounded-xl border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-emeraldGlow transition"
           />
@@ -266,13 +201,33 @@ export function createBluetoothDevicePickerModal({ onConnected, onDismiss } = {}
       <!-- Discovered Devices List -->
       <div class="flex-1 overflow-y-auto no-scrollbar space-y-2.5 min-h-[220px] max-h-[380px] pr-1">
         ${filtered.length === 0 ? `
-          <div class="flex flex-col items-center justify-center py-10 text-center space-y-3">
-            <div class="w-12 h-12 rounded-2xl bg-slate-800 text-slate-500 flex items-center justify-center">
-              <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="7 7 17 17 12 22 12 2 17 7 7 17"/></svg>
+          <div class="flex flex-col items-center justify-center py-12 text-center space-y-4">
+            <div class="relative w-16 h-16 rounded-full bg-emeraldGlow/10 border border-emeraldGlow/30 text-emeraldGlow flex items-center justify-center shadow-lg shadow-emeraldGlow/10">
+              ${isScanning ? `
+                <div class="absolute inset-0 rounded-full border border-emeraldGlow/50 animate-ping"></div>
+                <div class="absolute -inset-2 rounded-full border border-emeraldGlow/30 animate-pulse"></div>
+                <svg class="w-7 h-7 text-emeraldGlow animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                  <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                  <path d="M3 3v5h5"/>
+                  <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+                  <path d="M16 21h5v-5"/>
+                </svg>
+              ` : `
+                <svg class="w-7 h-7 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="7 7 17 17 12 22 12 2 17 7 7 17"/>
+                </svg>
+              `}
             </div>
-            <p class="text-xs text-slate-400 max-w-xs">
-              ${isScanning ? 'Scanning 2.4 GHz BLE spectrum for nearby spectroscope beacons...' : 'No matching Bluetooth devices found in range.'}
-            </p>
+            <div class="space-y-1">
+              <h4 class="text-sm font-bold text-white">
+                ${isScanning ? 'Scanning for nearby Bluetooth devices...' : 'No Bluetooth devices detected'}
+              </h4>
+              <p class="text-xs text-slate-400 max-w-xs mx-auto">
+                ${isScanning 
+                  ? 'Searching for ST BlueNRG_Chat, nRF52/53, or any nearby Bluetooth peripheral. Keep device close.' 
+                  : 'Ensure your spectroscope is powered on and Bluetooth/Location is turned on, then tap Re-scan.'}
+              </p>
+            </div>
           </div>
         ` : filtered.map(dev => {
           const isConnecting = connectingDeviceId === dev.id;
@@ -293,7 +248,7 @@ export function createBluetoothDevicePickerModal({ onConnected, onDismiss } = {}
               <div class="space-y-1 min-w-0">
                 <div class="flex items-center gap-2 flex-wrap">
                   <h4 class="text-xs sm:text-sm font-bold text-white group-hover:text-emeraldGlow transition truncate">
-                    ${dev.name}
+                    ${escapeHtml(dev.name)}
                   </h4>
                   ${dev.isBlueNrg ? `
                     <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm shadow-emerald-500/10">
@@ -320,18 +275,18 @@ export function createBluetoothDevicePickerModal({ onConnected, onDismiss } = {}
                 <div class="flex items-center gap-3 text-[11px] font-mono text-slate-400">
                   <span class="flex items-center gap-1">
                     <span class="text-slate-500">MAC:</span>
-                    <strong class="${dev.isBlueNrg ? 'text-emerald-300 font-bold' : 'text-slate-300'}">${dev.mac || dev.id}</strong>
+                    <strong class="${dev.isBlueNrg ? 'text-emerald-300 font-bold' : 'text-slate-300'}">${escapeHtml(dev.mac || dev.id)}</strong>
                   </span>
                   <span class="text-slate-600">|</span>
                   <span class="flex items-center gap-1">
                     <span class="text-slate-500">Protocol:</span>
-                    <span class="${dev.isBlueNrg ? 'text-emerald-300 font-semibold' : 'text-slate-300'}">${dev.protocol || 'Nordic UART'}</span>
+                    <span class="${dev.isBlueNrg ? 'text-emerald-300 font-semibold' : 'text-slate-300'}">${escapeHtml(dev.protocol || 'Nordic UART')}</span>
                   </span>
                 </div>
 
                 ${dev.type ? `
                   <div class="text-[10px] text-slate-400 font-sans mt-0.5">
-                    ${dev.type}
+                    ${escapeHtml(dev.type)}
                   </div>
                 ` : ''}
               </div>
@@ -352,7 +307,7 @@ export function createBluetoothDevicePickerModal({ onConnected, onDismiss } = {}
 
                 <!-- Connect Button -->
                 <button 
-                  data-connect-id="${dev.id}"
+                  data-connect-id="${escapeHtml(dev.id)}"
                   class="btn-connect-device min-h-[38px] px-4 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 active:scale-95 ${
                     isCurrentConnected 
                       ? 'bg-emeraldGlow/20 text-emeraldGlow border border-emeraldGlow/40 cursor-default' 

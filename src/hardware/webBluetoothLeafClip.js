@@ -479,6 +479,24 @@ export class LeafClipBluetoothDevice {
     if (BleClient && isNativePlatform) {
       try {
         await BleClient.initialize({ androidNeverForLocation: false });
+        try {
+          const isEnabled = await BleClient.isEnabled();
+          if (!isEnabled) {
+            console.log("[BLE] Bluetooth is off. Requesting user to enable Bluetooth...");
+            await BleClient.requestEnable();
+          }
+        } catch (enErr) {
+          console.warn("[BLE] Request enable Bluetooth notice:", enErr.message);
+        }
+        try {
+          const isLocEnabled = await BleClient.isLocationEnabled();
+          if (!isLocEnabled) {
+            console.log("[BLE] Location services disabled. Prompting to open location settings...");
+            await BleClient.openLocationSettings();
+          }
+        } catch (locErr) {
+          console.warn("[BLE] Location check notice:", locErr.message);
+        }
         await BleClient.requestLEScan({}, (result) => {
           if (result) {
             const dev = result.device || result;
@@ -534,9 +552,14 @@ export class LeafClipBluetoothDevice {
       } catch (e) {
         console.warn("[BLE] Native BLE scan note:", e);
       }
+      return Array.from(discovered.values());
     }
 
-    // High-fidelity fallback / simulated discovered devices
+    if (isNativePlatform) {
+      return Array.from(discovered.values());
+    }
+
+    // High-fidelity fallback / simulated discovered devices (Browser / Node test environment only)
     const nearbyPresets = [
       {
         deviceId: "02:80:E1:00:00:AA",
@@ -746,7 +769,8 @@ export class LeafClipBluetoothDevice {
         this.startLiveTelemetryStream();
         return { success: true, simulated: false, backend: 'CAPACITOR_BLE', device: this.deviceInfo };
       } catch (err) {
-        console.warn(`[BLE] Native connect to ${deviceId} failed, falling back to simulated connection:`, err.message);
+        console.warn(`[BLE] Native connect to ${deviceId} failed:`, err.message);
+        throw err;
       }
     }
 

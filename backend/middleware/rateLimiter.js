@@ -57,11 +57,18 @@ export class MemoryRateLimiter {
   }
 }
 
-// 1. Password reset & auth limiter (Max 5 attempts per 15 minutes anti-brute-force defense)
-export const authLimiter = new MemoryRateLimiter({
+// 1. Password reset & login anti-brute-force defense (Max 10 attempts per 15 minutes)
+export const loginLimiter = new MemoryRateLimiter({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5,
-  message: "Too many authentication attempts from this IP. Anti-brute-force lockout engaged. Please wait 15 minutes before retrying."
+  max: 10,
+  message: "Too many authentication login attempts from this IP. Anti-brute-force lockout engaged. Please wait 15 minutes before retrying."
+}).middleware();
+
+// General auth endpoint rate limiter (Max 120 requests per minute for sync, user profiles, session checks)
+export const authLimiter = new MemoryRateLimiter({
+  windowMs: 60 * 1000, // 1 minute
+  max: 120,
+  message: "Authentication rate limit reached. Please reduce request frequency."
 }).middleware();
 
 // 2. Admin sensitive endpoints limiter (Max 60 requests/min)

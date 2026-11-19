@@ -39,11 +39,20 @@ const PORT = parseInt(process.env.PORT || process.env.BACKEND_PORT || "5050", 10
 const allowedOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map(s => s.trim())
   : [
+      'http://localhost',
+      'https://localhost',
       'http://localhost:5173',
       'http://localhost:5050',
       'http://localhost:3000',
+      'http://localhost:4173',
+      'http://127.0.0.1',
+      'http://127.0.0.1:5173',
+      'http://127.0.0.1:5050',
+      'http://192.168.0.116',
+      'http://192.168.0.116:5173',
+      'http://192.168.0.116:5050',
       'capacitor://localhost',
-      'https://localhost'
+      'ionic://localhost'
     ];
 
 app.use(cors({
@@ -63,7 +72,31 @@ app.use(cors({
     if (!isAllowed) {
       try {
         const originUrl = new URL(origin);
-        if (originUrl.hostname === 'vercel.app' || originUrl.hostname.endsWith('.vercel.app')) {
+        const host = originUrl.hostname;
+
+        // Allow mobile Capacitor / Ionic apps
+        if (originUrl.protocol === 'capacitor:' || originUrl.protocol === 'ionic:') {
+          isAllowed = true;
+        }
+        // Allow localhost and loopback on any port
+        else if (host === 'localhost' || host === '127.0.0.1' || host === '10.0.2.2') {
+          isAllowed = true;
+        }
+        // Allow local LAN Wi-Fi / subnet devices (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+        else if (
+          host.startsWith('192.168.') ||
+          host.startsWith('10.') ||
+          (host.startsWith('172.') && parseInt(host.split('.')[1], 10) >= 16 && parseInt(host.split('.')[1], 10) <= 31)
+        ) {
+          isAllowed = true;
+        }
+        // Allow Vercel & Render cloud deployments
+        else if (
+          host === 'vercel.app' ||
+          host.endsWith('.vercel.app') ||
+          host === 'onrender.com' ||
+          host.endsWith('.onrender.com')
+        ) {
           isAllowed = true;
         }
       } catch {
@@ -74,6 +107,7 @@ app.use(cors({
     if (isAllowed) {
       return callback(null, true);
     }
+    console.warn(`[CORS] Blocked origin: ${origin}`);
     return callback(new Error(`Origin ${origin} not permitted by CORS policy`), false);
   },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -86,7 +120,7 @@ app.use((req, res, next) => {
   // Content Security Policy
   res.setHeader(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline' https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https: blob:; connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com http://localhost:* ws://localhost:* https://*.vercel.app; object-src 'none'; frame-ancestors 'none'; base-uri 'self';"
+    "default-src 'self' capacitor: https: http:; script-src 'self' 'unsafe-inline' https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https: http: blob:; connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com http://localhost:* ws://localhost:* http://127.0.0.1:* http://192.168.*:* http://10.0.2.2:* capacitor://* https://*.vercel.app https://*.onrender.com; object-src 'none'; frame-ancestors 'none'; base-uri 'self';"
   );
   // Strict Transport Security (HSTS)
   res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');

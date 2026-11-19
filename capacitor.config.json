@@ -2,6 +2,9 @@
   "appId": "com.agrispectra.flowfield",
   "appName": "AgriSpectra Flow & Field",
   "webDir": "dist",
+  "server": {
+    "cleartext": true
+  },
   "plugins": {
     "FirebaseAuthentication": {
       "skipNativeAuth": true,

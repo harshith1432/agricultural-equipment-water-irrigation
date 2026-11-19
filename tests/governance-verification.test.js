@@ -89,8 +89,8 @@ assert(SUPPORTED_LANGUAGES.length >= 4, `Supported languages include at least 4 
 
 const langCodes = SUPPORTED_LANGUAGES.map(l => l.code);
 assert(langCodes.includes('en-US'), "English (en-US) supported");
+assert(langCodes.includes('kn-IN'), "Kannada (kn-IN) supported");
 assert(langCodes.includes('hi-IN'), "Hindi (hi-IN) supported");
-assert(langCodes.includes('es-ES'), "Spanish (es-ES) supported");
 assert(langCodes.includes('sw-KE'), "Kiswahili (sw-KE) supported");
 
 // Test script synthesizers for each decision in different languages
@@ -104,8 +104,8 @@ tts.synth = {
 tts.speakDecision('VITALITY', stressedAnalysis, 'hi-IN');
 assert(capturedUtterance !== null && capturedUtterance.lang === 'hi-IN', "Hindi speech utterance generated for Vitality Decision");
 
-tts.speakDecision('NITROGEN', stressedAnalysis, 'es-ES');
-assert(capturedUtterance !== null && capturedUtterance.lang === 'es-ES', "Spanish speech utterance generated for Nitrogen Decision");
+tts.speakDecision('NITROGEN', stressedAnalysis, 'kn-IN');
+assert(capturedUtterance !== null && capturedUtterance.lang === 'kn-IN', "Kannada speech utterance generated for Nitrogen Decision");
 
 tts.speakDecision('IRRIGATION', stressedAnalysis, 'sw-KE');
 assert(capturedUtterance !== null && capturedUtterance.lang === 'sw-KE', "Kiswahili speech utterance generated for Irrigation Decision");

@@ -681,7 +681,7 @@ export function createAuthScreen({ onAuthSuccess, onThemeChange, currentTheme = 
           render();
           setTimeout(() => {
             if (onAuthSuccess) onAuthSuccess(user);
-          }, 500);
+          }, 50);
           return;
         }
 
@@ -696,7 +696,7 @@ export function createAuthScreen({ onAuthSuccess, onThemeChange, currentTheme = 
         render();
         setTimeout(() => {
           if (onAuthSuccess) onAuthSuccess(user);
-        }, 500);
+        }, 50);
 
       } catch (err) {
         isSubmitting = false;

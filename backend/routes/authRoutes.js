@@ -7,6 +7,7 @@ import { Router } from 'express';
 import crypto from 'crypto';
 import { enterpriseStore } from '../services/enterpriseStore.js';
 import { sanitizeUserInput } from '../middleware/authMiddleware.js';
+import { loginLimiter } from '../middleware/rateLimiter.js';
 import { schemaManager } from '../services/schemaManager.js';
 import { firestoreClient } from '../services/firestoreClient.js';
 
@@ -27,7 +28,7 @@ function timingSafeCheck(a, b) {
  * POST /api/auth/login
  * Rate-limited enterprise operator login endpoint
  */
-router.post('/login', sanitizeUserInput, async (req, res) => {
+router.post('/login', loginLimiter, sanitizeUserInput, async (req, res) => {
   const { email, password } = req.body || {};
 
   if (!email || !password) {
@@ -173,6 +174,23 @@ router.post('/sync-user', sanitizeUserInput, async (req, res) => {
       success: true,
       message: 'User profile synchronized into database successfully.',
       user: userProfile
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * POST /api/auth/sync-all
+ * Triggers a comprehensive synchronization of all system and registered users into live Cloud Firestore
+ */
+router.post('/sync-all', async (req, res) => {
+  try {
+    const syncResult = await schemaManager.syncAllUsersToLiveFirestore();
+    res.status(200).json({
+      success: true,
+      message: 'All users and farm chambers synchronized to Cloud Firestore.',
+      ...syncResult
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

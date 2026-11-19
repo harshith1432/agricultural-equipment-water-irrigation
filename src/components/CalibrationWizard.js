@@ -15,7 +15,7 @@ import { spectrometerUSBAdapter } from '../hardware/spectrometerUSBAdapter.js';
 import { t, getLocale, onLocaleChange } from '../utils/i18n.js';
 import { icon } from '../utils/icons.js';
 import { ttsEngine } from '../audio/voiceReadoutTTS.js';
-import { sanitizeText } from '../utils/sanitizer.js';
+import { sanitizeText, escapeHtml } from '../utils/sanitizer.js';
 
 export function createCalibrationModal({
   onClose,
@@ -365,7 +365,7 @@ export function createCalibrationModal({
                   <input
                     type="text"
                     id="calib-input-plant"
-                    value="${specimenData.plantNumber}"
+                    value="${escapeHtml(specimenData.plantNumber)}"
                     placeholder="e.g. PLANT-042"
                     class="w-full px-3 py-2.5 rounded-xl bg-slate-950 border ${validationErrors.plantNumber ? 'border-rose-500' : 'border-slate-700'} text-white text-xs font-mono focus:border-emerald-500 focus:outline-none transition min-h-[44px]"
                   />
@@ -380,7 +380,7 @@ export function createCalibrationModal({
                   <input
                     type="text"
                     id="calib-input-port"
-                    value="${specimenData.portNumber}"
+                    value="${escapeHtml(specimenData.portNumber)}"
                     placeholder="e.g. PORT-08"
                     class="w-full px-3 py-2.5 rounded-xl bg-slate-950 border ${validationErrors.portNumber ? 'border-rose-500' : 'border-slate-700'} text-white text-xs font-mono focus:border-emerald-500 focus:outline-none transition min-h-[44px]"
                   />
@@ -397,7 +397,7 @@ export function createCalibrationModal({
                   <input
                     type="text"
                     id="calib-input-crop"
-                    value="${specimenData.cropVariety}"
+                    value="${escapeHtml(specimenData.cropVariety)}"
                     placeholder="e.g. Roma Tomato"
                     class="flex-1 px-3 py-2.5 rounded-xl bg-slate-950 border ${validationErrors.cropVariety ? 'border-rose-500' : 'border-slate-700'} text-white text-xs focus:border-emerald-500 focus:outline-none transition min-h-[44px]"
                   />
@@ -542,11 +542,11 @@ export function createCalibrationModal({
             <!-- Specimen Badge Header -->
             <div class="p-3 rounded-2xl bg-slate-950 border border-emerald-800/40 flex items-center justify-between text-xs font-mono">
               <div class="flex items-center gap-2">
-                <span class="px-2 py-0.5 rounded-lg bg-[#0E5431] text-emerald-200 font-bold">${specimenData.zone}</span>
-                <span class="font-bold text-white">${specimenData.plantNumber}</span>
-                <span class="text-slate-400">${specimenData.portNumber}</span>
+                <span class="px-2 py-0.5 rounded-lg bg-[#0E5431] text-emerald-200 font-bold">${escapeHtml(specimenData.zone)}</span>
+                <span class="font-bold text-white">${escapeHtml(specimenData.plantNumber)}</span>
+                <span class="text-slate-400">${escapeHtml(specimenData.portNumber)}</span>
               </div>
-              <span class="text-emerald-400 font-sans font-bold">${specimenData.cropVariety}</span>
+              <span class="text-emerald-400 font-sans font-bold">${escapeHtml(specimenData.cropVariety)}</span>
             </div>
 
             <!-- 76-Band Live Curve Canvas -->

@@ -20,6 +20,8 @@ import { setOnboardingCompleted } from './OnboardingCarousel.js';
 import { irrigationControllerAdapter } from '../hardware/irrigationControllerAdapter.js';
 import { locationService } from '../services/locationService.js';
 import { openGPSPermissionModal } from './GPSPermissionModal.js';
+import { leafClipDevice } from '../hardware/webBluetoothLeafClip.js';
+import { createBluetoothDevicePickerModal } from './BluetoothDevicePickerModal.js';
 
 export function createSettingsView({
   currentUser = null,
@@ -46,6 +48,7 @@ export function createSettingsView({
   let glareModeActive = currentTheme === 'sunlight';
   let bannerMessage = null;
   let isUpdatingGPS = false;
+  let hasAutoSyncedOnView = false;
 
   function saveMinOpenValves(count) {
     const val = irrigationControllerAdapter.setMinOpenValves(count);
@@ -114,6 +117,16 @@ export function createSettingsView({
     const location = locationService.getLocation();
     const isGPS = locationService.isGPSVerified();
 
+    // Auto-sync user profile to Cloud Database seamlessly upon viewing
+    if (user && user.email && !user.isAnonymous && user.uid !== 'guest-offline-farmer' && !hasAutoSyncedOnView) {
+      hasAutoSyncedOnView = true;
+      authService.syncUserProfile(user).then((synced) => {
+        if (synced) {
+          authService.syncProfileToBackend(synced).catch(() => {});
+        }
+      }).catch(() => {});
+    }
+
     container.innerHTML = `
       <!-- User Profile Card -->
       <div class="bg-gradient-to-br from-[#0E5431] to-[#083820] text-white rounded-3xl p-5 shadow-lg border border-emerald-800/40 space-y-3">
@@ -126,19 +139,34 @@ export function createSettingsView({
             <div class="min-w-0 flex-1">
               <h2 class="text-sm sm:text-base font-bold text-white tracking-tight">${user.displayName || 'Grower Dave'}</h2>
               <span class="inline-flex items-center mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-400/20 text-emerald-300 border border-emerald-400/30 whitespace-nowrap">
-                ${t('profile_role')}
+                ${user.role || t('profile_role')}
               </span>
             </div>
           </div>
 
-          <!-- Switch Role / Account -->
-          <button 
-            type="button" 
-            id="settings-open-auth-btn"
-            class="w-full sm:w-auto min-h-[38px] px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white transition cursor-pointer flex items-center justify-center active:scale-95 text-center"
-          >
-            ${t('menu_profile')}
-          </button>
+          <!-- Switch Role / Account & Cloud Sync Actions -->
+          <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+            <button 
+              type="button" 
+              id="sync-to-cloud-btn"
+              class="min-h-[38px] px-3.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/40 text-xs font-bold text-emerald-100 transition cursor-pointer flex items-center gap-1.5 active:scale-95 shadow-sm"
+              title="Synchronize user profile & farm parcel to Cloud Database"
+            >
+              <svg class="w-3.5 h-3.5 text-emerald-300 animate-spin hidden" id="sync-spinner" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span id="sync-icon">${icon('refresh', 'w-3.5 h-3.5 text-emerald-300')}</span>
+              <span id="sync-btn-text">Sync to Cloud Database</span>
+            </button>
+            <button 
+              type="button" 
+              id="settings-open-auth-btn"
+              class="min-h-[38px] px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white transition cursor-pointer flex items-center justify-center active:scale-95 text-center"
+            >
+              ${t('menu_profile')}
+            </button>
+          </div>
         </div>
 
         <!-- Email on its own line: full width, clean, truncate -->
@@ -146,12 +174,12 @@ export function createSettingsView({
           <p class="text-xs text-emerald-200/90 font-mono truncate">${user.email || 'offline.guest@agrispectra.local'}</p>
         </div>
 
-        <div class="pt-2 border-t border-emerald-700/40 flex items-center justify-between text-xs text-emerald-200">
+        <div class="pt-2 border-t border-emerald-700/40 flex items-center justify-between text-xs text-emerald-200 flex-wrap gap-2">
           <span class="flex items-center gap-1.5">
-            <span class="w-2 h-2 rounded-full ${user.isOffline ? 'bg-amber-400' : 'bg-emerald-400'}"></span>
-            <span>${user.isOffline ? t('net_offline_cached') : t('net_online_synced')}</span>
+            <span class="w-2.5 h-2.5 rounded-full ${user.isOffline ? 'bg-amber-400' : 'bg-emerald-400 animate-pulse shadow-sm shadow-emerald-400/50'}"></span>
+            <span class="font-medium">${user.isOffline ? t('net_offline_cached') : 'Cloud Firestore Live'}</span>
           </span>
-          <span class="font-mono text-emerald-300">${t('dash_parcel_title')}</span>
+          <span class="font-mono text-emerald-300 text-xs">${user.farmName || t('dash_parcel_title')}${user.farmName?.includes('Acre') ? '' : ' (1 Acre)'}</span>
         </div>
       </div>
 
@@ -170,8 +198,9 @@ export function createSettingsView({
             ${icon('user', 'w-4 h-4 text-[#0E5431] dark:text-emerald-400 shrink-0')}
             <span class="truncate">${t('profile_details')}</span>
           </h3>
-          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-mono shrink-0 whitespace-nowrap">
-            ${t('profile_role')}
+          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${user.isOffline ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'} font-mono shrink-0 whitespace-nowrap flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full ${user.isOffline ? 'bg-amber-500' : 'bg-emerald-500 animate-pulse'}"></span>
+            <span>${user.isOffline ? 'Offline Mode' : 'Cloud Database Synced'}</span>
           </span>
         </div>
 
@@ -512,45 +541,60 @@ export function createSettingsView({
 
         <div class="space-y-3">
           <!-- 1. Bluetooth Low Energy (BLE) Section -->
-          <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 space-y-2">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-2.5">
-                <div class="w-8 h-8 rounded-xl bg-teal-100 text-teal-800 dark:bg-teal-950/60 dark:text-teal-300 flex items-center justify-center">
-                  ${icon('bluetooth', 'w-4 h-4')}
+          ${(() => {
+            const isBleConnected = leafClipDevice.isConnected;
+            const bleDeviceName = isBleConnected 
+              ? (leafClipDevice.deviceInfo?.model || leafClipDevice.device?.name || 'BlueNRG_Chat') 
+              : 'No device paired';
+            const bleSignalText = isBleConnected 
+              ? (leafClipDevice.isSimulated ? 'Simulated BLE 5.0' : `${leafClipDevice.deviceInfo?.protocol || 'ST BlueNRG Chat'}`) 
+              : 'Ready to scan';
+            return `
+              <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 space-y-2">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-teal-100 text-teal-800 dark:bg-teal-950/60 dark:text-teal-300 flex items-center justify-center">
+                      ${icon('bluetooth', 'w-4 h-4')}
+                    </div>
+                    <div>
+                      <h4 class="text-xs font-bold text-slate-900 dark:text-white">Bluetooth Low Energy (BLE)</h4>
+                      <p class="text-[10px] text-slate-500 font-mono">Leaf-Clip Spectrometer & Valve Gateway</p>
+                    </div>
+                  </div>
+                  <span id="settings-ble-status-pill" class="px-2 py-0.5 rounded-full text-[10px] font-bold font-mono ${
+                    isBleConnected 
+                      ? (leafClipDevice.isSimulated ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300') 
+                      : 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                  }">
+                    ${isBleConnected ? (leafClipDevice.isSimulated ? 'SIMULATED' : 'CONNECTED') : 'DISCONNECTED'}
+                  </span>
                 </div>
-                <div>
-                  <h4 class="text-xs font-bold text-slate-900 dark:text-white">Bluetooth Low Energy (BLE)</h4>
-                  <p class="text-[10px] text-slate-500 font-mono">Leaf-Clip Spectrometer & Valve Gateway</p>
+
+                <div class="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-400 pt-1 border-t border-slate-200/50 dark:border-slate-700/50">
+                  <span class="font-mono">Device: ${bleDeviceName}</span>
+                  <span class="font-mono ${isBleConnected ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}">${bleSignalText}</span>
+                </div>
+
+                <div class="flex items-center gap-2 pt-1">
+                  <button 
+                    type="button" 
+                    id="btn-settings-scan-ble"
+                    class="flex-1 py-2 px-3 rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-98 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                  >
+                    ${icon('refresh', 'w-3.5 h-3.5')}
+                    <span>Scan & Pair BLE</span>
+                  </button>
+                  <button 
+                    type="button" 
+                    id="btn-settings-toggle-ble"
+                    class="py-2 px-3 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 active:scale-98 text-slate-800 dark:text-slate-200 font-bold text-xs transition cursor-pointer"
+                  >
+                    ${isBleConnected ? 'Disconnect' : 'Connect BLE'}
+                  </button>
                 </div>
               </div>
-              <span id="settings-ble-status-pill" class="px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                CONNECTED
-              </span>
-            </div>
-
-            <div class="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-400 pt-1 border-t border-slate-200/50 dark:border-slate-700/50">
-              <span class="font-mono">Device: AGRISPECTRA-LEAF-01</span>
-              <span class="font-mono text-emerald-600 dark:text-emerald-400">Signal: -64 dBm</span>
-            </div>
-
-            <div class="flex items-center gap-2 pt-1">
-              <button 
-                type="button" 
-                id="btn-settings-scan-ble"
-                class="flex-1 py-2 px-3 rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-98 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
-              >
-                ${icon('refresh', 'w-3.5 h-3.5')}
-                <span>Scan & Pair BLE</span>
-              </button>
-              <button 
-                type="button" 
-                id="btn-settings-toggle-ble"
-                class="py-2 px-3 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 active:scale-98 text-slate-800 dark:text-slate-200 font-bold text-xs transition cursor-pointer"
-              >
-                Toggle BLE
-              </button>
-            </div>
-          </div>
+            `;
+          })()}
 
           <!-- 2. Wi-Fi & Cloud IoT Gateway Section -->
           <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 space-y-2">
@@ -732,7 +776,8 @@ export function createSettingsView({
           displayName: name,
           email: email || user.email,
           farmName: farm || user.farmName,
-          role: role || user.role
+          role: role || user.role,
+          isOffline: false
         };
         authService.currentUser = updated;
         try {
@@ -740,8 +785,12 @@ export function createSettingsView({
           localStorage.setItem('agrispectra_auth_user', JSON.stringify(updated));
         } catch (e) {}
 
-        // Immediate non-blocking sync to firestoreService (0ms) without delay or page freeze
+        // Immediate non-blocking sync to authService, firestoreService, and backend (0ms) without delay or page freeze
         try {
+          authService.syncUserProfile(updated).then(synced => {
+            if (synced) authService.syncProfileToBackend(synced).catch(() => {});
+          }).catch(e => console.warn(e));
+
           if (updated.uid) {
             firestoreService.saveUserProfile(updated).catch(() => {});
           }
@@ -750,7 +799,36 @@ export function createSettingsView({
           }
         } catch (e) {}
 
-        bannerMessage = "Profile updated successfully.";
+        bannerMessage = "Profile updated and synchronized with Cloud Database.";
+        render();
+      }
+    });
+
+    // Sync to Cloud Database Button
+    container.querySelector('#sync-to-cloud-btn')?.addEventListener('click', async () => {
+      const spinner = container.querySelector('#sync-spinner');
+      const iconEl = container.querySelector('#sync-icon');
+      const textEl = container.querySelector('#sync-btn-text');
+
+      if (spinner && iconEl) {
+        spinner.classList.remove('hidden');
+        iconEl.classList.add('hidden');
+      }
+      if (textEl) textEl.textContent = "Syncing...";
+
+      try {
+        const targetUser = currentUser || authService.getCurrentUser() || user;
+        const profile = await authService.syncUserProfile(targetUser);
+        if (profile) {
+          await authService.syncProfileToBackend(profile);
+          if (targetUser?.uid) {
+            await firestoreService.saveUserProfile(profile);
+          }
+        }
+        bannerMessage = "Cloud Database Synced: User profile and farm parcel successfully stored in Cloud Firestore and Backend Database.";
+      } catch (err) {
+        bannerMessage = `Cloud Sync: ${err.message || 'Dispatched sync to Cloud Database.'}`;
+      } finally {
         render();
       }
     });
@@ -840,25 +918,28 @@ export function createSettingsView({
     });
 
     // Wireless & Cloud Connectivity controls
-    let bleConnected = true;
     container.querySelector('#btn-settings-scan-ble')?.addEventListener('click', () => {
-      bannerMessage = "Scanning 2.4GHz BLE spectrum... Paired with AGRISPECTRA-LEAF-01 (RSSI: -64 dBm).";
-      render();
+      createBluetoothDevicePickerModal({
+        onConnected: (res) => {
+          bannerMessage = `Connected to ${leafClipDevice.deviceInfo?.model || 'Bluetooth Device'}.`;
+          render();
+        }
+      });
     });
 
-    container.querySelector('#btn-settings-toggle-ble')?.addEventListener('click', () => {
-      bleConnected = !bleConnected;
-      const pill = container.querySelector('#settings-ble-status-pill');
-      if (pill) {
-        pill.textContent = bleConnected ? "CONNECTED" : "DISCONNECTED";
-        pill.className = bleConnected 
-          ? "px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-          : "px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300";
+    container.querySelector('#btn-settings-toggle-ble')?.addEventListener('click', async () => {
+      if (leafClipDevice.isConnected) {
+        await leafClipDevice.disconnect();
+        bannerMessage = "Bluetooth BLE disconnected.";
+        render();
+      } else {
+        createBluetoothDevicePickerModal({
+          onConnected: (res) => {
+            bannerMessage = `Connected to ${leafClipDevice.deviceInfo?.model || 'Bluetooth Device'}.`;
+            render();
+          }
+        });
       }
-      bannerMessage = bleConnected 
-        ? "Bluetooth BLE link established with field sensor node." 
-        : "Bluetooth BLE disconnected. Standby mode active.";
-      render();
     });
 
     container.querySelector('#btn-settings-connect-wifi')?.addEventListener('click', () => {

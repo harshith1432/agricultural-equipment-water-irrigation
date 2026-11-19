@@ -346,6 +346,14 @@ export class FirestoreDataService {
 
     if (this.useLive) {
       try {
+        // Immediate local snapshot emission (0ms initial render)
+        try {
+          const cached = mockFirestore.getChannelSnapshot('plots', farmId);
+          if (cached && cached.length > 0) {
+            callback(cached);
+          }
+        } catch (e) {}
+
         const plotsRef = collection(this.db, "farms", farmId, "plots");
         return onSnapshot(plotsRef, (snapshot) => {
           if (snapshot.empty) {
@@ -1164,6 +1172,14 @@ export class FirestoreDataService {
 
     if (this.useLive) {
       try {
+        // Immediate local snapshot emission (0ms initial render)
+        try {
+          const cached = mockFirestore.getChannelSnapshot('crops', farmId);
+          if (cached && cached.length > 0) {
+            callback(cached);
+          }
+        } catch (e) {}
+
         const cropsRef = collection(this.db, "farms", farmId, "crops");
         return onSnapshot(cropsRef, (snapshot) => {
           if (snapshot.empty) {

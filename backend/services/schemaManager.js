@@ -161,8 +161,19 @@ const DEFAULT_PLOTS = [
 const DEFAULT_USERS = [
   {
     uid: "system-admin-harshith",
-    email: "harshithkd032@gmail.com",
-    displayName: "Harshith (System Admin)",
+    email: "harshithkd0321@gmail.com",
+    displayName: "Acchu harshith",
+    role: "superadmin",
+    status: "active",
+    farmId: "farm-valley-1",
+    farmName: "AgriSpectra Precision Block A (1-Acre High-Density)",
+    createdAt: new Date().toISOString(),
+    lastLoginAt: new Date().toISOString()
+  },
+  {
+    uid: "user-acchu-harshith",
+    email: "harshithkd0321@gmail.com",
+    displayName: "Acchu harshith",
     role: "superadmin",
     status: "active",
     farmId: "farm-valley-1",
@@ -407,17 +418,36 @@ class SchemaManager {
    */
   async ensureUsersCollection(db) {
     const usersCol = db.collection('users');
-    const snap = await usersCol.limit(5).get();
+    const snap = await usersCol.limit(10).get();
     const exists = snap.size > 0;
 
     if (!exists) {
       console.log("[SchemaManager] ⚡ Collection 'users' not found. Creating table and seeding initial system accounts...");
-      for (const u of DEFAULT_USERS) {
-        await usersCol.doc(u.uid).set(u, { merge: true });
-        console.log(`[SchemaManager]   + Created system user: ${u.email} (${u.role})`);
-      }
     } else {
       console.log(`[SchemaManager] ✓ Collection 'users' exists (${snap.size} user accounts found).`);
+    }
+
+    for (const u of DEFAULT_USERS) {
+      const userRef = usersCol.doc(u.uid);
+      const userDoc = await userRef.get();
+      if (!userDoc.exists) {
+        await userRef.set(u, { merge: true });
+        console.log(`[SchemaManager]   + Created system user: ${u.email} (${u.displayName}) [${u.uid}]`);
+      } else {
+        const currentData = userDoc.data();
+        if (currentData.email !== u.email || currentData.displayName !== u.displayName) {
+          await userRef.set({
+            email: u.email,
+            displayName: u.displayName,
+            role: u.role,
+            status: u.status,
+            farmId: u.farmId,
+            farmName: u.farmName,
+            updatedAt: new Date().toISOString()
+          }, { merge: true });
+          console.log(`[SchemaManager]   ✓ Synchronized user record: ${u.uid} -> ${u.email} (${u.displayName})`);
+        }
+      }
     }
 
     this.verifiedTables.add('users');
@@ -659,17 +689,17 @@ class SchemaManager {
 
     if (db) {
       try {
-        const colRef = db.collection(collectionName);
-        // Check collection existence
-        if (!this.verifiedTables.has(collectionName)) {
-          const snap = await colRef.limit(1).get();
+        const rootCollectionName = collectionName.split('/')[0];
+        // Check root collection existence
+        if (!this.verifiedTables.has(rootCollectionName)) {
+          const snap = await db.collection(rootCollectionName).limit(1).get();
           if (snap.empty) {
-            console.log('[SchemaManager] Table does not exist. Auto-creating table for user data: %s', collectionName);
+            console.log('[SchemaManager] Table does not exist. Auto-creating table for user data: %s', rootCollectionName);
           }
-          this.verifiedTables.add(collectionName);
+          this.verifiedTables.add(rootCollectionName);
         }
 
-        await colRef.doc(docId).set(enrichedData, options);
+        await db.doc(docPath).set(enrichedData, options);
         console.log('[SchemaManager] ✅ Saved user data to %s (merge: %s)', docPath, Boolean(options.merge));
         return { success: true, docPath, data: enrichedData };
       } catch (err) {
@@ -683,48 +713,218 @@ class SchemaManager {
   }
 
   /**
+   * Automatically checks if a user's farm chamber and 6 precision plots exist.
+   * If not, automatically provisions the farm document and its plots in Cloud Firestore.
+   */
+  async ensureFarmChamberAndPlots(farmId, farmName, ownerId, ownerEmail) {
+    await firestoreClient.ensureReady();
+    const db = firestoreClient.adminDb;
+    if (!db) {
+      console.warn("[SchemaManager] Admin SDK not ready for farm chamber provisioning; fallback active.");
+      return;
+    }
+
+    try {
+      const targetFarmId = farmId || 'farm-valley-1';
+      const farmRef = db.collection('farms').doc(targetFarmId);
+      const farmDoc = await farmRef.get();
+
+      if (!farmDoc.exists) {
+        console.log(`[SchemaManager] ⚡ Auto-provisioning new farm chamber: ${targetFarmId} (${farmName}) for ${ownerEmail}`);
+        await farmRef.set({
+          id: targetFarmId,
+          name: farmName || "Precision Farm Chamber",
+          location: "36.7783° N, 119.4179° W",
+          totalArea: "1.00 Acre (6 Zones)",
+          ownerId: ownerId,
+          ownerEmail: ownerEmail,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+      }
+
+      // Ensure 6 precision agricultural plots exist under this farm
+      const plotsCol = farmRef.collection('plots');
+      const plotsSnap = await plotsCol.limit(10).get();
+      if (plotsSnap.empty || plotsSnap.size < DEFAULT_PLOTS.length) {
+        console.log(`[SchemaManager] ⚡ Auto-populating 6 precision plots under ${targetFarmId}...`);
+        for (const plot of DEFAULT_PLOTS) {
+          const plotDocRef = plotsCol.doc(plot.id);
+          const pDoc = await plotDocRef.get();
+          if (!pDoc.exists) {
+            await plotDocRef.set({
+              ...plot,
+              farmId: targetFarmId,
+              lastUpdated: new Date().toISOString()
+            }, { merge: true });
+          }
+        }
+        console.log(`[SchemaManager] ✅ All 6 precision plots active under ${targetFarmId}`);
+      }
+
+      // Subcollection: actionRecommendations
+      const recCol = farmRef.collection('actionRecommendations');
+      const recSnap = await recCol.limit(1).get();
+      if (recSnap.empty) {
+        await recCol.doc('rec-plot2-urgent-01').set({
+          id: 'rec-plot2-urgent-01',
+          plotId: 'plot-2',
+          plotName: 'Zone 2 - Central Canopy',
+          type: 'IRRIGATION_DEFICIT',
+          severity: 'HIGH',
+          title: 'Immediate Drip Irrigation Required',
+          description: 'Soil moisture dropped to 19.4% (Threshold: 30%). Recommended actuation: 25 minutes (450 Liters).',
+          recommendedAction: 'OPEN_VALVE_TIMED',
+          recommendedDurationMin: 25,
+          waterVolumeLiters: 450,
+          status: 'PENDING_OPERATOR_APPROVAL',
+          createdAt: new Date().toISOString()
+        }, { merge: true });
+      }
+
+      // Subcollection: irrigationLogs
+      const logCol = farmRef.collection('irrigationLogs');
+      const logSnap = await logCol.limit(1).get();
+      if (logSnap.empty) {
+        await logCol.doc('log-init-01').set({
+          id: 'log-init-01',
+          plotId: 'plot-1',
+          valveId: 'valve-plot-1',
+          action: 'AUTOMATED_PULSE_CYCLE',
+          status: 'COMPLETED',
+          durationMinutes: 15,
+          litersDelivered: 270,
+          soilMoistureBefore: 26.2,
+          soilMoistureAfter: 32.1,
+          operator: 'Autonomous AI Soil Loop',
+          timestamp: new Date().toISOString()
+        }, { merge: true });
+      }
+    } catch (err) {
+      console.error(`[SchemaManager] Error provisioning farm chamber ${farmId}:`, err.message);
+    }
+  }
+
+  /**
    * Ingest user registration from user end:
-   * Auto-creates 'users' table if not existing, fills user data, and updates enterprise store.
+   * Auto-creates 'users' table if not existing, fills user data, provisions dedicated farm chamber & plots,
+   * and updates enterprise store.
    */
   async saveUserRegistration(userData) {
     if (!userData || (!userData.uid && !userData.email)) {
       throw new Error("Invalid user registration data. 'uid' or 'email' is required.");
     }
 
-    const secureRand = crypto.randomBytes(4).toString('hex');
-    const uid = userData.uid || `usr_${Date.now()}_${secureRand}`;
-    const email = String(userData.email || '').trim().toLowerCase();
-    const displayName = userData.displayName || (email ? email.split('@')[0] : 'Farmer Operator');
-    const role = userData.role || 'Agronomist';
-    const farmId = userData.farmId || 'farm-valley-1';
-    const farmName = userData.farmName || 'AgriSpectra Precision Block A (1-Acre High-Density)';
+    await firestoreClient.ensureReady();
+
+    const rawEmail = String(userData.email || '').trim().toLowerCase();
+    const isAcchuHarshith = rawEmail === 'harshithkd0321@gmail.com' || rawEmail === 'harshithkd032@gmail.com';
+    // Normalize email to active account harshithkd0321@gmail.com
+    const email = isAcchuHarshith ? 'harshithkd0321@gmail.com' : rawEmail;
+
+    let uid = userData.uid;
+    if (!uid) {
+      if (isAcchuHarshith) {
+        uid = 'system-admin-harshith';
+      } else {
+        const secureRand = crypto.randomBytes(4).toString('hex');
+        uid = `usr_${Date.now()}_${secureRand}`;
+      }
+    }
+
+    const displayName = userData.displayName || (isAcchuHarshith ? 'Acchu harshith' : (email ? email.split('@')[0] : 'Farmer Operator'));
+    const role = userData.role || (isAcchuHarshith ? 'superadmin' : 'Agronomist');
+    const farmId = userData.farmId || (isAcchuHarshith ? 'farm-valley-1' : `farm-${uid}`);
+    const farmName = userData.farmName || (isAcchuHarshith ? 'AgriSpectra Precision Block A (1-Acre High-Density)' : `${displayName}'s Precision Farm`);
 
     const userProfile = {
       uid,
       id: uid,
       email,
       displayName,
+      name: displayName,
       role,
       farmId,
       farmName,
       status: userData.status || 'active',
       createdAt: userData.createdAt || new Date().toISOString(),
       lastLoginAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       ...(userData.photoURL ? { photoURL: userData.photoURL } : {})
     };
 
-    // Auto-create 'users' table if not exists and fill data
+    // 1. Auto-create 'users' table if not exists and persist user document
     await this.saveUserData('users', uid, userProfile, { merge: true });
 
-    // Update in-memory enterprise store
-    const existingIdx = enterpriseStore.users.findIndex(u => u.uid === uid || u.email.toLowerCase() === email);
+    // For harshithkd0321@gmail.com, also ensure system-admin-harshith doc is kept in sync
+    if (isAcchuHarshith && uid !== 'system-admin-harshith') {
+      await this.saveUserData('users', 'system-admin-harshith', {
+        ...userProfile,
+        uid: 'system-admin-harshith',
+        id: 'system-admin-harshith'
+      }, { merge: true });
+    }
+
+    // 2. Automatically provision user's dedicated farm chamber and 6 precision plots if not existing
+    await this.ensureFarmChamberAndPlots(farmId, farmName, uid, email);
+
+    // 3. Update in-memory enterprise store
+    const existingIdx = enterpriseStore.users.findIndex(u => u.uid === uid || (u.email && u.email.toLowerCase() === email));
     if (existingIdx >= 0) {
       enterpriseStore.users[existingIdx] = { ...enterpriseStore.users[existingIdx], ...userProfile };
     } else {
       enterpriseStore.users.push(userProfile);
     }
 
+    // 4. Record entry in audit_logs
+    try {
+      await this.saveAuditLog({
+        action: 'USER_REGISTRATION',
+        actor: email,
+        details: `User registration & farm chamber provisioned for ${displayName} (${role}) on farm ${farmId}`,
+        ipAddress: '127.0.0.1'
+      });
+    } catch (auditErr) {
+      console.warn('[SchemaManager] Audit log recording note:', auditErr.message);
+    }
+
+    console.log(`[SchemaManager] 👤 User registration & dedicated farm provisioned successfully for ${email} (${uid})`);
     return userProfile;
+  }
+
+  /**
+   * Immediately syncs all default and registered users into live Cloud Firestore
+   */
+  async syncAllUsersToLiveFirestore() {
+    console.log("[SchemaManager] 🚀 Initiating comprehensive sync to live Cloud Firestore...");
+    await firestoreClient.ensureReady();
+    const db = firestoreClient.adminDb;
+    if (!db) {
+      throw new Error("Cloud Firestore connection unavailable (Firebase Admin SDK offline)");
+    }
+
+    const syncedResults = [];
+
+    // Ensure all DEFAULT_USERS
+    for (const u of DEFAULT_USERS) {
+      const res = await this.saveUserRegistration(u);
+      syncedResults.push(res);
+    }
+
+    // Ensure users in enterpriseStore are synced
+    for (const u of enterpriseStore.users) {
+      if (u && (u.uid || u.email)) {
+        const res = await this.saveUserRegistration(u);
+        syncedResults.push(res);
+      }
+    }
+
+    console.log(`[SchemaManager] ✅ Live sync complete: ${syncedResults.length} user records synchronized to Cloud Firestore.`);
+    return {
+      success: true,
+      syncedCount: syncedResults.length,
+      users: syncedResults
+    };
   }
 
   /**
@@ -883,12 +1083,12 @@ class SchemaManager {
     };
 
     const indices = {
-      ndvi: Number(scanData.indices?.ndvi ?? scanData.ndvi ?? 0.75),
-      ndre: Number(scanData.indices?.ndre ?? scanData.ndre ?? 0.32),
-      wbi: Number(scanData.indices?.wbi ?? scanData.wbi ?? 0.92),
-      cire: Number(scanData.indices?.cire ?? scanData.cire ?? 2.10),
-      vitality: Number(scanData.indices?.vitality ?? scanData.vitalityScore ?? scanData.vitality ?? 85),
-      lwi: Number(scanData.indices?.lwi ?? scanData.indices?.leafWaterIndex ?? scanData.leafWaterIndex ?? 0.92)
+      ndvi: Number(scanData.chemometrics?.ndvi ?? scanData.indices?.ndvi ?? scanData.ndvi ?? 0.75),
+      ndre: Number(scanData.chemometrics?.ndre ?? scanData.indices?.ndre ?? scanData.ndre ?? 0.32),
+      wbi: Number(scanData.chemometrics?.wbi ?? scanData.chemometrics?.leafWaterIndex ?? scanData.indices?.wbi ?? scanData.wbi ?? 0.92),
+      cire: Number(scanData.chemometrics?.cire ?? scanData.indices?.cire ?? scanData.cire ?? 2.10),
+      vitality: Number(scanData.chemometrics?.vitalityScore ?? scanData.indices?.vitality ?? scanData.vitalityScore ?? scanData.vitality ?? 85),
+      lwi: Number(scanData.chemometrics?.leafWaterIndex ?? scanData.indices?.lwi ?? scanData.indices?.leafWaterIndex ?? scanData.leafWaterIndex ?? 0.92)
     };
 
     const rawReflectance = Array.isArray(scanData.rawReflectance) && scanData.rawReflectance.length === 76
@@ -900,7 +1100,19 @@ class SchemaManager {
     const nitrogenPrescriptionKg = Number(scanData.nitrogenPrescriptionKg ?? 0);
     const irrigationNeedHours = Number(scanData.irrigationNeedHours ?? (indices.lwi < 0.82 ? 4 : (indices.lwi < 0.89 ? 18 : 36)));
     const diseaseRisk = typeof scanData.diseaseRisk === 'string' ? scanData.diseaseRisk : (scanData.diseaseRisk?.pathogen || "HEALTHY_OPTIMAL");
-    const hardwareLink = ["BLE_NUS", "USB_SERIAL", "SIMULATED"].includes(scanData.hardwareLink) ? scanData.hardwareLink : (scanData.sourceMode || "SIMULATED");
+    const source = scanData.connectionMode || scanData.source || scanData.hardwareLink || "SIMULATED";
+    const hardwareLink = ["BLE_NUS", "USB_SERIAL", "SIMULATED"].includes(scanData.hardwareLink) ? scanData.hardwareLink : (scanData.sourceMode || source);
+
+    const chemometrics = scanData.chemometrics || {
+      ndvi: indices.ndvi,
+      ndre: indices.ndre,
+      leafWaterIndex: indices.lwi,
+      cire: indices.cire,
+      vitalityScore: indices.vitality,
+      nitrogenPrescriptionKg,
+      irrigationCountdownHours: irrigationNeedHours,
+      diseaseRisk: { pathogen: diseaseRisk }
+    };
 
     const record = {
       id,
@@ -913,10 +1125,13 @@ class SchemaManager {
       calibrationRef,
       rawReflectance,
       indices,
+      chemometrics,
       nitrogenPrescriptionKg,
       irrigationNeedHours,
       diseaseRisk,
       hardwareLink,
+      source,
+      connectionMode: source,
       timestamp
     };
 
@@ -934,8 +1149,8 @@ class SchemaManager {
         plotId,
         crop,
         timestamp,
-        connectionMode: hardwareLink,
-        source: hardwareLink,
+        connectionMode: source,
+        source: source,
         rawIntensities: rawReflectance,
         chemometrics: {
           ndvi: indices.ndvi,
@@ -945,6 +1160,7 @@ class SchemaManager {
           vitalityScore: indices.vitality,
           nitrogenPrescriptionKg,
           irrigationCountdownHours: irrigationNeedHours,
+          irrigationUrgency: scanData.chemometrics?.irrigationUrgency || (indices.lwi < 0.82 ? "CRITICAL" : "NORMAL"),
           diseaseRisk: { pathogen: diseaseRisk }
         }
       });

@@ -504,6 +504,16 @@ export function createSpectroscopyAnalysisView({
                 <span class="text-[10px]">Wi-Fi Cloud</span>
               </button>
             </div>
+
+            <!-- In-Modal Scan & Connect Bluetooth Button -->
+            <button 
+              type="button" 
+              id="modal-btn-scan-ble"
+              class="w-full mt-2 py-2.5 px-4 rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-98 text-white font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-md shadow-teal-900/20"
+            >
+              ${icon('bluetooth', 'w-4 h-4')}
+              <span>Scan & Connect Bluetooth Devices</span>
+            </button>
           </div>
 
           <!-- Hardware Specifications -->
@@ -641,6 +651,17 @@ export function createSpectroscopyAnalysisView({
 
     // Direct In-App Bluetooth Spectroscope Modal Trigger
     container.querySelector('#btn-mobile-connect-ble')?.addEventListener('click', () => {
+      createBluetoothDevicePickerModal({
+        onConnected: (res) => {
+          handleModeChange(CONNECTION_MODES.BLUETOOTH_BLE);
+          render();
+        }
+      });
+    });
+
+    // In-Modal Scan & Connect Bluetooth Trigger
+    container.querySelector('#modal-btn-scan-ble')?.addEventListener('click', () => {
+      settingsModal?.classList.add('hidden');
       createBluetoothDevicePickerModal({
         onConnected: (res) => {
           handleModeChange(CONNECTION_MODES.BLUETOOTH_BLE);

@@ -183,11 +183,11 @@ export class FirestoreClient {
    */
   buildSafeFirestoreUrl(relativePath, queryParams = {}) {
     if (!relativePath || typeof relativePath !== 'string') return null;
-    const cleanPath = relativePath.replace(/^\/+|\/+$/g, '');
-    // Strict whitelist: only alphanumeric, underscore, hyphen, and slash path segments
-    if (!/^[a-zA-Z0-9_\-]+(\/[a-zA-Z0-9_\-]+)*$/.test(cleanPath)) {
+    const segments = relativePath.split('/').filter(Boolean);
+    if (segments.length === 0 || segments.some(s => !/^[a-zA-Z0-9_-]+$/.test(s))) {
       return null;
     }
+    const cleanPath = segments.join('/');
     const FIRESTORE_ORIGIN = 'https://firestore.googleapis.com';
     const basePath = `/v1/projects/${encodeURIComponent(this.projectId)}/databases/(default)/documents/${cleanPath}`;
     const safeUrl = new URL(basePath, FIRESTORE_ORIGIN);
