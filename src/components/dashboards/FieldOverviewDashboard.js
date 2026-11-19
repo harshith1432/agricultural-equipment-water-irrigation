@@ -95,22 +95,22 @@ export function createFieldOverviewDashboard({
           </div>
 
           <!-- 4 Key Environmental Metrics Row -->
-          <div class="grid grid-cols-4 gap-1.5 pt-3 border-t border-slate-100 dark:border-slate-800">
-            <div class="bg-slate-50/80 dark:bg-slate-800/60 rounded-2xl py-2 px-1 text-center border border-slate-100/80 dark:border-slate-800 flex flex-col justify-center">
-              <span class="text-[9.5px] text-slate-400 font-medium">${t('humidity', 'Humidity')}</span>
-              <span class="text-xs font-bold text-slate-800 dark:text-white font-mono mt-0.5 block">40%</span>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
+            <div class="bg-slate-50/80 dark:bg-slate-800/60 rounded-2xl py-2 px-1.5 text-center border border-slate-100/80 dark:border-slate-800 flex flex-col justify-center min-w-0 overflow-hidden break-words">
+              <span class="text-[9.5px] text-slate-400 font-medium truncate block">${t('humidity', 'Humidity')}</span>
+              <span class="text-xs font-bold text-slate-800 dark:text-white font-mono mt-0.5 block truncate">40%</span>
             </div>
-            <div class="bg-slate-50/80 dark:bg-slate-800/60 rounded-2xl py-2 px-1 text-center border border-slate-100/80 dark:border-slate-800 flex flex-col justify-center">
-              <span class="text-[9.5px] text-slate-400 font-medium">${t('precipitation', 'Precip')}</span>
-              <span class="text-xs font-bold text-slate-800 dark:text-white font-mono mt-0.5 block">5.1 mm</span>
+            <div class="bg-slate-50/80 dark:bg-slate-800/60 rounded-2xl py-2 px-1.5 text-center border border-slate-100/80 dark:border-slate-800 flex flex-col justify-center min-w-0 overflow-hidden break-words">
+              <span class="text-[9.5px] text-slate-400 font-medium truncate block">${t('precipitation', 'Precip')}</span>
+              <span class="text-xs font-bold text-slate-800 dark:text-white font-mono mt-0.5 block truncate">5.1 mm</span>
             </div>
-            <div class="bg-slate-50/80 dark:bg-slate-800/60 rounded-2xl py-2 px-1 text-center border border-slate-100/80 dark:border-slate-800 flex flex-col justify-center">
-              <span class="text-[9.5px] text-slate-400 font-medium">${t('pressure', 'Pressure')}</span>
-              <span class="text-xs font-bold text-slate-800 dark:text-white font-mono mt-0.5 block">1013 hPa</span>
+            <div class="bg-slate-50/80 dark:bg-slate-800/60 rounded-2xl py-2 px-1.5 text-center border border-slate-100/80 dark:border-slate-800 flex flex-col justify-center min-w-0 overflow-hidden break-words">
+              <span class="text-[9.5px] text-slate-400 font-medium truncate block">${t('pressure', 'Pressure')}</span>
+              <span class="text-xs font-bold text-slate-800 dark:text-white font-mono mt-0.5 block truncate">1013 hPa</span>
             </div>
-            <div class="bg-slate-50/80 dark:bg-slate-800/60 rounded-2xl py-2 px-1 text-center border border-slate-100/80 dark:border-slate-800 flex flex-col justify-center">
-              <span class="text-[9.5px] text-slate-400 font-medium">${t('wind', 'Wind')}</span>
-              <span class="text-xs font-bold text-slate-800 dark:text-white font-mono mt-0.5 block">14 km/h</span>
+            <div class="bg-slate-50/80 dark:bg-slate-800/60 rounded-2xl py-2 px-1.5 text-center border border-slate-100/80 dark:border-slate-800 flex flex-col justify-center min-w-0 overflow-hidden break-words">
+              <span class="text-[9.5px] text-slate-400 font-medium truncate block">${t('wind', 'Wind')}</span>
+              <span class="text-xs font-bold text-slate-800 dark:text-white font-mono mt-0.5 block truncate">14 km/h</span>
             </div>
           </div>
 
@@ -198,48 +198,48 @@ export function createFieldOverviewDashboard({
             <button 
               type="button" 
               data-target-tab="soil"
-              class="cat-module-btn bg-white dark:bg-slate-900 rounded-3xl p-3 shadow-sm border border-emerald-900/5 dark:border-slate-800 flex flex-col items-center justify-center gap-2 hover:border-[#0E5431]/30 transition transform active:scale-95 text-center cursor-pointer"
+              class="cat-module-btn bg-white dark:bg-slate-900 rounded-3xl p-3 shadow-sm border border-emerald-900/5 dark:border-slate-800 flex flex-col items-center justify-center gap-2 hover:border-[#0E5431]/30 transition transform active:scale-95 text-center cursor-pointer min-w-0 overflow-hidden"
             >
-              <div class="w-11 h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-500/20 flex items-center justify-center text-[#0E5431] dark:text-emerald-300">
+              <div class="w-11 h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-500/20 flex items-center justify-center text-[#0E5431] dark:text-emerald-300 shrink-0">
                 ${icon('soil', 'w-5 h-5')}
               </div>
-              <span class="text-[10px] font-bold text-slate-800 dark:text-slate-200 leading-tight">${t('cat_soil', 'Soil 8-in-1')}</span>
+              <span class="text-[10px] font-bold text-slate-800 dark:text-slate-200 leading-tight w-full min-w-0 flex-1 truncate">${t('cat_soil', 'Soil 8-in-1')}</span>
             </button>
 
             <!-- Drip Hub -->
             <button 
               type="button" 
               data-target-tab="irrigation"
-              class="cat-module-btn bg-white dark:bg-slate-900 rounded-3xl p-3 shadow-sm border border-emerald-900/5 dark:border-slate-800 flex flex-col items-center justify-center gap-2 hover:border-[#0E5431]/30 transition transform active:scale-95 text-center cursor-pointer"
+              class="cat-module-btn bg-white dark:bg-slate-900 rounded-3xl p-3 shadow-sm border border-emerald-900/5 dark:border-slate-800 flex flex-col items-center justify-center gap-2 hover:border-[#0E5431]/30 transition transform active:scale-95 text-center cursor-pointer min-w-0 overflow-hidden"
             >
-              <div class="w-11 h-11 rounded-2xl bg-blue-50 dark:bg-blue-950/60 border border-blue-500/20 flex items-center justify-center text-blue-600">
+              <div class="w-11 h-11 rounded-2xl bg-blue-50 dark:bg-blue-950/60 border border-blue-500/20 flex items-center justify-center text-blue-600 shrink-0">
                 ${icon('droplet', 'w-5 h-5')}
               </div>
-              <span class="text-[10px] font-bold text-slate-800 dark:text-slate-200 leading-tight">${t('cat_drip', 'Drip Hub')}</span>
+              <span class="text-[10px] font-bold text-slate-800 dark:text-slate-200 leading-tight w-full min-w-0 flex-1 truncate">${t('cat_drip', 'Drip Hub')}</span>
             </button>
 
             <!-- Spectroscopy -->
             <button 
               type="button" 
               data-target-tab="spectroscopy"
-              class="cat-module-btn bg-white dark:bg-slate-900 rounded-3xl p-3 shadow-sm border border-emerald-900/5 dark:border-slate-800 flex flex-col items-center justify-center gap-2 hover:border-[#0E5431]/30 transition transform active:scale-95 text-center cursor-pointer"
+              class="cat-module-btn bg-white dark:bg-slate-900 rounded-3xl p-3 shadow-sm border border-emerald-900/5 dark:border-slate-800 flex flex-col items-center justify-center gap-2 hover:border-[#0E5431]/30 transition transform active:scale-95 text-center cursor-pointer min-w-0 overflow-hidden"
             >
-              <div class="w-11 h-11 rounded-2xl bg-teal-50 dark:bg-teal-950/60 border border-teal-500/20 flex items-center justify-center text-teal-700 dark:text-teal-300">
+              <div class="w-11 h-11 rounded-2xl bg-teal-50 dark:bg-teal-950/60 border border-teal-500/20 flex items-center justify-center text-teal-700 dark:text-teal-300 shrink-0">
                 ${icon('spectroscopy', 'w-5 h-5')}
               </div>
-              <span class="text-[10px] font-bold text-slate-800 dark:text-slate-200 leading-tight">${t('cat_spectro', 'Spectro')}</span>
+              <span class="text-[10px] font-bold text-slate-800 dark:text-slate-200 leading-tight w-full min-w-0 flex-1 truncate">${t('cat_spectro', 'Spectro')}</span>
             </button>
 
             <!-- Synergy / AI Insights -->
             <button 
               type="button" 
               data-target-tab="synergy"
-              class="cat-module-btn bg-white dark:bg-slate-900 rounded-3xl p-3 shadow-sm border border-emerald-900/5 dark:border-slate-800 flex flex-col items-center justify-center gap-2 hover:border-[#0E5431]/30 transition transform active:scale-95 text-center cursor-pointer"
+              class="cat-module-btn bg-white dark:bg-slate-900 rounded-3xl p-3 shadow-sm border border-emerald-900/5 dark:border-slate-800 flex flex-col items-center justify-center gap-2 hover:border-[#0E5431]/30 transition transform active:scale-95 text-center cursor-pointer min-w-0 overflow-hidden"
             >
-              <div class="w-11 h-11 rounded-2xl bg-amber-50 dark:bg-amber-950/60 border border-amber-500/20 flex items-center justify-center text-amber-600">
+              <div class="w-11 h-11 rounded-2xl bg-amber-50 dark:bg-amber-950/60 border border-amber-500/20 flex items-center justify-center text-amber-600 shrink-0">
                 ${icon('synergy', 'w-5 h-5')}
               </div>
-              <span class="text-[10px] font-bold text-slate-800 dark:text-slate-200 leading-tight">${t('cat_synergy', 'Synergy')}</span>
+              <span class="text-[10px] font-bold text-slate-800 dark:text-slate-200 leading-tight w-full min-w-0 flex-1 truncate">${t('cat_synergy', 'Synergy')}</span>
             </button>
           </div>
         </div>
@@ -286,22 +286,22 @@ export function createFieldOverviewDashboard({
                       : 'border-emerald-900/5 dark:border-slate-800 hover:border-slate-300'
                   }"
                 >
-                  <div class="flex items-center justify-between gap-3">
-                    <div class="flex items-center gap-3">
-                      <div class="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-500/20 flex items-center justify-center text-[#0E5431] dark:text-emerald-300 font-bold font-mono text-sm">
+                  <div class="flex items-center justify-between gap-3 min-w-0">
+                    <div class="flex items-center gap-3 min-w-0 flex-1">
+                      <div class="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-500/20 flex items-center justify-center text-[#0E5431] dark:text-emerald-300 font-bold font-mono text-sm shrink-0">
                         Z${plot.plotNumber}
                       </div>
 
-                      <div>
-                        <div class="flex items-center gap-2">
-                          <h4 class="text-xs font-bold text-slate-900 dark:text-white">${plot.crop}</h4>
-                          <span class="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold ${
+                      <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-2 min-w-0">
+                          <h4 class="text-xs font-bold text-slate-900 dark:text-white truncate">${plot.crop}</h4>
+                          <span class="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold shrink-0 ${
                             isOpen ? 'bg-emerald-100 text-[#0E5431]' : 'bg-slate-100 text-slate-500'
                           }">
                             ${isOpen ? t('valve_on', 'VALVE ON') : t('valve_idle', 'IDLE')}
                           </span>
                         </div>
-                        <p class="text-[10px] text-slate-400 mt-0.5">${plot.stage || 'Vegetative & Root Bulking'}</p>
+                        <p class="text-[10px] text-slate-400 mt-0.5 truncate">${plot.stage || 'Vegetative & Root Bulking'}</p>
                       </div>
                     </div>
 
@@ -311,14 +311,14 @@ export function createFieldOverviewDashboard({
                       data-valve-id="${valve?.id || 'valve-1'}"
                       data-gate-id="${valve?.gateIdentifier || 'G1'}"
                       data-action="${isOpen ? 'CLOSE' : 'OPEN'}"
-                      class="valve-actuate-btn quick-valve-btn px-3.5 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                      class="valve-actuate-btn quick-valve-btn shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                         isOpen 
                           ? 'bg-rose-600 hover:bg-rose-700 text-white' 
                           : 'bg-[#0E5431] hover:bg-[#083820] text-white'
                       }"
                     >
                       ${isOpen ? icon('pause', 'w-3 h-3') : icon('play', 'w-3 h-3')}
-                      <span>${isOpen ? t('valve_close', 'Close') : t('valve_irrigate', 'Irrigate')}</span>
+                      <span class="truncate">${isOpen ? t('valve_close', 'Close') : t('valve_irrigate', 'Irrigate')}</span>
                     </button>
                   </div>
 

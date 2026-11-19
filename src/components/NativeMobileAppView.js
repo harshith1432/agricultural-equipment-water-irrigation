@@ -102,7 +102,7 @@ export function createNativeMobileAppView({
 
   // 3. Main scrollable body container
   const scrollBody = document.createElement('main');
-  scrollBody.className = "relative z-10 flex-1 w-full max-w-lg mx-auto px-3.5 pt-3 pb-32 overflow-y-auto no-scrollbar scroll-smooth";
+  scrollBody.className = "relative z-10 flex-1 w-full max-w-lg mx-auto px-3.5 pt-3 pb-40 overflow-y-auto no-scrollbar scroll-smooth";
   container.appendChild(scrollBody);
 
   // 4. Create Floating Bottom Navigation Bar (6 Tabs)

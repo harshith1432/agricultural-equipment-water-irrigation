@@ -209,9 +209,9 @@ export function createSoilAnalysisView({
           </div>
 
           <!-- 8 Tiles Grid (Clean 2x4 on mobile, 4x2 on tablet) -->
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <!-- 1. Temperature -->
-            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/80 flex flex-col min-w-0 overflow-hidden">
+            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/80 flex flex-col min-w-0 overflow-hidden break-words">
               <span class="text-[10px] text-slate-500 font-medium truncate">${t('param_temp')}</span>
               <div class="flex items-baseline gap-1 mt-1 truncate">
                 <span class="text-2xl font-black text-slate-900 dark:text-white font-mono">${p.temperatureC.toFixed(1)}</span>
@@ -221,7 +221,7 @@ export function createSoilAnalysisView({
             </div>
 
             <!-- 2. Moisture % VWC -->
-            <div class="p-3 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-300 dark:border-emerald-800/40 flex flex-col min-w-0 overflow-hidden">
+            <div class="p-3 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-300 dark:border-emerald-800/40 flex flex-col min-w-0 overflow-hidden break-words">
               <span class="text-[10px] text-emerald-800 dark:text-emerald-300 font-medium truncate">${t('param_moisture')}</span>
               <div class="flex items-baseline gap-1 mt-1 truncate">
                 <span class="text-2xl font-black text-emerald-900 dark:text-emerald-200 font-mono">${p.moistureVwc.toFixed(1)}</span>
@@ -231,7 +231,7 @@ export function createSoilAnalysisView({
             </div>
 
             <!-- 3. Conductivity (EC) -->
-            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/80 flex flex-col min-w-0 overflow-hidden">
+            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/80 flex flex-col min-w-0 overflow-hidden break-words">
               <span class="text-[10px] text-slate-500 font-medium truncate">${t('param_ec')}</span>
               <div class="flex items-baseline gap-1 mt-1 truncate">
                 <span class="text-2xl font-black text-slate-900 dark:text-white font-mono">${p.ecUsCm}</span>
@@ -241,7 +241,7 @@ export function createSoilAnalysisView({
             </div>
 
             <!-- 4. pH -->
-            <div class="p-3 rounded-2xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-300 dark:border-amber-800/40 flex flex-col min-w-0 overflow-hidden">
+            <div class="p-3 rounded-2xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-300 dark:border-amber-800/40 flex flex-col min-w-0 overflow-hidden break-words">
               <span class="text-[10px] text-amber-800 dark:text-amber-300 font-medium truncate">${t('param_ph')}</span>
               <div class="flex items-baseline gap-1 mt-1 truncate">
                 <span class="text-2xl font-black text-amber-900 dark:text-amber-200 font-mono">${p.ph.toFixed(1)}</span>
@@ -251,7 +251,7 @@ export function createSoilAnalysisView({
             </div>
 
             <!-- 5. Nitrogen (N) -->
-            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/80 flex flex-col min-w-0 overflow-hidden">
+            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/80 flex flex-col min-w-0 overflow-hidden break-words">
               <span class="text-[10px] text-slate-500 font-medium truncate">${t('param_nitrogen')}</span>
               <div class="flex items-baseline gap-1 mt-1 truncate">
                 <span class="text-2xl font-black text-slate-900 dark:text-white font-mono">${p.nitrogenMgKg}</span>
@@ -261,7 +261,7 @@ export function createSoilAnalysisView({
             </div>
 
             <!-- 6. Phosphorus (P) -->
-            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/80 flex flex-col min-w-0 overflow-hidden">
+            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/80 flex flex-col min-w-0 overflow-hidden break-words">
               <span class="text-[10px] text-slate-500 font-medium truncate">${t('param_phosphorus')}</span>
               <div class="flex items-baseline gap-1 mt-1 truncate">
                 <span class="text-2xl font-black text-slate-900 dark:text-white font-mono">${p.phosphorusMgKg}</span>
@@ -271,7 +271,7 @@ export function createSoilAnalysisView({
             </div>
 
             <!-- 7. Potassium (K) -->
-            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/80 flex flex-col min-w-0 overflow-hidden">
+            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/80 flex flex-col min-w-0 overflow-hidden break-words">
               <span class="text-[10px] text-slate-500 font-medium truncate">${t('param_potassium')}</span>
               <div class="flex items-baseline gap-1 mt-1 truncate">
                 <span class="text-2xl font-black text-slate-900 dark:text-white font-mono">${p.potassiumMgKg}</span>
@@ -281,7 +281,7 @@ export function createSoilAnalysisView({
             </div>
 
             <!-- 8. Fertility Index -->
-            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/80 flex flex-col min-w-0 overflow-hidden">
+            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/80 flex flex-col min-w-0 overflow-hidden break-words">
               <span class="text-[10px] text-slate-500 font-medium truncate">${t('param_fertility')}</span>
               <div class="flex items-baseline gap-1 mt-1 truncate">
                 <span class="text-2xl font-black text-slate-900 dark:text-white font-mono">${p.fertilityMgKg}</span>

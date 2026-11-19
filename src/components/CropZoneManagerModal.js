@@ -127,7 +127,7 @@ export function createCropZoneManagerModal({
     const activeCropsCount = cropCatalog.length;
 
     overlay.innerHTML = `
-      <div class="relative w-full max-w-xl my-auto bg-[#F7F9F6] dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-3xl border border-emerald-900/15 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+      <div class="relative z-50 w-full max-w-xl my-auto bg-[#F7F9F6] dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-3xl border border-emerald-900/15 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         
         <!-- Header -->
         <div class="relative bg-gradient-to-r from-[#092B19] via-[#0E5431] to-[#146B40] text-white p-4 sm:p-5 flex-shrink-0">
@@ -274,28 +274,28 @@ export function createCropZoneManagerModal({
               : (p.targetVwcMin || 22).toFixed(1);
 
             return `
-              <div class="bg-white dark:bg-slate-800 rounded-2xl p-3.5 border transition shadow-sm ${
+              <div class="bg-white dark:bg-slate-800 rounded-2xl p-3.5 border transition shadow-sm min-w-0 overflow-hidden break-words ${
                 isSelected 
                   ? 'border-[#0E5431] ring-2 ring-[#0E5431]/15' 
                   : 'border-slate-200 dark:border-slate-700 hover:border-emerald-600/30'
               }">
-                <div class="flex items-start justify-between gap-2.5">
-                  <div class="flex items-start gap-3 min-w-0">
+                <div class="flex items-start justify-between gap-2.5 min-w-0">
+                  <div class="flex items-start gap-3 min-w-0 flex-1">
                     <div class="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-500/20 text-[#0E5431] dark:text-emerald-300 font-bold font-mono text-sm flex items-center justify-center flex-shrink-0 mt-0.5">
                       Z${p.plotNumber || '?'}
                     </div>
-                    <div class="min-w-0">
-                      <div class="flex items-center gap-2 flex-wrap">
+                    <div class="min-w-0 flex-1">
+                      <div class="flex items-center gap-2 flex-wrap min-w-0">
                         <h4 class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
                           ${escapeHtml(p.crop || 'Crop')}
                         </h4>
-                        <span class="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold ${
+                        <span class="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold shrink-0 ${
                           isOpen ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
                         }">
                           ${isOpen ? 'VALVE ON' : 'VALVE IDLE'}
                         </span>
                         ${isSelected ? `
-                          <span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#0E5431] text-white">
+                          <span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#0E5431] text-white shrink-0">
                             Active Plot
                           </span>
                         ` : ''}
@@ -306,17 +306,17 @@ export function createCropZoneManagerModal({
                       </div>
 
                       <!-- Sub-badges -->
-                      <div class="flex items-center gap-2 mt-2 flex-wrap text-[10px]">
-                        <span class="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-[#0E5431] dark:text-emerald-300 font-medium border border-emerald-600/10">
+                      <div class="flex items-center gap-2 mt-2 flex-wrap text-[10px] min-w-0">
+                        <span class="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-[#0E5431] dark:text-emerald-300 font-medium border border-emerald-600/10 truncate">
                           Stage: ${escapeHtml(p.stage || 'Vegetative')}
                         </span>
-                        <span class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700/60 text-slate-700 dark:text-slate-300 font-mono">
+                        <span class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700/60 text-slate-700 dark:text-slate-300 font-mono truncate">
                           Target VWC: ${p.targetVwcMin || 20}%–${p.targetVwcMax || 35}%
                         </span>
-                        <span class="px-2 py-0.5 rounded-md bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 font-mono">
+                        <span class="px-2 py-0.5 rounded-md bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 font-mono shrink-0">
                           ${escapeHtml(gateId)}
                         </span>
-                        <span class="px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300">
+                        <span class="px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 truncate">
                           Soil: ${escapeHtml(p.soilType || 'Clay Loam')}
                         </span>
                       </div>
@@ -608,34 +608,34 @@ export function createCropZoneManagerModal({
         <div class="space-y-2.5">
           ${cropCatalog.map(crop => {
             return `
-              <div class="bg-white dark:bg-slate-800 rounded-2xl p-3.5 border border-slate-200 dark:border-slate-700 shadow-sm hover:border-emerald-600/30 transition">
-                <div class="flex items-start justify-between gap-2.5">
-                  <div class="flex items-start gap-3 min-w-0">
+              <div class="bg-white dark:bg-slate-800 rounded-2xl p-3.5 border border-slate-200 dark:border-slate-700 shadow-sm hover:border-emerald-600/30 transition min-w-0 overflow-hidden break-words">
+                <div class="flex items-start justify-between gap-2.5 min-w-0">
+                  <div class="flex items-start gap-3 min-w-0 flex-1">
                     <div class="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-500/20 text-[#0E5431] dark:text-emerald-300 font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
                       ${icon('sprout', 'w-5 h-5')}
                     </div>
-                    <div class="min-w-0">
-                      <div class="flex items-center gap-2 flex-wrap">
+                    <div class="min-w-0 flex-1">
+                      <div class="flex items-center gap-2 flex-wrap min-w-0">
                         <h4 class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
                           ${escapeHtml(crop.name)}
                         </h4>
                         <span class="text-[10px] italic text-slate-400 truncate">
                           ${escapeHtml(crop.scientificName || '')}
                         </span>
-                        <span class="px-2 py-0.5 rounded-full text-[9px] font-mono bg-emerald-50 dark:bg-emerald-950/50 text-[#0E5431] dark:text-emerald-300 border border-emerald-500/20">
+                        <span class="px-2 py-0.5 rounded-full text-[9px] font-mono bg-emerald-50 dark:bg-emerald-950/50 text-[#0E5431] dark:text-emerald-300 border border-emerald-500/20 shrink-0">
                           ${escapeHtml(crop.category || 'Standard')}
                         </span>
                       </div>
 
                       <!-- Agronomic Specs Badges -->
-                      <div class="flex items-center gap-2 mt-2 flex-wrap text-[10px]">
-                        <span class="px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-mono">
+                      <div class="flex items-center gap-2 mt-2 flex-wrap text-[10px] min-w-0">
+                        <span class="px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-mono truncate">
                           Optimal VWC: ${crop.optimalVwcMin || 20}%–${crop.optimalVwcMax || 35}%
                         </span>
-                        <span class="px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 font-mono">
+                        <span class="px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 font-mono truncate">
                           pH: ${crop.optimalPhMin || 6.0}–${crop.optimalPhMax || 7.0}
                         </span>
-                        <span class="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-[#0E5431] dark:text-emerald-300 font-mono">
+                        <span class="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-[#0E5431] dark:text-emerald-300 font-mono truncate">
                           N: ${crop.targetNitrogen || 100} kg/ha
                         </span>
                       </div>

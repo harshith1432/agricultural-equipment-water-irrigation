@@ -115,34 +115,34 @@ export function createIrrigationManagementView({
 
         <!-- Flow Meter Stats Grid -->
         <div class="grid grid-cols-3 gap-2.5 mt-4 pt-3 border-t border-emerald-700/40">
-          <div class="bg-white/10 rounded-2xl p-2.5 flex flex-col">
-            <span class="text-[10px] text-emerald-200/80 font-medium">${t('flow_rate_live')}</span>
-            <div class="flex items-baseline gap-1 mt-0.5">
-              <span class="text-xl font-black text-white font-mono">${currentFlowLpm}</span>
-              <span class="text-[10px] text-emerald-300">L/min</span>
+          <div class="bg-white/10 rounded-2xl p-2.5 flex flex-col min-w-0 overflow-hidden">
+            <span class="text-[10px] text-emerald-200/80 font-medium truncate">${t('flow_rate_live')}</span>
+            <div class="flex items-baseline gap-1 mt-0.5 min-w-0 truncate">
+              <span class="text-xl font-black text-white font-mono truncate">${currentFlowLpm}</span>
+              <span class="text-[10px] text-emerald-300 shrink-0">L/min</span>
             </div>
-            <div class="flex items-center gap-1 mt-1 text-[9px] text-emerald-300/80">
-              <span class="w-1.5 h-1.5 rounded-full ${activeValvesCount > 0 ? 'bg-emerald-400 animate-ping' : 'bg-slate-400'}"></span>
-              <span>${activeValvesCount} ${t('valves_active', 'Valves Active')}</span>
+            <div class="flex items-center gap-1 mt-1 text-[9px] text-emerald-300/80 min-w-0 truncate">
+              <span class="w-1.5 h-1.5 rounded-full shrink-0 ${activeValvesCount > 0 ? 'bg-emerald-400 animate-ping' : 'bg-slate-400'}"></span>
+              <span class="truncate">${activeValvesCount} ${t('valves_active', 'Valves Active')}</span>
             </div>
           </div>
 
-          <div class="bg-white/10 rounded-2xl p-2.5 flex flex-col">
-            <span class="text-[10px] text-emerald-200/80 font-medium">${t('flow_session')}</span>
-            <div class="flex items-baseline gap-1 mt-0.5">
-              <span class="text-xl font-black text-white font-mono">${telemetry.totalLitersDeliveredAllTime.toFixed(0)}</span>
-              <span class="text-[10px] text-emerald-300">${t('liters', 'Liters')}</span>
+          <div class="bg-white/10 rounded-2xl p-2.5 flex flex-col min-w-0 overflow-hidden">
+            <span class="text-[10px] text-emerald-200/80 font-medium truncate">${t('flow_session')}</span>
+            <div class="flex items-baseline gap-1 mt-0.5 min-w-0 truncate">
+              <span class="text-xl font-black text-white font-mono truncate">${telemetry.totalLitersDeliveredAllTime.toFixed(0)}</span>
+              <span class="text-[10px] text-emerald-300 shrink-0">${t('liters', 'Liters')}</span>
             </div>
-            <span class="text-[9px] text-emerald-300/80 mt-1">${t('latching_12v', 'Latching ±12V')}</span>
+            <span class="text-[9px] text-emerald-300/80 mt-1 truncate">${t('latching_12v', 'Latching ±12V')}</span>
           </div>
 
-          <div class="bg-white/10 rounded-2xl p-2.5 flex flex-col">
-            <span class="text-[10px] text-emerald-200/80 font-medium">${t('flow_today')}</span>
-            <div class="flex items-baseline gap-1 mt-0.5">
-              <span class="text-xl font-black text-white font-mono">${telemetry.totalLitersToday.toFixed(0)}</span>
-              <span class="text-[10px] text-emerald-300">${t('liters', 'Liters')}</span>
+          <div class="bg-white/10 rounded-2xl p-2.5 flex flex-col min-w-0 overflow-hidden">
+            <span class="text-[10px] text-emerald-200/80 font-medium truncate">${t('flow_today')}</span>
+            <div class="flex items-baseline gap-1 mt-0.5 min-w-0 truncate">
+              <span class="text-xl font-black text-white font-mono truncate">${telemetry.totalLitersToday.toFixed(0)}</span>
+              <span class="text-[10px] text-emerald-300 shrink-0">${t('liters', 'Liters')}</span>
             </div>
-            <span class="text-[9px] text-emerald-300/80 mt-1">${telemetry.mainlinePressureBar.toFixed(2)} ${t('bar_line', 'Bar Line')}</span>
+            <span class="text-[9px] text-emerald-300/80 mt-1 truncate">${telemetry.mainlinePressureBar.toFixed(2)} ${t('bar_line', 'Bar Line')}</span>
           </div>
         </div>
       </div>
@@ -246,7 +246,7 @@ export function createIrrigationManagementView({
                     : 'bg-slate-50/60 dark:bg-slate-850 border-slate-200 dark:border-slate-700/60'
                 }"
               >
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 min-w-0">
                   <!-- Left: Valve Info -->
                   <div class="flex items-center gap-2.5 min-w-0 flex-1">
                     <div class="w-9 h-9 rounded-xl flex items-center justify-center font-mono font-bold text-xs shrink-0 ${
@@ -258,28 +258,28 @@ export function createIrrigationManagementView({
                     </div>
 
                     <div class="flex flex-col min-w-0 flex-1">
-                      <div class="flex items-center gap-1.5 flex-wrap">
+                      <div class="flex items-center gap-1.5 flex-wrap min-w-0">
                         <span class="text-xs font-bold text-slate-900 dark:text-white truncate">${escapeHtml(valve.name)}</span>
                         <!-- Status Pill -->
                         ${renderStatusPill(currentPill)}
                       </div>
-                      <div class="flex items-center gap-1 text-[10px] text-slate-500 font-mono mt-0.5 truncate">
-                        <span>Rate: ${Number(valve.nominalFlowRateLph) || 450} LPH</span>
+                      <div class="flex items-center gap-1 text-[10px] text-slate-500 font-mono mt-0.5 truncate min-w-0">
+                        <span class="truncate">Rate: ${Number(valve.nominalFlowRateLph) || 450} LPH</span>
                         <span>•</span>
-                        <span>${Number(valve.litersDeliveredSession || 0).toFixed(0)} L</span>
+                        <span class="truncate">${Number(valve.litersDeliveredSession || 0).toFixed(0)} L</span>
                       </div>
                     </div>
                   </div>
 
                   <!-- Right: Manual Toggle & Actions -->
-                  <div class="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
+                  <div class="flex items-center gap-1.5 shrink-0 self-end sm:self-auto flex-wrap">
                     <!-- Tactile Actuate Button (Preserves .valve-actuate-btn for CDP automated testing) -->
                     <button 
                       type="button"
                       data-valve-id="${escapeHtml(valve.id)}"
                       data-gate-id="${escapeHtml(valve.gateIdentifier)}"
                       data-action="${escapeHtml(targetAction)}"
-                      class="valve-actuate-btn px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm whitespace-nowrap active:scale-95 ${
+                      class="valve-actuate-btn px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm whitespace-nowrap active:scale-95 shrink-0 ${
                         isOpen 
                           ? 'bg-rose-600 hover:bg-rose-700 text-white' 
                           : 'bg-[#0E5431] hover:bg-[#093820] text-white'
