@@ -7,6 +7,8 @@ import { Router } from 'express';
 import crypto from 'crypto';
 import { enterpriseStore } from '../services/enterpriseStore.js';
 import { sanitizeUserInput } from '../middleware/authMiddleware.js';
+import { schemaManager } from '../services/schemaManager.js';
+import { firestoreClient } from '../services/firestoreClient.js';
 
 const router = Router();
 
@@ -25,7 +27,7 @@ function timingSafeCheck(a, b) {
  * POST /api/auth/login
  * Rate-limited enterprise operator login endpoint
  */
-router.post('/login', sanitizeUserInput, (req, res) => {
+router.post('/login', sanitizeUserInput, async (req, res) => {
   const { email, password } = req.body || {};
 
   if (!email || !password) {
@@ -36,7 +38,7 @@ router.post('/login', sanitizeUserInput, (req, res) => {
   }
 
   const cleanEmail = String(email).trim().toLowerCase();
-  const user = enterpriseStore.users.find(u => u.email.toLowerCase() === cleanEmail);
+  const user = enterpriseStore.users.find(u => (u.email || '').toLowerCase() === cleanEmail);
 
   // Default demo / mock password for enterprise testing
   const expectedPassword = process.env.DEMO_ENTERPRISE_PASSWORD || 'AgriPass2026!';
@@ -55,12 +57,23 @@ router.post('/login', sanitizeUserInput, (req, res) => {
     });
   }
 
+  const uid = user.uid || user.id;
+
+  // Update lastLoginAt in Firestore (ensures table exists and fills login timestamp)
+  try {
+    await schemaManager.saveUserData('users', uid, {
+      lastLoginAt: new Date().toISOString()
+    }, { merge: true });
+  } catch (err) {
+    console.warn('[authRoutes] Could not update lastLoginAt in database:', err.message);
+  }
+
   // Issue simulated enterprise bearer token
   const tokenPayload = {
-    uid: user.uid,
+    uid,
     email: user.email,
     role: user.role,
-    farmId: user.assignedFarms?.[0] || 'farm-valley-1',
+    farmId: user.farmId || user.assignedFarms?.[0] || 'farm-valley-1',
     iat: Math.floor(Date.now() / 1000),
     exp: Math.floor(Date.now() / 1000) + (8 * 3600) // 8-hour shift expiry
   };
@@ -69,16 +82,131 @@ router.post('/login', sanitizeUserInput, (req, res) => {
 
   return res.status(200).json({
     success: true,
-    message: `Welcome back, ${user.displayName}!`,
+    message: `Welcome back, ${user.displayName || user.name}!`,
     token: `Bearer ${token}`,
     user: {
-      uid: user.uid,
-      displayName: user.displayName,
+      uid,
+      displayName: user.displayName || user.name,
       email: user.email,
       role: user.role,
-      farmId: user.assignedFarms?.[0] || 'farm-valley-1'
+      farmId: user.farmId || user.assignedFarms?.[0] || 'farm-valley-1'
     }
   });
+});
+
+/**
+ * POST /api/auth/register
+ * Register a new operator / user account from the user end.
+ * If the 'users' table does not exist, automatically creates it and fills the data.
+ * If it exists, merges the user data.
+ */
+router.post('/register', sanitizeUserInput, async (req, res) => {
+  try {
+    const { email, password, displayName, role, farmId, farmName, uid } = req.body || {};
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email address is required for user registration.'
+      });
+    }
+
+    const cleanEmail = String(email).trim().toLowerCase();
+
+    // Check if user already exists
+    const existingUser = enterpriseStore.users.find(u => (u.email || '').toLowerCase() === cleanEmail);
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        error: `User account with email ${cleanEmail} already exists.`
+      });
+    }
+
+    const userProfile = await schemaManager.saveUserRegistration({
+      uid: uid || `usr_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+      email: cleanEmail,
+      displayName: displayName || cleanEmail.split('@')[0],
+      role: role || 'Agronomist',
+      farmId: farmId || 'farm-valley-1',
+      farmName: farmName || 'AgriSpectra Precision Block A (1-Acre High-Density)',
+      status: 'active',
+      createdAt: new Date().toISOString()
+    });
+
+    // Record audit trail
+    await schemaManager.saveAuditLog({
+      action: 'USER_REGISTRATION',
+      actor: userProfile.email,
+      details: `New operator registered with role ${userProfile.role} on farm ${userProfile.farmId}`,
+      ipAddress: req.ip || '127.0.0.1'
+    });
+
+    res.status(201).json({
+      success: true,
+      message: `User account created and recorded in database.`,
+      user: userProfile
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * POST /api/auth/sync-user
+ * Ingests and synchronizes user profiles from the frontend / mobile client.
+ * Auto-creates the 'users' table if missing, and fills/merges user profile data.
+ */
+router.post('/sync-user', sanitizeUserInput, async (req, res) => {
+  try {
+    const userData = req.body;
+    if (!userData || (!userData.uid && !userData.email)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing uid or email in sync payload.'
+      });
+    }
+
+    const userProfile = await schemaManager.saveUserRegistration(userData);
+
+    res.status(200).json({
+      success: true,
+      message: 'User profile synchronized into database successfully.',
+      user: userProfile
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * GET /api/auth/users
+ * Returns list of registered users directly from Cloud Firestore (or resilient store)
+ */
+router.get('/users', async (req, res) => {
+  try {
+    await firestoreClient.ensureReady();
+    if (firestoreClient.adminDb) {
+      const snap = await firestoreClient.adminDb.collection('users').get();
+      if (!snap.empty) {
+        const users = snap.docs.map(d => ({ uid: d.id, id: d.id, ...d.data() }));
+        return res.status(200).json({
+          success: true,
+          source: 'cloud-firestore',
+          count: users.length,
+          users
+        });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      source: 'enterprise-store',
+      count: enterpriseStore.users.length,
+      users: enterpriseStore.users
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 /**

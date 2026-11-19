@@ -39,6 +39,10 @@ import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import {
   doc,
   getDoc,
+  getDocs,
+  collection,
+  query,
+  where,
   setDoc,
   updateDoc,
   serverTimestamp
@@ -390,9 +394,11 @@ class AuthService {
 
         const nativeUser = result.user || {};
         const googleEmail = tokenPayload.email || nativeUser.email || (result.additionalUserInfo?.profile?.email) || "grower@agrispectra.io";
-        const googleName = tokenPayload.name || nativeUser.displayName || nativeUser.name || googleEmail.split('@')[0];
+        const cleanGoogleEmail = String(googleEmail).trim().toLowerCase();
+        const isHarshith = cleanGoogleEmail === 'harshithkd032@gmail.com';
+        const googleName = tokenPayload.name || nativeUser.displayName || nativeUser.name || (isHarshith ? "Harshith (System Admin)" : googleEmail.split('@')[0]);
         const googlePhoto = tokenPayload.picture || nativeUser.photoUrl || nativeUser.imageUrl || null;
-        const googleUid = tokenPayload.sub || nativeUser.uid || this._generateSecureUid('usr_g');
+        let googleUid = isHarshith ? 'system-admin-harshith' : (tokenPayload.sub || nativeUser.uid || this._generateSecureUid('usr_g'));
 
         // Link with web Firebase Auth instance if ID token is present and accepted
         if (idToken && this.auth) {
@@ -404,21 +410,29 @@ class AuthService {
           }
         }
 
-        const role = options?.role || "Agronomist";
+        const role = isHarshith ? "SuperAdmin" : (options?.role || "Agronomist");
+        const farmId = isHarshith ? "farm-valley-1" : (options?.farmId || DEFAULT_FARM_ID);
+        const farmName = isHarshith ? "AgriSpectra Precision Block A (1-Acre High-Density)" : (options?.farmName || "Sonoma Valley Parcel");
+
         const profile = await this.syncUserProfile({
           uid: googleUid,
           email: googleEmail,
           displayName: googleName,
           photoURL: googlePhoto
-        }, { role, farmId: DEFAULT_FARM_ID });
+        }, { role, farmId, farmName });
+
+        if (profile?.uid) {
+          googleUid = profile.uid;
+        }
 
         this.currentUser = {
           uid: googleUid,
           email: googleEmail,
           displayName: googleName,
           photoURL: googlePhoto,
-          role,
-          farmName: "Sonoma Valley Parcel"
+          role: profile?.role || role,
+          farmId: profile?.farmId || farmId,
+          farmName: profile?.farmName || farmName
         };
         this.currentUserProfile = profile;
         this.isOfflineSession = false;
@@ -471,13 +485,29 @@ class AuthService {
       }
 
       const user = result.user;
-      const role = options?.role || "Agronomist";
-      const profile = await this.syncUserProfile(user, { role, farmId: DEFAULT_FARM_ID });
+      const cleanEmail = String(user.email || '').trim().toLowerCase();
+      const isHarshith = cleanEmail === 'harshithkd032@gmail.com';
+      let googleUid = isHarshith ? 'system-admin-harshith' : user.uid;
+      const role = isHarshith ? "SuperAdmin" : (options?.role || "Agronomist");
+      const farmId = isHarshith ? "farm-valley-1" : (options?.farmId || DEFAULT_FARM_ID);
+      const farmName = isHarshith ? "AgriSpectra Precision Block A (1-Acre High-Density)" : (options?.farmName || "Sonoma Valley Parcel");
+
+      const profile = await this.syncUserProfile({
+        ...user,
+        uid: googleUid
+      }, { role, farmId, farmName });
+
+      if (profile?.uid) {
+        googleUid = profile.uid;
+      }
+
       this.currentUser = {
         ...user,
-        displayName: user.displayName || user.email?.split('@')[0] || "Grower",
-        role,
-        farmName: "Sonoma Valley Parcel"
+        uid: googleUid,
+        displayName: user.displayName || user.email?.split('@')[0] || (isHarshith ? "Harshith (System Admin)" : "Grower"),
+        role: profile?.role || role,
+        farmId: profile?.farmId || farmId,
+        farmName: profile?.farmName || farmName
       };
       this.currentUserProfile = profile;
       this.isOfflineSession = false;
@@ -702,10 +732,20 @@ class AuthService {
   }
 
   /**
+   * Register with Email & Password
+   * Cleanly routes to signUpWithEmail(email, password, displayName, role, farmName)
+   */
+  async registerWithEmail(email, password, displayName = "", role = "Farm Owner", farmName = "Central Valley Alpha Block") {
+    return this.signUpWithEmail(email, password, displayName, role, farmName);
+  }
+
+  /**
    * Sign Up with Email, Password, Display Name, and Role / Farm Name
    * Polymorphic signature supports:
-   *  - signUpWithEmail(email, password, displayName, role)
+   *  - signUpWithEmail(email, password, displayName, role, farmName)
    *  - signUpWithEmail(email, password, displayName, farmName, role)
+   *  - signUpWithEmail(email, password, displayName, role)
+   *  - signUpWithEmail(email, password, displayName, farmName)
    */
   async signUpWithEmail(email, password, displayName = "", param4 = "Central Valley Alpha Block", param5 = "Farm Owner") {
     console.log(`[AuthService] Registering new account for: ${email}`);
@@ -722,9 +762,13 @@ class AuthService {
 
     const knownRoles = [
       "farm owner",
+      "farm_owner",
       "agronomist",
       "field operator",
+      "field_operator",
       "field technician",
+      "field_technician",
+      "field tech",
       "superadmin",
       "admin",
       "viewer",
@@ -732,29 +776,56 @@ class AuthService {
       "technician"
     ];
 
-    if (param5 === undefined || arguments.length === 4) {
-      if (typeof param4 === 'string' && knownRoles.includes(param4.trim().toLowerCase())) {
-        role = param4.trim();
-      } else {
-        farmName = param4 || "Central Valley Alpha Block";
+    const isRole = (val) => typeof val === 'string' && knownRoles.includes(val.trim().toLowerCase().replace(/[_\s]+/g, ' '));
+
+    if (isRole(param4)) {
+      role = param4.trim();
+      if (param5 && !isRole(param5)) {
+        farmName = param5.trim();
+      }
+    } else if (isRole(param5)) {
+      role = param5.trim();
+      if (param4 && !isRole(param4)) {
+        farmName = param4.trim();
       }
     } else {
-      farmName = param4 || "Central Valley Alpha Block";
-      role = param5 || "Farm Owner";
+      if (param4 && !param5) {
+        farmName = param4.trim();
+      } else if (param4 && param5) {
+        farmName = param4.trim();
+        role = param5.trim();
+      }
+    }
+
+    if (role.toLowerCase() === 'field tech') {
+      role = 'Field Operator';
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const isHarshith = cleanEmail === 'harshithkd032@gmail.com';
+    if (isHarshith) {
+      role = 'SuperAdmin';
+      farmName = 'AgriSpectra Precision Block A (1-Acre High-Density)';
     }
 
     const isBrowser = typeof window !== 'undefined' && typeof navigator !== 'undefined';
-    const formattedName = displayName.trim() || email.split('@')[0];
+    const formattedName = (displayName || '').trim() || (isHarshith ? "Harshith (System Admin)" : cleanEmail.split('@')[0]);
 
     // Node test runner or offline execution
     if (!isBrowser || !this.auth) {
-      const offlineUid = this._generateSecureUid('usr');
-      const offlineFarmId = 'farm_' + offlineUid;
-      return this._activateOfflineFallback(formattedName, email, role, farmName, false, offlineUid, offlineFarmId);
+      const offlineUid = isHarshith ? 'system-admin-harshith' : this._generateSecureUid('usr');
+      const offlineFarmId = isHarshith ? 'farm-valley-1' : ('farm_' + offlineUid);
+      const res = this._activateOfflineFallback(formattedName, cleanEmail, role, farmName, false, offlineUid, offlineFarmId);
+      this.syncUserProfile({
+        uid: offlineUid,
+        email: cleanEmail,
+        displayName: formattedName
+      }, { role, farmName, farmId: offlineFarmId, isNewUser: true }).catch(() => {});
+      return res;
     }
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(this.auth, email.trim(), password);
+      const userCredential = await createUserWithEmailAndPassword(this.auth, cleanEmail, password);
       const user = userCredential.user;
 
       try {
@@ -763,7 +834,9 @@ class AuthService {
         console.warn("[AuthService] Could not update profile displayName:", profileErr);
       }
 
-      const userFarmId = 'farm_' + user.uid;
+      const targetUid = isHarshith ? 'system-admin-harshith' : user.uid;
+      const userFarmId = isHarshith ? 'farm-valley-1' : ('farm_' + targetUid);
+
       const profile = await this.syncUserProfile(user, {
         displayName: formattedName,
         role: role,
@@ -774,15 +847,20 @@ class AuthService {
 
       this.currentUser = {
         ...user,
+        uid: profile?.uid || targetUid,
         displayName: formattedName,
-        role: role,
-        farmName: farmName,
-        farmId: userFarmId
+        role: profile?.role || role,
+        farmName: profile?.farmName || farmName,
+        farmId: profile?.farmId || userFarmId
       };
       this.currentUserProfile = profile;
       this.isOfflineSession = false;
       this._saveCachedSession(this.currentUser);
       this._notifyListeners();
+
+      try {
+        firestoreService.setActiveUser(this.currentUser);
+      } catch (e) {}
 
       const finalUser = this.getCurrentUser();
       return {
@@ -797,7 +875,9 @@ class AuthService {
         error.code === 'auth/network-request-failed' ||
         error.code === 'auth/configuration-not-found'
       ) {
-        return this._activateOfflineFallback(formattedName, email, role, farmName);
+        const offlineUid = isHarshith ? 'system-admin-harshith' : this._generateSecureUid('usr');
+        const offlineFarmId = isHarshith ? 'farm-valley-1' : ('farm_' + offlineUid);
+        return this._activateOfflineFallback(formattedName, cleanEmail, role, farmName, false, offlineUid, offlineFarmId);
       }
       return {
         success: false,
@@ -1156,82 +1236,253 @@ class AuthService {
 
   /**
    * Sync User Profile document in Cloud Firestore: `users/{userId}`
+   * Strictly adheres to authoritative schema:
+   * ['uid', 'email', 'role', 'displayName', 'name', 'farmId', 'farmIds', 'farmName', 'orgId', 'organizationId', 'phoneNumber', 'photoURL', 'status', 'lastLoginAt', 'createdAt', 'updatedAt']
    */
   async syncUserProfile(user, additionalData = {}) {
-    if (!user || !user.uid) return null;
+    if (!user || (!user.uid && !user.email)) return null;
 
-    const userDocRef = this.db ? doc(this.db, "users", user.uid) : null;
+    const rawEmail = user.email || additionalData.email || "";
+    const cleanEmail = String(rawEmail).trim().toLowerCase();
+    const isHarshith = cleanEmail === 'harshithkd032@gmail.com';
+
+    let targetUid = user.uid || (isHarshith ? 'system-admin-harshith' : this._generateSecureUid('usr'));
+    if (isHarshith && (!user.uid || user.uid.startsWith('usr') || user.uid.startsWith('guest'))) {
+      targetUid = 'system-admin-harshith';
+    }
+
     let existingData = null;
+    let targetDocRef = null;
 
-    if (userDocRef) {
+    if (this.db) {
       try {
-        const snap = await getDoc(userDocRef);
-        if (snap.exists()) {
-          existingData = snap.data();
+        // 1. If harshith, check system-admin-harshith document first
+        if (isHarshith) {
+          try {
+            const adminRef = doc(this.db, "users", "system-admin-harshith");
+            const adminSnap = await getDoc(adminRef);
+            if (adminSnap.exists()) {
+              existingData = adminSnap.data();
+              targetUid = 'system-admin-harshith';
+              targetDocRef = adminRef;
+            }
+          } catch (e) {
+            console.warn("[AuthService] Error checking system-admin-harshith doc:", e.message);
+          }
+        }
+
+        // 2. Check document by targetUid
+        if (!existingData && targetUid) {
+          try {
+            const userDocRef = doc(this.db, "users", targetUid);
+            const snap = await getDoc(userDocRef);
+            if (snap.exists()) {
+              existingData = snap.data();
+              targetDocRef = userDocRef;
+            }
+          } catch (e) {
+            console.warn("[AuthService] Error fetching user doc by targetUid:", e.message);
+          }
+        }
+
+        // 3. If still not found and email is present, check if document with this email already exists
+        if (!existingData && cleanEmail) {
+          try {
+            const usersCol = collection(this.db, "users");
+            const q = query(usersCol, where("email", "==", cleanEmail));
+            const querySnap = await getDocs(q);
+            if (!querySnap.empty) {
+              const matchedDoc = querySnap.docs[0];
+              existingData = matchedDoc.data();
+              targetUid = matchedDoc.id;
+              targetDocRef = matchedDoc.ref;
+            }
+          } catch (e) {
+            console.warn("[AuthService] Error querying user by email in Firestore:", e.message);
+          }
+        }
+
+        // 4. Default ref if not established
+        if (!targetDocRef && targetUid) {
+          targetDocRef = doc(this.db, "users", targetUid);
         }
       } catch (err) {
-        console.warn("[AuthService] Error fetching existing user profile:", err.message);
+        console.warn("[AuthService] Error during existing user check in Firestore:", err.message);
       }
     }
 
     const now = new Date();
-    const effectiveDisplayName = additionalData.displayName || user.displayName || existingData?.displayName || (user.email ? user.email.split('@')[0] : "Farmer");
-    const effectiveRole = additionalData.role || existingData?.role || DEFAULT_ROLE;
-    const effectiveFarmId = additionalData.farmId || existingData?.farmId || DEFAULT_FARM_ID;
-    const effectiveFarmName = additionalData.farmName || existingData?.farmName || "Central Valley Alpha Block";
+    const nowIso = now.toISOString();
 
+    const effectiveDisplayName = additionalData.displayName ||
+      user.displayName ||
+      existingData?.displayName ||
+      existingData?.name ||
+      (isHarshith ? "Harshith (System Admin)" : (cleanEmail ? cleanEmail.split('@')[0] : "Farmer"));
+
+    const effectiveRole = isHarshith
+      ? 'SuperAdmin'
+      : (additionalData.role || user.role || existingData?.role || DEFAULT_ROLE);
+
+    const effectiveFarmId = isHarshith
+      ? 'farm-valley-1'
+      : (additionalData.farmId || user.farmId || existingData?.farmId || (targetUid ? `farm_${targetUid}` : DEFAULT_FARM_ID));
+
+    const effectiveFarmIds = existingData?.farmIds ||
+      (Array.isArray(additionalData.farmIds) ? additionalData.farmIds : [effectiveFarmId]);
+
+    const effectiveFarmName = isHarshith
+      ? 'AgriSpectra Precision Block A (1-Acre High-Density)'
+      : (additionalData.farmName || user.farmName || existingData?.farmName || "Central Valley Alpha Block");
+
+    const effectiveOrgId = additionalData.orgId ||
+      existingData?.orgId ||
+      "org-agrispectra-global";
+
+    const effectiveOrganizationId = additionalData.organizationId ||
+      existingData?.organizationId ||
+      effectiveOrgId;
+
+    const effectivePhoneNumber = user.phoneNumber ||
+      additionalData.phoneNumber ||
+      existingData?.phoneNumber ||
+      null;
+
+    const effectivePhotoURL = user.photoURL ||
+      additionalData.photoURL ||
+      existingData?.photoURL ||
+      null;
+
+    const effectiveStatus = additionalData.status ||
+      existingData?.status ||
+      "active";
+
+    // Firestore timestamps vs ISO fallback
+    const tsLastLogin = this.db ? serverTimestamp() : nowIso;
+    const tsUpdatedAt = this.db ? serverTimestamp() : nowIso;
+    const tsCreatedAt = existingData?.createdAt || (this.db ? serverTimestamp() : nowIso);
+
+    // Strictly conform to:
+    // ['uid', 'email', 'role', 'displayName', 'name', 'farmId', 'farmIds', 'farmName', 'orgId', 'organizationId', 'phoneNumber', 'photoURL', 'status', 'lastLoginAt', 'createdAt', 'updatedAt']
     const profileData = {
-      uid: user.uid,
-      email: user.email || "farmer@agrispectra.io",
-      displayName: effectiveDisplayName,
-      photoURL: user.photoURL || existingData?.photoURL || null,
+      uid: targetUid,
+      email: cleanEmail || user.email || existingData?.email || "farmer@agrispectra.io",
       role: effectiveRole,
+      displayName: effectiveDisplayName,
+      name: effectiveDisplayName,
       farmId: effectiveFarmId,
-      farmIds: existingData?.farmIds || [effectiveFarmId],
+      farmIds: effectiveFarmIds,
       farmName: effectiveFarmName,
-      lastLoginAt: this.db ? serverTimestamp() : now.toISOString(),
-      updatedAt: this.db ? serverTimestamp() : now.toISOString()
+      orgId: effectiveOrgId,
+      organizationId: effectiveOrganizationId,
+      phoneNumber: effectivePhoneNumber,
+      photoURL: effectivePhotoURL,
+      status: effectiveStatus,
+      lastLoginAt: tsLastLogin,
+      createdAt: tsCreatedAt,
+      updatedAt: tsUpdatedAt
     };
 
-    if (!existingData) {
-      profileData.createdAt = this.db ? serverTimestamp() : now.toISOString();
-    }
-
-    if (userDocRef) {
+    let firestoreSuccess = false;
+    if (targetDocRef) {
       try {
-        if (!existingData) {
-          await setDoc(userDocRef, profileData, { merge: true });
-          console.log(`[AuthService] Created Firestore profile for user: ${user.uid}`);
-        } else {
-          await updateDoc(userDocRef, {
-            lastLoginAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-            ...(additionalData.displayName ? { displayName: additionalData.displayName } : {}),
-            ...(additionalData.photoURL ? { photoURL: additionalData.photoURL } : {})
-          });
-        }
+        await setDoc(targetDocRef, profileData, { merge: true });
+        console.log(`[AuthService] Saved/merged Firestore profile for user: ${targetUid}`);
+        firestoreSuccess = true;
       } catch (err) {
         console.warn("[AuthService] Firestore user profile sync note:", err.message);
       }
     }
 
+    // Cache locally in localStorage / secureStorage
     try {
       if (typeof localStorage !== 'undefined') {
         const offlineEnvelope = {
           ...profileData,
-          createdAt: now.toISOString(),
-          lastLoginAt: now.toISOString(),
-          updatedAt: now.toISOString()
+          createdAt: typeof profileData.createdAt === 'string' ? profileData.createdAt : nowIso,
+          lastLoginAt: nowIso,
+          updatedAt: nowIso
         };
         localStorage.setItem(STORAGE_OFFLINE_PROFILE_KEY, JSON.stringify(offlineEnvelope));
-        // Encrypt offline profile at rest via Web Crypto AES-GCM
         secureStorage.secureSetItem(STORAGE_OFFLINE_PROFILE_KEY, offlineEnvelope).catch(() => {});
       }
     } catch (e) {
       // Ignore
     }
 
+    // Always ensure backend sync is dispatched (especially when Firestore fails or is offline,
+    // and as non-blocking synchronization when online)
+    this.syncProfileToBackend(profileData).catch((err) => {
+      console.warn("[AuthService] Backend profile sync note:", err.message);
+    });
+
     return profileData;
+  }
+
+  /**
+   * Synchronize user profile directly to Enterprise Backend Server
+   * Tries local machine endpoints (localhost:5050, 192.168.0.116:5050) and cloud fallback
+   */
+  async syncProfileToBackend(profileData) {
+    if (!profileData) return false;
+    const nowIso = new Date().toISOString();
+    const payload = {
+      uid: profileData.uid,
+      email: profileData.email,
+      role: profileData.role,
+      displayName: profileData.displayName,
+      name: profileData.name || profileData.displayName,
+      farmId: profileData.farmId,
+      farmIds: profileData.farmIds,
+      farmName: profileData.farmName,
+      orgId: profileData.orgId,
+      organizationId: profileData.organizationId,
+      phoneNumber: profileData.phoneNumber,
+      photoURL: profileData.photoURL,
+      status: profileData.status,
+      createdAt: typeof profileData.createdAt === 'string' ? profileData.createdAt : nowIso,
+      updatedAt: typeof profileData.updatedAt === 'string' ? profileData.updatedAt : nowIso,
+      lastLoginAt: typeof profileData.lastLoginAt === 'string' ? profileData.lastLoginAt : nowIso
+    };
+
+    const targetUrls = [
+      'http://localhost:5050',
+      'http://192.168.0.116:5050'
+    ];
+
+    if (typeof window !== 'undefined' && window.location?.hostname) {
+      const hostname = window.location.hostname;
+      if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+        if (hostname.match(/^\d+\.\d+\.\d+\.\d+$/)) {
+          targetUrls.unshift(`http://${hostname}:5050`);
+        }
+        targetUrls.unshift('http://192.168.0.116:5050');
+      }
+    }
+    targetUrls.push('https://agricultural-equipment-water-irrigation.onrender.com');
+
+    const uniqueUrls = [...new Set(targetUrls)];
+
+    for (const baseUrl of uniqueUrls) {
+      try {
+        const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        const timeoutId = controller ? setTimeout(() => controller.abort(), 2000) : null;
+        const res = await fetch(`${baseUrl}/api/auth/sync-user`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: controller ? controller.signal : undefined
+        });
+        if (timeoutId) clearTimeout(timeoutId);
+        if (res.ok) {
+          console.log(`[AuthService] Synchronized user profile to backend at ${baseUrl}`);
+          return true;
+        }
+      } catch (err) {
+        // Fallback to next endpoint
+      }
+    }
+    return false;
   }
 
   /**
@@ -1294,10 +1545,13 @@ class AuthService {
     customUid = null,
     customFarmId = null
   ) {
-    const offlineUid = customUid || this._generateSecureUid('usr');
+    const isHarshith = String(email || '').trim().toLowerCase() === 'harshithkd032@gmail.com';
+    const offlineUid = customUid || (isHarshith ? 'system-admin-harshith' : this._generateSecureUid('usr'));
     let farmId = customFarmId;
     if (!farmId) {
-      if (offlineUid === 'user-carlos-1' || offlineUid === 'usr-ent-01' || email?.includes('carlos')) {
+      if (isHarshith) {
+        farmId = 'farm-valley-1';
+      } else if (offlineUid === 'user-carlos-1' || offlineUid === 'usr-ent-01' || email?.includes('carlos')) {
         farmId = 'farm-carlos-valley-1';
       } else if (offlineUid === 'user-elena-2' || offlineUid === 'usr-ent-03' || email?.includes('elena')) {
         farmId = 'farm-elena-research-2';
@@ -1312,14 +1566,17 @@ class AuthService {
       }
     }
 
+    const assignedRole = isHarshith ? 'SuperAdmin' : role;
+    const assignedFarm = isHarshith ? 'AgriSpectra Precision Block A (1-Acre High-Density)' : (farmName || 'Personal Farm Parcel');
+
     const offlineUser = {
       uid: offlineUid,
       email: email,
       displayName: name,
       photoURL: null,
-      role: role,
+      role: assignedRole,
       farmId: farmId,
-      farmName: farmName || 'Personal Farm Parcel',
+      farmName: assignedFarm,
       isOffline: true,
       isAnonymous: Boolean(isAnonymous || customUid === GUEST_USER.uid)
     };
@@ -1376,6 +1633,7 @@ export const authService = new AuthService();
 // Convenience top-level API exports for direct modular importing
 export const signInWithGoogle = (options) => authService.signInWithGoogle(options);
 export const signInWithEmail = (email, password) => authService.signInWithEmail(email, password);
+export const registerWithEmail = (...args) => authService.registerWithEmail(...args);
 export const signUpWithEmail = (...args) => authService.signUpWithEmail(...args);
 export const sendPasswordReset = (email) => authService.sendPasswordReset(email);
 export const verifyResetCode = (oobCode) => authService.verifyResetCode(oobCode);

@@ -384,6 +384,7 @@ export function registerHardwareAdapterTests() {
   describe('Drip Irrigation Controller - Bi-Stable Actuation, Flow Meter & Failsafes', () => {
     it('registers unlimited independent valves and actuates with +12V open / -12V close pulses', async () => {
       const controller = new IrrigationControllerAdapter();
+      controller.setMinOpenValves(0);
       await controller.connect({ mode: IRRIG_MODES.USB_TYPE_C, forceSimulation: true });
 
       // Register multiple custom valves dynamically
@@ -430,6 +431,7 @@ export function registerHardwareAdapterTests() {
 
     it('executes 1-tap Emergency All-Stop simultaneously across multiple open valves', async () => {
       const controller = new IrrigationControllerAdapter();
+      controller.setMinOpenValves(0);
       await controller.connect({ mode: IRRIG_MODES.USB_TYPE_C, forceSimulation: true });
 
       controller.registerValve({ id: 'V-A', gateIdentifier: 'G1' });

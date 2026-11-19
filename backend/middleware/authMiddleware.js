@@ -214,15 +214,32 @@ export function sanitizeUserInput(req, res, next) {
   }
 
   if (req.body.newRole || req.body.role) {
-    const roleToCheck = req.body.newRole || req.body.role;
-    if (!VALID_ROLES.includes(roleToCheck.toLowerCase())) {
+    const roleKey = (req.body.newRole || req.body.role || '').toLowerCase().trim();
+    const roleMapping = {
+      'superadmin': 'superadmin',
+      'admin': 'superadmin',
+      'system admin': 'superadmin',
+      'farm_owner': 'farm_owner',
+      'farm owner': 'farm_owner',
+      'farmer': 'farm_owner',
+      'agronomist': 'agronomist',
+      'field_operator': 'field_operator',
+      'field operator': 'field_operator',
+      'field_technician': 'field_operator',
+      'field technician': 'field_operator'
+    };
+
+    const mapped = roleMapping[roleKey] || roleMapping[roleKey.replace(/\s+/g, '_')];
+
+    if (!mapped && !VALID_ROLES.includes(roleKey)) {
       return res.status(400).json({
         success: false,
         error: `Invalid role specified. Valid roles: ${VALID_ROLES.join(', ')}`
       });
     }
-    if (req.body.newRole) req.body.newRole = req.body.newRole.toLowerCase();
-    if (req.body.role) req.body.role = req.body.role.toLowerCase();
+    const finalRole = mapped || roleKey;
+    if (req.body.newRole) req.body.newRole = finalRole;
+    if (req.body.role) req.body.role = finalRole;
   }
 
   next();

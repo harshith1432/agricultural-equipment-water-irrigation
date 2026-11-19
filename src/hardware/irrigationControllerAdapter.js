@@ -110,10 +110,6 @@ export class IrrigationControllerAdapter {
     if (this.minOpenValves !== null && this.minOpenValves !== undefined) {
       return this.minOpenValves;
     }
-    // In Node test runner, default to 0 unless explicitly configured
-    if (typeof process !== 'undefined' && process?.versions?.node) {
-      return 0;
-    }
     try {
       if (typeof localStorage !== 'undefined') {
         const stored = localStorage.getItem('agrispectra_min_open_valves');
@@ -125,11 +121,7 @@ export class IrrigationControllerAdapter {
         }
       }
     } catch (e) {}
-    // In browser/webview runtime (outside Node test runner) default to 1 (Pipe burst safety enabled)
-    if (typeof window !== 'undefined' && (typeof process === 'undefined' || !process?.versions?.node)) {
-      return 1;
-    }
-    return 0;
+    return 1;
   }
 
   /**
@@ -144,9 +136,6 @@ export class IrrigationControllerAdapter {
       }
     } catch (e) {}
     this.emit('hydraulicSafetyConfigChange', { minOpenValves: val });
-    if (val > 0) {
-      this.ensureMinimumValvesOpen();
-    }
     return val;
   }
 
@@ -227,7 +216,8 @@ export class IrrigationControllerAdapter {
     plotId = null,
     nominalFlowRateLph = 420.0,
     kFactor = CONTROLLER_DEFAULTS.DEFAULT_FLOW_K_FACTOR,
-    pulsesPerLiter = CONTROLLER_DEFAULTS.DEFAULT_PULSES_PER_LITER
+    pulsesPerLiter = CONTROLLER_DEFAULTS.DEFAULT_PULSES_PER_LITER,
+    state = VALVE_STATES.CLOSED
   }) {
     if (!id) throw new Error('Valve ID is required');
 
@@ -236,7 +226,7 @@ export class IrrigationControllerAdapter {
       gateIdentifier,
       name,
       plotId,
-      state: VALVE_STATES.CLOSED,
+      state: state || VALVE_STATES.CLOSED,
       lastStateChange: new Date().toISOString(),
       currentFlowRateLph: 0.0,
       currentFlowRateLpm: 0.0,
@@ -546,9 +536,9 @@ export class IrrigationControllerAdapter {
 
     const openValves = Array.from(this.valves.values()).filter(v => v.state === VALVE_STATES.OPEN || v.state === VALVE_STATES.FAULT);
 
-    for (const valve of openValves) {
+    await Promise.all(openValves.map(async (valve) => {
       try {
-        const res = await this.closeValve(valve.id, { reason: `EMERGENCY_STOP: ${reason}` });
+        const res = await this.closeValve(valve.id, { reason: `EMERGENCY_STOP: ${reason}`, force: true });
         results.push({ valveId: valve.id, success: true, deliveredLiters: res.deliveredLiters });
       } catch (err) {
         // Force state closed locally even if ACK errored
@@ -556,7 +546,7 @@ export class IrrigationControllerAdapter {
         valve.currentFlowRateLph = 0;
         results.push({ valveId: valve.id, success: false, error: err.message });
       }
-    }
+    }));
 
     this._recomputeMainlineTelemetry();
 

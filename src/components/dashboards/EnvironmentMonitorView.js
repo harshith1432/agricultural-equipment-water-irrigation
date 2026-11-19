@@ -18,6 +18,8 @@ import {
   calculateVaporPressureDeficit,
   calculateDewPoint
 } from '../../hardware/tempHumiditySensorUSB.js';
+import { locationService } from '../../services/locationService.js';
+import { openGPSPermissionModal } from '../GPSPermissionModal.js';
 
 export function createEnvironmentMonitorView() {
   const container = document.createElement('div');
@@ -26,6 +28,7 @@ export function createEnvironmentMonitorView() {
   let connectionMode = tempHumiditySensorUSB.connectionMode || CONNECTION_MODES.USB_TYPE_C;
   let currentReading = null;
   let pollingIntervalId = null;
+  let isRefreshingGPS = false;
 
   // Threshold alerts configuration state
   const defaultThresholds = { highTempC: 38.0, lowTempC: 4.0, highRhPercent: 85.0, lowRhPercent: 25.0, highVpdKpa: 1.6, lowVpdKpa: 0.4 };
@@ -69,10 +72,14 @@ export function createEnvironmentMonitorView() {
   function render() {
     try {
       const temp = currentReading?.temperatureC ?? 24.2;
-    const rh = currentReading?.relativeHumidityPercent ?? 48.5;
-    const vpd = currentReading?.vpdKPa ?? calculateVaporPressureDeficit(temp, rh);
-    const dew = currentReading?.dewPointC ?? calculateDewPoint(temp, rh);
-    const alerts = currentReading?.activeAlerts || [];
+      const rh = currentReading?.relativeHumidityPercent ?? 48.5;
+      const vpd = currentReading?.vpdKPa ?? calculateVaporPressureDeficit(temp, rh);
+      const dew = currentReading?.dewPointC ?? calculateDewPoint(temp, rh);
+      const alerts = currentReading?.activeAlerts || [];
+
+      const location = locationService.getLocation();
+      const weather = locationService.getWeather();
+      const isGPS = locationService.isGPSVerified();
 
     container.innerHTML = `
       <!-- 1. Sleek Compact Auto-Detected Status Bar (No huge 3-button switcher) -->
@@ -99,30 +106,60 @@ export function createEnvironmentMonitorView() {
       <!-- Card A: Outdoor Weather Forecast (Open-Meteo / IMD) - Styled faithfully after user's reference image -->
       <div class="bg-gradient-to-br from-[#0E5431] to-[#0A3D23] text-white rounded-3xl p-5 shadow-lg border border-emerald-800/40 space-y-4">
         <!-- Top Badge & Location -->
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <div class="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-emerald-300">
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2 min-w-0">
+            <div class="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-emerald-300 shrink-0">
               ${icon('mapPin', 'w-3.5 h-3.5')}
             </div>
-            <div>
-              <div class="text-xs font-bold tracking-tight">${t('dash_parcel_title')}</div>
-              <div class="text-[10px] text-emerald-200/80 font-mono">Open-Meteo High-Resolution Grid</div>
+            <div class="min-w-0">
+              <div class="text-xs font-bold tracking-tight truncate">${location.displayName || t('dash_parcel_title', 'Sonoma Valley Parcel')}</div>
+              <div class="text-[10px] text-emerald-200/80 font-mono truncate">
+                Open-Meteo Grid • ${location.latitude.toFixed(4)}°N, ${Math.abs(location.longitude).toFixed(4)}°W • ±${location.accuracy}m
+              </div>
             </div>
           </div>
 
-          <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-white/15 text-emerald-100 border border-white/20">
-            ${t('weather_api')}
-          </span>
+          <div class="flex items-center gap-1.5 shrink-0">
+            ${isGPS ? `
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/15 text-emerald-100 border border-white/20 flex items-center gap-1">
+                ${icon('satellite', 'w-3 h-3 text-emerald-300')}
+                <span>${t('gps_verified', 'GPS Active')}</span>
+              </span>
+            ` : `
+              <button 
+                type="button" 
+                id="btn-env-request-gps"
+                class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-400/20 text-amber-100 border border-amber-300/40 flex items-center gap-1 hover:bg-amber-400/30 cursor-pointer transition active:scale-95"
+                title="${t('allow_gps', 'Enable GPS')}"
+              >
+                ${icon('crosshair', 'w-3 h-3 text-amber-200')}
+                <span>GPS</span>
+              </button>
+            `}
+
+            <button 
+              type="button" 
+              id="btn-refresh-gps-env"
+              class="p-1 rounded-lg bg-white/10 hover:bg-white/20 text-emerald-100 transition cursor-pointer active:scale-95"
+              title="${t('gps_refresh', 'Refresh GPS Location')}"
+            >
+              ${icon('refresh', `w-3.5 h-3.5 ${isRefreshingGPS ? 'animate-spin text-emerald-300' : ''}`)}
+            </button>
+
+            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-white/15 text-emerald-100 border border-white/20">
+              Open-Meteo • ${t('weather_api')}
+            </span>
+          </div>
         </div>
 
         <!-- Large Temp & Condition -->
         <div class="flex items-center justify-between pt-1">
           <div class="flex flex-col">
             <div class="flex items-baseline gap-1">
-              <span class="text-4xl font-black tracking-tight font-mono">+${temp.toFixed(0)}°C</span>
-              <span class="text-xs text-emerald-200 font-mono">H: 28°C • L: 16°C</span>
+              <span class="text-4xl font-black tracking-tight font-mono">${(weather.temperatureC > 0 ? '+' : '') + weather.temperatureC}°C</span>
+              <span class="text-xs text-emerald-200 font-mono">H: ${weather.tempMaxC}°C • L: ${weather.tempMinC}°C</span>
             </div>
-            <span class="text-xs text-emerald-100/90 font-medium mt-0.5">${t('env_weather_condition')}</span>
+            <span class="text-xs text-emerald-100/90 font-medium mt-0.5">${weather.conditionText || t('env_weather_condition')}</span>
           </div>
 
           <!-- Weather Icon Vector -->
@@ -135,19 +172,19 @@ export function createEnvironmentMonitorView() {
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-3 border-t border-emerald-700/40 text-center">
           <div class="bg-white/10 rounded-2xl py-2 px-2 min-w-0 overflow-hidden">
             <div class="text-[10px] text-emerald-200 font-medium truncate">${t('humidity')}</div>
-            <div class="text-xs sm:text-sm font-black font-mono mt-0.5 truncate">${rh.toFixed(0)}%</div>
+            <div class="text-xs sm:text-sm font-black font-mono mt-0.5 truncate">${weather.humidityPercent}%</div>
           </div>
           <div class="bg-white/10 rounded-2xl py-2 px-2 min-w-0 overflow-hidden">
             <div class="text-[10px] text-emerald-200 font-medium truncate">${t('precipitation')}</div>
-            <div class="text-xs sm:text-sm font-black font-mono mt-0.5 truncate">0.0 mm</div>
+            <div class="text-xs sm:text-sm font-black font-mono mt-0.5 truncate">${weather.precipitationMm} mm</div>
           </div>
           <div class="bg-white/10 rounded-2xl py-2 px-2 min-w-0 overflow-hidden">
             <div class="text-[10px] text-emerald-200 font-medium truncate">${t('pressure')}</div>
-            <div class="text-xs sm:text-sm font-black font-mono mt-0.5 truncate">1013 hPa</div>
+            <div class="text-xs sm:text-sm font-black font-mono mt-0.5 truncate">${weather.pressureHpa} hPa</div>
           </div>
           <div class="bg-white/10 rounded-2xl py-2 px-2 min-w-0 overflow-hidden">
             <div class="text-[10px] text-emerald-200 font-medium truncate">${t('wind')}</div>
-            <div class="text-xs sm:text-sm font-black font-mono mt-0.5 truncate">12 km/h</div>
+            <div class="text-xs sm:text-sm font-black font-mono mt-0.5 truncate">${weather.windSpeedKmh} km/h</div>
           </div>
         </div>
 
@@ -155,12 +192,12 @@ export function createEnvironmentMonitorView() {
         <div class="bg-white/10 rounded-2xl p-3 flex items-center justify-between gap-2 text-xs text-emerald-100 font-mono min-w-0 overflow-hidden">
           <div class="flex items-center gap-1.5 shrink-0">
             ${icon('sun', 'w-4 h-4 text-amber-300')}
-            <span class="text-[11px]">05:45 AM</span>
+            <span class="text-[11px]">${weather.sunriseStr}</span>
           </div>
           <div class="flex-1 mx-2 h-1 bg-gradient-to-r from-amber-300 via-emerald-300 to-amber-400 rounded-full min-w-[20px]"></div>
           <div class="flex items-center gap-1.5 shrink-0">
             ${icon('cloud', 'w-4 h-4 text-emerald-300')}
-            <span class="text-[11px]">06:15 PM</span>
+            <span class="text-[11px]">${weather.sunsetStr}</span>
           </div>
         </div>
 
@@ -358,6 +395,28 @@ export function createEnvironmentMonitorView() {
       });
     });
 
+    // Refresh GPS Location
+    container.querySelector('#btn-refresh-gps-env')?.addEventListener('click', async () => {
+      isRefreshingGPS = true;
+      render();
+      try {
+        await locationService.requestLocationPermission({ silent: false });
+      } catch (e) {
+        console.warn('GPS refresh error:', e);
+      } finally {
+        isRefreshingGPS = false;
+        render();
+      }
+    });
+
+    // Request GPS
+    container.querySelector('#btn-env-request-gps')?.addEventListener('click', () => {
+      openGPSPermissionModal({
+        onResolved: () => render(),
+        onDismiss: () => render()
+      });
+    });
+
     // Update Thresholds
     container.querySelector('#save-thresholds-btn')?.addEventListener('click', () => {
       const heat = parseFloat(container.querySelector('#thresh-heat')?.value) || 35.0;
@@ -377,6 +436,10 @@ export function createEnvironmentMonitorView() {
       render();
     });
   }
+
+  // Subscribe to live location and weather updates
+  locationService.on('locationUpdated', () => render());
+  locationService.on('weatherUpdated', () => render());
 
   onLocaleChange(() => render());
 

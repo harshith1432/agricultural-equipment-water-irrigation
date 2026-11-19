@@ -180,8 +180,8 @@ export class MockElement {
 
   dispatchEvent(event) {
     const evt = typeof event === 'string' ? { type: event } : event;
-    if (!evt.target) evt.target = this;
-    if (!evt.currentTarget) evt.currentTarget = this;
+    try { if (!evt.target) evt.target = this; } catch (e) {}
+    try { if (!evt.currentTarget) evt.currentTarget = this; } catch (e) {}
     if (!evt.preventDefault) evt.preventDefault = () => {};
     if (!evt.stopPropagation) evt.stopPropagation = () => {};
 

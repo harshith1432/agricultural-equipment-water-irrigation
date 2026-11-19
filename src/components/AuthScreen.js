@@ -37,8 +37,24 @@ export function createAuthScreen({ onAuthSuccess, onThemeChange, currentTheme = 
   let bannerState = null; // { type: 'success' | 'error', message: string }
   let isSubmitting = false;
   let showDemoAccordion = false;
+  let currentEmail = '';
+  let currentPassword = '';
+  let currentName = '';
+  let currentFarm = '';
+
+  function syncFormState() {
+    const emailInput = container.querySelector('#portal-email-input, #auth-email-input');
+    const passwordInput = container.querySelector('#auth-password-input');
+    const nameInput = container.querySelector('#auth-name-input');
+    const farmInput = container.querySelector('#auth-farm-input');
+    if (emailInput && typeof emailInput.value === 'string') currentEmail = emailInput.value;
+    if (passwordInput && typeof passwordInput.value === 'string') currentPassword = passwordInput.value;
+    if (nameInput && typeof nameInput.value === 'string') currentName = nameInput.value;
+    if (farmInput && typeof farmInput.value === 'string') currentFarm = farmInput.value;
+  }
 
   function render() {
+    syncFormState();
     const activeLocale = getLocale();
 
     container.innerHTML = `
@@ -230,6 +246,7 @@ export function createAuthScreen({ onAuthSuccess, onThemeChange, currentTheme = 
                       id="portal-email-input" 
                       data-testid="auth-email-input"
                       required 
+                      value="${escapeHtml(currentEmail)}"
                       placeholder="grower@agrispectra.io" 
                       class="auth-email-input w-full min-h-[46px] px-3.5 py-2.5 rounded-xl bg-stone-50 dark:bg-slate-900 border border-[#DDD5C7] dark:border-emerald-800 text-stone-900 dark:text-white placeholder-stone-400 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#10B981] transition"
                     />
@@ -252,6 +269,7 @@ export function createAuthScreen({ onAuthSuccess, onThemeChange, currentTheme = 
                       type="text" 
                       id="auth-name-input" 
                       required 
+                      value="${escapeHtml(currentName)}"
                       placeholder="e.g. Ramesh Patel / Sarah Jenkins" 
                       class="w-full min-h-[46px] px-3.5 py-2.5 rounded-xl bg-stone-50 dark:bg-slate-900 border border-[#DDD5C7] dark:border-emerald-800 text-stone-900 dark:text-white placeholder-stone-400 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#10B981] transition"
                     />
@@ -265,6 +283,7 @@ export function createAuthScreen({ onAuthSuccess, onThemeChange, currentTheme = 
                       type="text" 
                       id="auth-farm-input" 
                       required 
+                      value="${escapeHtml(currentFarm)}"
                       placeholder="e.g. Sonoma Valley Parcel / Deccan Agri Block" 
                       class="w-full min-h-[46px] px-3.5 py-2.5 rounded-xl bg-stone-50 dark:bg-slate-900 border border-[#DDD5C7] dark:border-emerald-800 text-stone-900 dark:text-white placeholder-stone-400 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#10B981] transition"
                     />
@@ -308,6 +327,7 @@ export function createAuthScreen({ onAuthSuccess, onThemeChange, currentTheme = 
                       id="portal-email-input" 
                       data-testid="auth-email-input"
                       required 
+                      value="${escapeHtml(currentEmail)}"
                       placeholder="grower@agrispectra.io" 
                       class="auth-email-input w-full min-h-[46px] px-3.5 py-2.5 rounded-xl bg-stone-50 dark:bg-slate-900 border border-[#DDD5C7] dark:border-emerald-800 text-stone-900 dark:text-white placeholder-stone-400 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#10B981] transition"
                     />
@@ -335,6 +355,7 @@ export function createAuthScreen({ onAuthSuccess, onThemeChange, currentTheme = 
                       id="auth-password-input" 
                       required 
                       minlength="6" 
+                      value="${escapeHtml(currentPassword)}"
                       placeholder="••••••••••••" 
                       class="w-full min-h-[46px] px-3.5 pr-12 py-2.5 rounded-xl bg-stone-50 dark:bg-slate-900 border border-[#DDD5C7] dark:border-emerald-800 text-stone-900 dark:text-white placeholder-stone-400 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#10B981] transition font-mono"
                     />
@@ -655,7 +676,8 @@ export function createAuthScreen({ onAuthSuccess, onThemeChange, currentTheme = 
             throw new Error(res.message);
           }
           const user = res.user || res;
-          bannerState = { type: 'success', message: `Welcome to AgriSpectra, ${user.displayName}!` };
+          isSubmitting = false;
+          bannerState = { type: 'success', message: `Welcome to AgriSpectra, ${user.displayName || user.name || user.email || 'Grower'}!` };
           render();
           setTimeout(() => {
             if (onAuthSuccess) onAuthSuccess(user);
@@ -669,7 +691,8 @@ export function createAuthScreen({ onAuthSuccess, onThemeChange, currentTheme = 
           throw new Error(res.message);
         }
         const user = res.user || res;
-        bannerState = { type: 'success', message: `Welcome back, ${user.displayName || user.email}!` };
+        isSubmitting = false;
+        bannerState = { type: 'success', message: `Welcome back, ${user.displayName || user.name || user.email}!` };
         render();
         setTimeout(() => {
           if (onAuthSuccess) onAuthSuccess(user);

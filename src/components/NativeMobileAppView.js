@@ -24,6 +24,7 @@ import { createSettingsView } from './SettingsView.js';
 import { createSettingsDeviceManagerView } from './dashboards/SettingsDeviceManagerView.js';
 import { INITIAL_FARM_DATA } from '../firebase/mockFirestore.js';
 import { onLocaleChange } from '../utils/i18n.js';
+import { icon } from '../utils/icons.js';
 
 export function createNativeMobileAppView({
   plots = [],

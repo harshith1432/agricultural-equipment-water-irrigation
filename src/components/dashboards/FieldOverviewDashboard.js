@@ -18,6 +18,8 @@ import { irrigationControllerAdapter, VALVE_STATES } from '../../hardware/irriga
 import { getDashboardWidgetSettings, createDashboardSettingsModal } from '../DashboardSettingsModal.js';
 import { createPlotCanvas6Zone } from '../PlotCanvas6Zone.js';
 import { createClosedLoopSynergySection } from '../ClosedLoopSynergyCard.js';
+import { locationService } from '../../services/locationService.js';
+import { openGPSPermissionModal } from '../GPSPermissionModal.js';
 
 function stripLeadingPlus(text) {
   if (!text) return '';
@@ -39,14 +41,20 @@ export function createFieldOverviewDashboard({
   container.className = "field-overview-dashboard w-full space-y-4 pb-32 text-slate-800 dark:text-slate-100 select-none overflow-x-hidden";
 
   let widgetSettings = getDashboardWidgetSettings();
+  let isRefreshingLocation = false;
 
   function render() {
     try {
       const valves = irrigationControllerAdapter.getAllValves ? irrigationControllerAdapter.getAllValves() : [];
-    const openValvesCount = valves.filter(v => v.state === VALVE_STATES.OPEN).length;
-    const pressure = telemetryMetrics.mainlinePressureBar || 2.42;
-    const consumedLiters = telemetryMetrics.consumedLitersToday || 1845;
-    const activeFlow = telemetryMetrics.activeFlowLph || (openValvesCount * 480);
+      const openValvesCount = valves.filter(v => v.state === VALVE_STATES.OPEN).length;
+      const pressure = telemetryMetrics.mainlinePressureBar || 2.42;
+      const consumedLiters = telemetryMetrics.consumedLitersToday || 1845;
+      const activeFlow = telemetryMetrics.activeFlowLph || (openValvesCount * 480);
+
+      const location = locationService.getLocation();
+      const weather = locationService.getWeather();
+      const isGPS = locationService.isGPSVerified();
+      const formattedTemp = (weather.temperatureC > 0 ? '+' : '') + weather.temperatureC + '°C';
 
     container.innerHTML = `
       <!-- Dashboard Subheader with Customize Bento Button -->
@@ -73,25 +81,74 @@ export function createFieldOverviewDashboard({
       ${widgetSettings.weather_hero ? `
         <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-[0_8px_30px_rgba(14,84,49,0.08)] border border-emerald-900/5 dark:border-slate-800 space-y-4">
           <!-- Location & Header -->
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
-              ${icon('mapPin', 'w-4 h-4 text-[#0E5431] dark:text-emerald-400')}
-              <span class="text-xs font-bold tracking-tight">${t('parcel_location_name', 'Chateauneuf-du-Pape • Sonoma')}</span>
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-1.5 text-slate-700 dark:text-slate-300 min-w-0">
+              ${icon('mapPin', 'w-4 h-4 text-[#0E5431] dark:text-emerald-400 shrink-0')}
+              <span class="text-xs font-bold tracking-tight truncate">${location.displayName || t('parcel_location_name', 'Chateauneuf-du-Pape • Sonoma')}</span>
             </div>
 
-            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/50 text-[#0E5431] dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40">
-              ${t('live_parcel', 'Live Parcel')}
-            </span>
+            <div class="flex items-center gap-1.5 shrink-0">
+              ${isGPS ? `
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/70 text-[#0E5431] dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/60 flex items-center gap-1 shadow-2xs">
+                  ${icon('satellite', 'w-3 h-3 text-[#0E5431] dark:text-emerald-400')}
+                  <span>${t('gps_verified', 'GPS Active')}</span>
+                </span>
+              ` : `
+                <button 
+                  type="button" 
+                  id="btn-request-gps" 
+                  class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700/50 flex items-center gap-1 hover:bg-amber-100 transition cursor-pointer active:scale-95 shadow-2xs"
+                  title="${t('allow_gps', 'Verify GPS Location')}"
+                >
+                  ${icon('crosshair', 'w-3 h-3 text-amber-600 dark:text-amber-400')}
+                  <span>GPS</span>
+                </button>
+              `}
+
+              <button 
+                type="button" 
+                id="btn-refresh-location" 
+                class="p-1 rounded-lg text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-slate-800 transition cursor-pointer active:scale-90"
+                title="${t('gps_refresh', 'Refresh GPS Location')}"
+              >
+                ${icon('refresh', `w-3.5 h-3.5 ${isRefreshingLocation ? 'animate-spin text-emerald-600' : ''}`)}
+              </button>
+
+              <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/50 text-[#0E5431] dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40">
+                ${t('live_parcel', 'Live Parcel')}
+              </span>
+            </div>
           </div>
+
+          <!-- Non-intrusive GPS verification prompt banner if not granted -->
+          ${(!isGPS && location.permissionStatus !== 'denied') ? `
+            <div class="p-2.5 rounded-2xl bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-500/20 flex items-center justify-between gap-2 transition">
+              <div class="flex items-center gap-2 min-w-0">
+                <div class="w-6 h-6 rounded-lg bg-[#0E5431] text-emerald-200 flex items-center justify-center shrink-0">
+                  ${icon('satellite', 'w-3.5 h-3.5')}
+                </div>
+                <div class="text-[11px] font-medium text-emerald-900 dark:text-emerald-200 truncate">
+                  ${t('gps_permission_desc', 'AgriSpectra requires physical location for live weather and VPD.')}
+                </div>
+              </div>
+              <button 
+                type="button" 
+                id="btn-banner-verify-gps"
+                class="px-2.5 py-1 rounded-xl bg-[#0E5431] hover:bg-[#0A3D23] text-white text-[10px] font-bold shrink-0 transition active:scale-95 shadow-xs"
+              >
+                ${t('allow_gps', 'Allow GPS')}
+              </button>
+            </div>
+          ` : ''}
 
           <!-- Big Temperature & Weather Icon -->
           <div class="flex items-center justify-between">
             <div>
               <div class="flex items-baseline gap-2">
-                <span class="text-4xl font-black text-slate-900 dark:text-white font-mono tracking-tight">+17°C</span>
-                <span class="text-xs font-semibold text-slate-400 font-mono">${t('weather_temp_high_low', 'H: 23°C • L: 14°C')}</span>
+                <span class="text-4xl font-black text-slate-900 dark:text-white font-mono tracking-tight">${formattedTemp}</span>
+                <span class="text-xs font-semibold text-slate-400 font-mono">H: ${weather.tempMaxC}°C • L: ${weather.tempMinC}°C</span>
               </div>
-              <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">${t('weather_light_breeze', 'Light Breeze • Ideal photosynthetic light')}</p>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">${weather.conditionText || t('weather_light_breeze', 'Light Breeze • Ideal photosynthetic light')}</p>
             </div>
 
             <div class="w-14 h-14 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/40 flex items-center justify-center text-amber-500 shadow-sm flex-shrink-0">
@@ -103,19 +160,19 @@ export function createFieldOverviewDashboard({
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
             <div class="bg-slate-50/80 dark:bg-slate-800/60 rounded-2xl py-2 px-1.5 text-center border border-slate-100/80 dark:border-slate-800 flex flex-col justify-center min-w-0 overflow-hidden break-words">
               <span class="text-[9.5px] text-slate-400 font-medium truncate block">${t('humidity', 'Humidity')}</span>
-              <span class="text-xs font-bold text-slate-800 dark:text-white font-mono mt-0.5 block truncate">40%</span>
+              <span class="text-xs font-bold text-slate-800 dark:text-white font-mono mt-0.5 block truncate">${weather.humidityPercent}%</span>
             </div>
             <div class="bg-slate-50/80 dark:bg-slate-800/60 rounded-2xl py-2 px-1.5 text-center border border-slate-100/80 dark:border-slate-800 flex flex-col justify-center min-w-0 overflow-hidden break-words">
               <span class="text-[9.5px] text-slate-400 font-medium truncate block">${t('precipitation', 'Precip')}</span>
-              <span class="text-xs font-bold text-slate-800 dark:text-white font-mono mt-0.5 block truncate">5.1 mm</span>
+              <span class="text-xs font-bold text-slate-800 dark:text-white font-mono mt-0.5 block truncate">${weather.precipitationMm} mm</span>
             </div>
             <div class="bg-slate-50/80 dark:bg-slate-800/60 rounded-2xl py-2 px-1.5 text-center border border-slate-100/80 dark:border-slate-800 flex flex-col justify-center min-w-0 overflow-hidden break-words">
               <span class="text-[9.5px] text-slate-400 font-medium truncate block">${t('pressure', 'Pressure')}</span>
-              <span class="text-xs font-bold text-slate-800 dark:text-white font-mono mt-0.5 block truncate">1013 hPa</span>
+              <span class="text-xs font-bold text-slate-800 dark:text-white font-mono mt-0.5 block truncate">${weather.pressureHpa} hPa</span>
             </div>
             <div class="bg-slate-50/80 dark:bg-slate-800/60 rounded-2xl py-2 px-1.5 text-center border border-slate-100/80 dark:border-slate-800 flex flex-col justify-center min-w-0 overflow-hidden break-words">
               <span class="text-[9.5px] text-slate-400 font-medium truncate block">${t('wind', 'Wind')}</span>
-              <span class="text-xs font-bold text-slate-800 dark:text-white font-mono mt-0.5 block truncate">14 km/h</span>
+              <span class="text-xs font-bold text-slate-800 dark:text-white font-mono mt-0.5 block truncate">${weather.windSpeedKmh} km/h</span>
             </div>
           </div>
 
@@ -123,14 +180,14 @@ export function createFieldOverviewDashboard({
           <div class="bg-slate-50 dark:bg-slate-850 rounded-2xl p-3 flex items-center justify-between text-xs text-slate-600 dark:text-slate-300 font-mono min-w-0 overflow-hidden">
             <div class="flex items-center gap-1.5 shrink-0">
               ${icon('sun', 'w-4 h-4 text-amber-500')}
-              <span>5:25 am</span>
+              <span>${weather.sunriseStr}</span>
             </div>
             <div class="flex-1 mx-2 sm:mx-4 h-0.5 border-t border-dashed border-amber-400/60 relative flex items-center justify-center min-w-[20px]">
               <div class="w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-white shadow-sm"></div>
             </div>
             <div class="flex items-center gap-1.5 shrink-0">
               ${icon('cloud', 'w-4 h-4 text-slate-400')}
-              <span>8:04 pm</span>
+              <span>${weather.sunsetStr}</span>
             </div>
           </div>
         </div>
@@ -441,6 +498,34 @@ export function createFieldOverviewDashboard({
       });
     });
 
+    // GPS Location Refresh & Request
+    container.querySelector('#btn-refresh-location')?.addEventListener('click', async () => {
+      isRefreshingLocation = true;
+      render();
+      try {
+        await locationService.requestLocationPermission({ silent: false });
+      } catch (e) {
+        console.warn('GPS refresh error:', e);
+      } finally {
+        isRefreshingLocation = false;
+        render();
+      }
+    });
+
+    container.querySelector('#btn-request-gps')?.addEventListener('click', () => {
+      openGPSPermissionModal({
+        onResolved: () => render(),
+        onDismiss: () => render()
+      });
+    });
+
+    container.querySelector('#btn-banner-verify-gps')?.addEventListener('click', () => {
+      openGPSPermissionModal({
+        onResolved: () => render(),
+        onDismiss: () => render()
+      });
+    });
+
     // Quick Valve Actuate
     container.querySelectorAll('.quick-valve-btn').forEach(btn => {
       btn.addEventListener('click', async (e) => {
@@ -465,8 +550,26 @@ export function createFieldOverviewDashboard({
     });
   }
 
+  // Subscribe to live location and weather updates
+  const unsubLocation = locationService.on('locationUpdated', () => render());
+  const unsubWeather = locationService.on('weatherUpdated', () => render());
+
   onLocaleChange(() => render());
 
   render();
+
+  // If initial load and GPS not yet prompted or granted, non-intrusively open modal after short delay
+  if (!locationService.hasPrompted() && !locationService.isGPSVerified()) {
+    setTimeout(() => {
+      // Check again in case prompted elsewhere
+      if (!locationService.hasPrompted() && !locationService.isGPSVerified()) {
+        openGPSPermissionModal({
+          onResolved: () => render(),
+          onDismiss: () => render()
+        });
+      }
+    }, 1500);
+  }
+
   return container;
 }

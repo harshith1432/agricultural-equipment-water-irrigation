@@ -18,6 +18,8 @@ import { firestoreService } from '../firebase/firestoreService.js';
 import { t, onLocaleChange, getLocale, setLocale, SUPPORTED_LOCALES } from '../utils/i18n.js';
 import { setOnboardingCompleted } from './OnboardingCarousel.js';
 import { irrigationControllerAdapter } from '../hardware/irrigationControllerAdapter.js';
+import { locationService } from '../services/locationService.js';
+import { openGPSPermissionModal } from './GPSPermissionModal.js';
 
 export function createSettingsView({
   currentUser = null,
@@ -43,6 +45,7 @@ export function createSettingsView({
   let minOpenValves = irrigationControllerAdapter.getMinOpenValves();
   let glareModeActive = currentTheme === 'sunlight';
   let bannerMessage = null;
+  let isUpdatingGPS = false;
 
   function saveMinOpenValves(count) {
     const val = irrigationControllerAdapter.setMinOpenValves(count);
@@ -105,6 +108,7 @@ export function createSettingsView({
 
     const isGoogleLinked = user.email && (user.email.includes('@gmail.com') || !user.isOffline);
     const activeLocaleCode = getLocale();
+    const location = locationService.getLocation();
 
     container.innerHTML = `
       <!-- User Profile Card -->
@@ -276,6 +280,81 @@ export function createSettingsView({
           }"
         >
           <span>${glareModeActive ? 'ACTIVE ☀️' : t('valve_on')}</span>
+        </button>
+      </div>
+
+      <!-- Dedicated Location & Microclimate GPS Section -->
+      <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-5 shadow-sm border border-emerald-900/5 dark:border-slate-800 space-y-4">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-[#0E5431] dark:text-emerald-300 flex items-center justify-center">
+              ${icon('satellite', 'w-4 h-4')}
+            </div>
+            <div>
+              <h3 class="text-xs font-bold text-slate-900 dark:text-white">
+                ${t('gps_location_section_title', 'Location & Microclimate GPS')}
+              </h3>
+              <p class="text-[10px] text-slate-500">
+                ${t('gps_location_section_desc', 'Precision farm coordinates for real-time evapotranspiration and Open-Meteo atmospheric synchronization.')}
+              </p>
+            </div>
+          </div>
+
+          <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+            location.permissionStatus === 'granted'
+              ? 'bg-emerald-50 text-[#0E5431] border border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800'
+              : location.permissionStatus === 'denied'
+                ? 'bg-rose-50 text-rose-700 border border-rose-300 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800'
+                : 'bg-amber-50 text-amber-700 border border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800'
+          }">
+            ${location.permissionStatus === 'granted' ? t('gps_status_granted', 'Granted & Active') : location.permissionStatus === 'denied' ? t('gps_status_denied', 'Denied') : t('gps_status_prompt', 'Pending Verification')}
+          </span>
+        </div>
+
+        <!-- Coordinates, Accuracy, and Region Stats Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+          <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200/80 dark:border-slate-700/80 flex flex-col">
+            <span class="text-[10px] text-slate-500 font-medium">${t('gps_coordinates', 'Coordinates')}</span>
+            <span class="text-xs font-mono font-bold text-slate-900 dark:text-white mt-1">
+              ${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}
+            </span>
+            <span class="text-[9px] text-slate-400 mt-0.5">${location.isGPS ? '🛰️ Live GPS Sensor' : 'Standard Farm Grid'}</span>
+          </div>
+
+          <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200/80 dark:border-slate-700/80 flex flex-col">
+            <span class="text-[10px] text-slate-500 font-medium">${t('gps_accuracy', 'Accuracy')}</span>
+            <span class="text-xs font-mono font-bold text-emerald-700 dark:text-emerald-300 mt-1">
+              ±${location.accuracy} meters
+            </span>
+            <span class="text-[9px] text-slate-400 mt-0.5">High-Precision Fix</span>
+          </div>
+
+          <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200/80 dark:border-slate-700/80 flex flex-col sm:col-span-1">
+            <span class="text-[10px] text-slate-500 font-medium">Parcel / District</span>
+            <span class="text-xs font-bold text-slate-900 dark:text-white mt-1 truncate">
+              ${location.displayName || 'Sonoma Valley'}
+            </span>
+            <span class="text-[9px] text-slate-400 mt-0.5">${location.region || 'Active Parcel'}</span>
+          </div>
+        </div>
+
+        <!-- Verify / Update Button -->
+        <button 
+          type="button" 
+          id="btn-settings-verify-gps"
+          class="w-full py-2.5 px-4 rounded-xl bg-[#0E5431] hover:bg-[#083820] active:bg-[#062917] text-white text-xs font-bold shadow-sm flex items-center justify-center gap-2 transition cursor-pointer active:scale-98 disabled:opacity-60"
+          ${isUpdatingGPS ? 'disabled' : ''}
+        >
+          ${isUpdatingGPS ? `
+            <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span>${t('detecting_location', 'Detecting GPS...')}</span>
+          ` : `
+            ${icon('navigation', 'w-4 h-4 text-emerald-300')}
+            <span>${t('btn_verify_update_gps', 'Verify / Update GPS Location')}</span>
+          `}
         </button>
       </div>
 
@@ -801,6 +880,25 @@ export function createSettingsView({
       }
     });
 
+    // GPS Location Verification & Update
+    container.querySelector('#btn-settings-verify-gps')?.addEventListener('click', async () => {
+      isUpdatingGPS = true;
+      render();
+      try {
+        const res = await locationService.requestLocationPermission({ silent: false });
+        if (res.success) {
+          bannerMessage = `GPS verified: ${res.location.displayName} (±${res.location.accuracy}m)`;
+        } else {
+          bannerMessage = `GPS: ${res.error || 'Permission denied'}`;
+        }
+      } catch (err) {
+        bannerMessage = `GPS Error: ${err.message}`;
+      } finally {
+        isUpdatingGPS = false;
+        render();
+      }
+    });
+
     // Force Telemetry Sync
     container.querySelector('#btn-settings-force-sync')?.addEventListener('click', () => {
       try {
@@ -819,6 +917,8 @@ export function createSettingsView({
       }
     });
   }
+
+  locationService.on('locationUpdated', () => render());
 
   onLocaleChange(() => render());
 

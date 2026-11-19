@@ -2,9 +2,11 @@
  * Automated Test Suite: Authentication, Google Login & Enterprise Admin Dashboard
  */
 import { describe, it, expect } from './framework.js';
-import { authService, GUEST_USER, signInAsGuest, onAuthStateChange, signOutUser } from '../src/firebase/authService.js';
+import { authService, GUEST_USER, signInAsGuest, onAuthStateChange, signOutUser, registerWithEmail } from '../src/firebase/authService.js';
 import { firestoreService } from '../src/firebase/firestoreService.js';
 import { mockFirestore } from '../src/firebase/mockFirestore.js';
+import { createAuthScreen } from '../src/components/AuthScreen.js';
+import { setupHeadlessDOM } from './headless-dom.js';
 
 export function registerAuthEnterpriseTests() {
   describe('Authentication & Enterprise Multi-Tenant Governance', () => {
@@ -188,6 +190,155 @@ export function registerAuthEnterpriseTests() {
       expect(stats.totalLeafScansConducted).toBeGreaterThan(0);
       expect(typeof stats.averageCanopyVitality).toBe('number');
       expect(stats.averageCanopyVitality).toBeGreaterThan(0);
+    });
+
+    it('registerWithEmail is defined on authService and registers new user with role and farm', async () => {
+      expect(typeof authService.registerWithEmail).toBe('function');
+      expect(typeof registerWithEmail).toBe('function');
+
+      const testEmail = `newgrower_${Date.now()}@agrispectra.io`;
+      const res = await authService.registerWithEmail(
+        testEmail,
+        'SecretPass123!',
+        'Ananya Sharma',
+        'Agronomist',
+        'Deccan Agri Valley Parcel'
+      );
+      expect(res.email).toBe(testEmail);
+      expect(res.displayName).toBe('Ananya Sharma');
+      expect(res.role).toBe('Agronomist');
+      expect(res.farmName).toBe('Deccan Agri Valley Parcel');
+      expect(res.success).toBe(true);
+    });
+
+    it('signUpWithEmail supports both (email, pwd, name, role, farm) and (email, pwd, name, farm, role)', async () => {
+      // Order 1: role, farmName
+      const email1 = `order1_${Date.now()}@testfarms.com`;
+      const res1 = await authService.signUpWithEmail(
+        email1,
+        'AgriPass2026!',
+        'Operator One',
+        'Field Operator',
+        'Valley Alpha Plot'
+      );
+      expect(res1.role).toBe('Field Operator');
+      expect(res1.farmName).toBe('Valley Alpha Plot');
+
+      // Order 2: farmName, role
+      const email2 = `order2_${Date.now()}@testfarms.com`;
+      const res2 = await authService.signUpWithEmail(
+        email2,
+        'AgriPass2026!',
+        'Operator Two',
+        'Valley Beta Plot',
+        'Farm Owner'
+      );
+      expect(res2.role).toBe('Farm Owner');
+      expect(res2.farmName).toBe('Valley Beta Plot');
+    });
+
+    it('syncUserProfile strictly conforms to all 16 required schema fields', async () => {
+      const mockUser = {
+        uid: `usr_schema_${Date.now()}`,
+        email: 'tester.profile@agrispectra.io',
+        displayName: 'Tester Profile'
+      };
+      const profile = await authService.syncUserProfile(mockUser, {
+        role: 'Agronomist',
+        farmName: 'Precision Test Farm',
+        farmId: 'farm-test-1'
+      });
+
+      const requiredKeys = [
+        'uid',
+        'email',
+        'role',
+        'displayName',
+        'name',
+        'farmId',
+        'farmIds',
+        'farmName',
+        'orgId',
+        'organizationId',
+        'phoneNumber',
+        'photoURL',
+        'status',
+        'lastLoginAt',
+        'createdAt',
+        'updatedAt'
+      ];
+
+      for (const key of requiredKeys) {
+        expect(key in profile).toBe(true);
+      }
+      expect(profile.name).toBe(profile.displayName);
+      expect(profile.role).toBe('Agronomist');
+    });
+
+    it('system admin email harshithkd032@gmail.com binds to system-admin-harshith', async () => {
+      const adminEmail = 'harshithkd032@gmail.com';
+      const adminUser = await authService.signInWithEmail(adminEmail, 'AgriPass2026!');
+      expect(adminUser.uid).toBe('system-admin-harshith');
+      expect(adminUser.role).toBe('SuperAdmin');
+      expect(adminUser.farmId).toBe('farm-valley-1');
+
+      // Check profile sync for admin
+      const profile = await authService.syncUserProfile({
+        uid: 'some-temp-uid',
+        email: adminEmail,
+        displayName: 'Harshith'
+      });
+      expect(profile.uid).toBe('system-admin-harshith');
+      expect(profile.role).toBe('SuperAdmin');
+      expect(profile.farmId).toBe('farm-valley-1');
+    });
+
+    it('AuthScreen SIGN_UP form submission calls registerWithEmail and triggers onAuthSuccess', async () => {
+      const { document, body } = setupHeadlessDOM();
+      let authUserSuccess = null;
+
+      const screen = createAuthScreen({
+        onAuthSuccess: (user) => {
+          authUserSuccess = user;
+        }
+      });
+      body.appendChild(screen);
+
+      // Switch to SIGN_UP mode tab
+      const signUpTab = screen.querySelector('#tab-mode-signup');
+      signUpTab?.click();
+
+      // Populate form fields
+      const nameInput = screen.querySelector('#auth-name-input');
+      const farmInput = screen.querySelector('#auth-farm-input');
+      const emailInput = screen.querySelector('#portal-email-input');
+      const passwordInput = screen.querySelector('#auth-password-input');
+
+      expect(nameInput !== null).toBe(true);
+      expect(farmInput !== null).toBe(true);
+
+      const testEmail = `portal_signup_${Date.now()}@agrispectra.io`;
+      nameInput.value = 'Ramesh Patel';
+      farmInput.value = 'Deccan Organic Block';
+      emailInput.value = testEmail;
+      passwordInput.value = 'SecureFlow2026!';
+
+      // Select role 'Agronomist'
+      const agronomistRoleBtn = screen.querySelector('button[data-role="Agronomist"]');
+      agronomistRoleBtn?.click();
+
+      // Submit form
+      const form = screen.querySelector('#auth-main-form');
+      form?.dispatchEvent({ type: 'submit', preventDefault: () => {} });
+
+      // Wait for auth promise & callback
+      await new Promise(r => setTimeout(r, 650));
+
+      expect(authUserSuccess !== null).toBe(true);
+      expect(authUserSuccess.email).toBe(testEmail);
+      expect(authUserSuccess.displayName).toBe('Ramesh Patel');
+      expect(authUserSuccess.role).toBe('Agronomist');
+      expect(authUserSuccess.farmName).toBe('Deccan Organic Block');
     });
   });
 }

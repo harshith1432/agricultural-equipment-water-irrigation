@@ -35,6 +35,7 @@ import { labartSoilSensorUSB } from './hardware/labartSoilSensorUSB.js';
 import { spectrometerUSBAdapter } from './hardware/spectrometerUSBAdapter.js';
 import { tempHumiditySensorUSB } from './hardware/tempHumiditySensorUSB.js';
 import { irrigationControllerAdapter } from './hardware/irrigationControllerAdapter.js';
+import { locationService } from './services/locationService.js';
 import { onLocaleChange } from './utils/i18n.js';
 import { Capacitor } from '@capacitor/core';
 
@@ -112,6 +113,7 @@ class AgriSpectraApp {
 
     // Modular hardware device manager coordinating all 4 adapters
     this.deviceManager = deviceManager;
+    tempHumiditySensorUSB.bindLocationService(locationService);
 
     // Listen to global switch view events
     window.addEventListener('agrispectra_switch_view', (e) => {

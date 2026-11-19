@@ -206,7 +206,50 @@ export class TempHumiditySensorUSB {
     };
 
     this.lastReading = this._loadCachedReading();
+    this.weatherCache = null;
+    this.locationService = null;
     this.listeners = new Map();
+  }
+
+  /**
+   * Set or update weather cache from locationService
+   */
+  setWeatherCache(weatherData) {
+    this.weatherCache = weatherData;
+  }
+
+  /**
+   * Retrieve active weather cache
+   */
+  getWeatherCache() {
+    return this.weatherCache;
+  }
+
+  /**
+   * Bind location service instance to this hardware adapter
+   */
+  bindLocationService(service) {
+    this.locationService = service;
+    if (service) {
+      if (typeof service.getLocation === 'function') {
+        const loc = service.getLocation();
+        if (loc) {
+          this.setLocation(loc.latitude, loc.longitude, loc.displayName || loc.city || loc.region);
+        }
+      }
+      if (typeof service.getWeather === 'function') {
+        const w = service.getWeather();
+        if (w) this.setWeatherCache(w);
+      }
+      if (typeof service.on === 'function') {
+        service.on('locationUpdated', (loc) => {
+          if (loc) this.setLocation(loc.latitude, loc.longitude, loc.displayName || loc.city || loc.region);
+        });
+        service.on('weatherUpdated', (w) => {
+          if (w) this.setWeatherCache(w);
+        });
+      }
+    }
   }
 
   on(event, callback) {
@@ -420,9 +463,10 @@ export class TempHumiditySensorUSB {
    */
   async readData({ forceSource = null } = {}) {
     let reading = null;
+    const isCloudMode = this.connectionMode === CONNECTION_MODES.WIFI_CLOUD;
 
-    // 1. Try Live Physical Sensor if available or forced
-    if (forceSource === DATA_SOURCES.LIVE_PHYSICAL_SENSOR || (!forceSource && this.isConnected && !this.isSimulated && this.device)) {
+    // 1. Try Live Physical Sensor if available or forced (not when cloud mode unless forced)
+    if (!isCloudMode && (forceSource === DATA_SOURCES.LIVE_PHYSICAL_SENSOR || (!forceSource && this.isConnected && !this.isSimulated && this.device))) {
       try {
         reading = await this._readPhysicalSensor();
       } catch (e) {
@@ -431,7 +475,7 @@ export class TempHumiditySensorUSB {
     }
 
     // Secondary physical check: check linked LABART soil sensor if active
-    if (!reading && this.linkedSoilSensor && this.linkedSoilSensor.isConnected && this.linkedSoilSensor.lastReading) {
+    if (!isCloudMode && !reading && this.linkedSoilSensor && this.linkedSoilSensor.isConnected && this.linkedSoilSensor.lastReading) {
       const soilTemp = this.linkedSoilSensor.lastReading.raw.temperature_c;
       // Pair with realistic ambient humidity estimate or cached humidity
       const cachedHum = this.lastReading ? this.lastReading.humidityPercent : 58.0;
@@ -440,7 +484,7 @@ export class TempHumiditySensorUSB {
       });
     }
 
-    // 2. Fallback to Open-Meteo / IMD Weather API
+    // 2. Fallback to Open-Meteo / IMD Weather API or WIFI_CLOUD mode
     if (!reading && forceSource !== DATA_SOURCES.LAST_CACHED_READING) {
       try {
         reading = await this._queryWeatherAPI();
@@ -472,9 +516,30 @@ export class TempHumiditySensorUSB {
   }
 
   /**
-   * Query Open-Meteo API with automatic IMD weather endpoint fallback
+   * Query Open-Meteo API with locationService cache and automatic IMD fallback
    */
   async _queryWeatherAPI() {
+    // If we have active coordinates and cached live weather from locationService or weatherCache
+    const cachedWeather = this.weatherCache || (this.locationService && typeof this.locationService.getWeather === 'function' ? this.locationService.getWeather() : null);
+
+    if (cachedWeather && cachedWeather.temperatureC !== undefined && cachedWeather.humidityPercent !== undefined) {
+      const tempC = Number(cachedWeather.temperatureC);
+      const rhPercent = Number(cachedWeather.humidityPercent);
+      const apparentTemp = cachedWeather.apparentTempC !== undefined ? Number(cachedWeather.apparentTempC) : calculateHeatIndex(tempC, rhPercent);
+
+      return this._formatReading(tempC, rhPercent, DATA_SOURCES.ESTIMATED_WEATHER_API, {
+        provider: 'Open-Meteo Precision Location Weather Engine',
+        coordinates: { latitude: this.location.latitude, longitude: this.location.longitude },
+        regionName: this.location.regionName,
+        surfacePressureHpa: cachedWeather.pressureHpa,
+        windSpeedKmh: cachedWeather.windSpeedKmh,
+        precipitationMm: cachedWeather.precipitationMm,
+        conditionText: cachedWeather.conditionText,
+        weatherCode: cachedWeather.weatherCode,
+        apparentTemp
+      });
+    }
+
     const lat = this.location.latitude;
     const lon = this.location.longitude;
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,surface_pressure,wind_speed_10m`;

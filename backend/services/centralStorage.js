@@ -425,7 +425,14 @@ class CentralStorage {
       return this.collections.valves.get(id);
     }
     for (const v of this.collections.valves.values()) {
-      if (v.code === id || v.plotId === id || v.plotId === `plot-${id}`) {
+      if (
+        v.code === id ||
+        v.plotId === id ||
+        v.plotId === `plot-${id}` ||
+        v.id === id ||
+        id === `valve-${v.plotId}` ||
+        id.replace('plot-', '') === v.id
+      ) {
         return v;
       }
     }

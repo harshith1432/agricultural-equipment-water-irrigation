@@ -4,6 +4,7 @@
  */
 import { Router } from 'express';
 import { enterpriseStore } from '../services/enterpriseStore.js';
+import { schemaManager } from '../services/schemaManager.js';
 import { authenticate, requireRole, verifyFarmTenantAccess } from '../middleware/authMiddleware.js';
 import { valveActuationLimiter } from '../middleware/rateLimiter.js';
 
@@ -11,9 +12,10 @@ const router = Router();
 
 /**
  * POST /api/telemetry/sync
- * Ingestion endpoint for direct edge IoT sensor packets from field probes & wireless gateways
+ * Ingestion endpoint for direct edge IoT sensor packets from field probes & wireless gateways.
+ * Auto-creates 'telemetry_logs' table if missing and fills the data.
  */
-router.post('/telemetry/sync', (req, res) => {
+router.post('/telemetry/sync', async (req, res) => {
   try {
     const packet = req.body;
     if (!packet || Object.keys(packet).length === 0) {
@@ -24,6 +26,9 @@ router.post('/telemetry/sync', (req, res) => {
     }
 
     const result = enterpriseStore.ingestTelemetry(packet);
+    // Persist to Cloud Firestore database via schemaManager
+    await schemaManager.saveTelemetryPacket(packet);
+
     res.status(200).json({
       success: true,
       data: result
@@ -59,7 +64,7 @@ router.post('/plots/:plotId/valve',
   authenticate, 
   requireRole(['superadmin', 'farm_owner', 'field_operator']),
   verifyFarmTenantAccess,
-  (req, res) => {
+  async (req, res) => {
     try {
       const { plotId } = req.params;
       const { action, durationMinutes, operator } = req.body;
@@ -76,6 +81,18 @@ router.post('/plots/:plotId/valve',
         action: action.toUpperCase(),
         durationMinutes: Number(durationMinutes) || 20,
         operator: operator || req.user.uid || "MOBILE_APP_DIRECT"
+      });
+
+      // Persist to Cloud Firestore database
+      await schemaManager.saveIrrigationAction({
+        valveId: result.gateId,
+        plotId,
+        farmId: req.user?.farmId || 'farm-valley-1',
+        action: `VALVE_${action.toUpperCase()}`,
+        state: result.state,
+        durationMinutes: Number(durationMinutes) || 20,
+        litersDelivered: result.state === 'OPEN' ? (Number(durationMinutes) || 20) * 18 : 0,
+        operator: operator || req.user?.displayName || req.user?.email || "Operator"
       });
 
       res.status(200).json({

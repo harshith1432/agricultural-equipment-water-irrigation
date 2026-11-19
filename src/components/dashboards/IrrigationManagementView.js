@@ -179,6 +179,28 @@ export function createIrrigationManagementView({
         </div>
       ` : ''}
 
+      <!-- Hydraulic Pipe Burst Safety Alert Banner -->
+      ${safetyAlertMessage ? `
+        <div class="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/70 border-2 border-amber-500 text-amber-950 dark:text-amber-200 shadow-md animate-bounce-short">
+          <div class="flex items-start gap-3">
+            <div class="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 font-bold">
+              ${icon('alert-triangle', 'w-5 h-5')}
+            </div>
+            <div class="flex-1 min-w-0">
+              <h4 class="text-xs font-bold text-amber-900 dark:text-amber-100 flex items-center gap-1.5">
+                <span>${t('pipe_safety_alert_title', 'Hydraulic Safety Alert')}</span>
+              </h4>
+              <p class="text-[11px] mt-0.5 leading-snug font-medium text-amber-800 dark:text-amber-200">
+                ${escapeHtml(safetyAlertMessage)}
+              </p>
+            </div>
+            <button type="button" id="dismiss-safety-alert-btn" class="text-amber-700 dark:text-amber-300 hover:text-amber-900 text-xs font-bold px-2 py-1 rounded-lg bg-amber-200/60 dark:bg-amber-800/60 transition cursor-pointer">
+              ${t('ok_got_it', 'Got it')}
+            </button>
+          </div>
+        </div>
+      ` : ''}
+
       <!-- 2. Manual Timer Duration Selector (Required for automated tests) -->
       <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 shadow-sm border border-emerald-900/5 dark:border-slate-800 space-y-2">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
@@ -238,12 +260,34 @@ export function createIrrigationManagementView({
           </button>
         </div>
 
+        <!-- Hydraulic Pipe Burst Safety Status Card -->
+        <div class="flex items-center justify-between px-3.5 py-2.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-xs min-w-0">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="w-2.5 h-2.5 rounded-full shrink-0 ${irrigationControllerAdapter.getMinOpenValves() > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}"></span>
+            <div class="min-w-0">
+              <span class="font-bold text-emerald-950 dark:text-emerald-100 block truncate">
+                ${irrigationControllerAdapter.getMinOpenValves() > 0 
+                  ? t('pipe_safety_active_badge', 'Safety Interlock: At least {count} open valve(s) required').replace('{count}', irrigationControllerAdapter.getMinOpenValves())
+                  : t('manual_mode', 'Manual Mode (0 Always Open)')}
+              </span>
+              <span class="text-[10px] text-emerald-700 dark:text-emerald-400 truncate block">
+                ${t('min_valves_desc', 'Keeps line open to prevent pressure blast damage')}
+              </span>
+            </div>
+          </div>
+          <span class="px-2 py-0.5 rounded-full bg-emerald-200/80 dark:bg-emerald-800/60 text-emerald-900 dark:text-emerald-200 text-[10.5px] font-mono font-bold shrink-0 ml-2">
+            ${valves.filter(v => v.state === VALVE_STATES.OPEN).length} ${t('valve_open', 'Open')}
+          </span>
+        </div>
+
         <!-- Valves Grid -->
         <div class="space-y-2.5" id="valves-list-container">
           ${valves.map(valve => {
             const isOpen = valve.state === VALVE_STATES.OPEN;
             const currentPill = valveStatusPills.get(valve.id) || (isOpen ? 'ON' : 'OFF');
             const targetAction = isOpen ? 'CLOSE' : 'OPEN';
+            const closeCheck = isOpen ? irrigationControllerAdapter.canCloseValve(valve.id) : { allowed: true };
+            const mustStayOpen = isOpen && !closeCheck.allowed;
 
             return `
               <div 
@@ -270,6 +314,12 @@ export function createIrrigationManagementView({
                         <span class="text-xs font-bold text-slate-900 dark:text-white break-words leading-snug">${escapeHtml(getValveDisplayName(valve))}</span>
                         <!-- Status Pill -->
                         ${renderStatusPill(currentPill)}
+                        ${mustStayOpen ? `
+                          <span class="inline-flex items-center gap-1 text-[9px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300/60 dark:border-amber-700/60 shrink-0">
+                            ${icon('lock', 'w-2.5 h-2.5')}
+                            <span>${t('min_valves_must_remain_open', 'Must Stay Open')}</span>
+                          </span>
+                        ` : ''}
                       </div>
                       <div class="flex items-center gap-1 text-[10px] text-slate-500 font-mono mt-0.5 truncate min-w-0">
                         <span class="truncate">${t('flow_rate', 'Rate')}: ${Number(valve.nominalFlowRateLph) || 450} ${t('unit_lph', 'LPH')}</span>
@@ -289,11 +339,11 @@ export function createIrrigationManagementView({
                       data-action="${escapeHtml(targetAction)}"
                       class="valve-actuate-btn px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm whitespace-nowrap active:scale-95 shrink-0 ${
                         isOpen 
-                          ? 'bg-rose-600 hover:bg-rose-700 text-white' 
+                          ? (mustStayOpen ? 'bg-amber-600 hover:bg-amber-700 text-white' : 'bg-rose-600 hover:bg-rose-700 text-white')
                           : 'bg-[#0E5431] hover:bg-[#093820] text-white'
                       }"
                     >
-                      ${isOpen ? icon('pause', 'w-3.5 h-3.5') : icon('play', 'w-3.5 h-3.5')}
+                      ${isOpen ? (mustStayOpen ? icon('lock', 'w-3.5 h-3.5') : icon('pause', 'w-3.5 h-3.5')) : icon('play', 'w-3.5 h-3.5')}
                       <span>${isOpen ? t('valve_close', 'Close') : t('valve_irrigate', 'Irrigate')}</span>
                     </button>
 
@@ -450,6 +500,12 @@ export function createIrrigationManagementView({
   }
 
   function attachEvents() {
+    // Dismiss pipe burst safety alert
+    container.querySelector('#dismiss-safety-alert-btn')?.addEventListener('click', () => {
+      safetyAlertMessage = null;
+      render();
+    });
+
     // Custom Duration Input
     const customDurationInput = container.querySelector('#custom-duration-input');
     if (customDurationInput) {
@@ -481,6 +537,21 @@ export function createIrrigationManagementView({
         const action = btn.getAttribute('data-action');
 
         if (!valveId) return;
+
+        // Hydraulic Pipe Burst Protection Interlock:
+        // If attempting to close a valve, check if it violates minimum open valve safety.
+        if (action === 'CLOSE') {
+          const check = irrigationControllerAdapter.canCloseValve(valveId);
+          if (!check.allowed) {
+            safetyAlertMessage = t('pipe_safety_alert_body', 'Pipe Burst Protection: At least {count} valve(s) must stay open. Please open another valve first before closing this one.')
+              .replace('{count}', String(check.minRequired));
+            render();
+            return;
+          }
+        } else if (action === 'OPEN') {
+          // Reset safety alert when opening another valve
+          safetyAlertMessage = null;
+        }
 
         // Trigger visible ±12V pulse animation
         activePulseAnimation = {
@@ -526,10 +597,10 @@ export function createIrrigationManagementView({
     });
 
     // Emergency Killswitch
-    container.querySelector('#irrigation-emergency-kill-btn')?.addEventListener('click', () => {
+    container.querySelector('#irrigation-emergency-kill-btn')?.addEventListener('click', async () => {
       const confirmed = typeof confirm !== 'undefined' ? confirm(t('valve_killswitch_confirm')) : true;
       if (confirmed) {
-        irrigationControllerAdapter.emergencyAllStop('MANUAL_USER_KILLSWITCH');
+        await irrigationControllerAdapter.emergencyAllStop('MANUAL_USER_KILLSWITCH');
         if (onEmergencyStop) onEmergencyStop();
         render();
       }
@@ -728,6 +799,9 @@ export function createIrrigationManagementView({
   }
 
   onLocaleChange(() => render());
+  if (typeof irrigationControllerAdapter.on === 'function') {
+    irrigationControllerAdapter.on('hydraulicSafetyConfigChange', () => render());
+  }
 
   render();
   return container;

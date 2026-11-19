@@ -36,7 +36,14 @@ export class FirestoreClient {
     this.adminDb = null;
     this.authProvider = "Web API Fallback";
 
-    this.initAdminSdk();
+    this.readyPromise = this.initAdminSdk();
+  }
+
+  async ensureReady() {
+    if (this.readyPromise) {
+      await this.readyPromise;
+    }
+    return this.isConnected;
   }
 
   /**
@@ -202,6 +209,116 @@ export class FirestoreClient {
       // Return null to signal fallback to local resilient store
       return null;
     }
+  }
+
+  /**
+   * Check if a collection or subcollection exists and list root collections
+   */
+  async listCollections() {
+    await this.ensureReady();
+    if (this.adminDb) {
+      try {
+        const collections = await this.adminDb.listCollections();
+        return collections.map(c => c.id);
+      } catch (err) {
+        console.warn(`[FirestoreClient] Admin SDK listCollections error: ${err.message}`);
+      }
+    }
+    return ['farms', 'users'];
+  }
+
+  /**
+   * Check if a document exists
+   */
+  async docExists(docPath) {
+    await this.ensureReady();
+    if (this.adminDb) {
+      try {
+        const snap = await this.adminDb.doc(docPath).get();
+        return snap.exists;
+      } catch (err) {
+        console.warn(`[FirestoreClient] Admin SDK docExists error: ${err.message}`);
+      }
+    }
+    const token = this.getAccessToken();
+    if (!token) return false;
+    try {
+      const res = await fetch(`${this.baseUrl}/${docPath}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Get a single document from Firestore
+   */
+  async getDoc(docPath) {
+    await this.ensureReady();
+    if (this.adminDb) {
+      try {
+        const snap = await this.adminDb.doc(docPath).get();
+        if (snap.exists) {
+          return { id: snap.id, ...snap.data() };
+        }
+        return null;
+      } catch (err) {
+        console.warn(`[FirestoreClient] Admin SDK getDoc error: ${err.message}`);
+      }
+    }
+    const token = this.getAccessToken();
+    if (!token) return null;
+    try {
+      const res = await fetch(`${this.baseUrl}/${docPath}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return this.fromFirestoreDocument(data);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Update or write document in Firestore with configurable merge
+   */
+  async setDocument(docPath, fields, options = { merge: true }) {
+    await this.ensureReady();
+    if (this.adminDb) {
+      try {
+        await this.adminDb.doc(docPath).set(fields, options);
+        this.isConnected = true;
+        return true;
+      } catch (err) {
+        console.warn(`[FirestoreClient] Admin SDK setDocument error: ${err.message}`);
+      }
+    }
+    return this.updateDocument(docPath, fields);
+  }
+
+  /**
+   * Add a new document with auto-generated ID to a collection
+   */
+  async addDocument(collectionPath, data) {
+    await this.ensureReady();
+    if (this.adminDb) {
+      try {
+        const docRef = await this.adminDb.collection(collectionPath).add({
+          ...data,
+          createdAt: data.createdAt || new Date().toISOString()
+        });
+        this.isConnected = true;
+        return { success: true, id: docRef.id };
+      } catch (err) {
+        console.warn(`[FirestoreClient] Admin SDK addDocument error: ${err.message}`);
+      }
+    }
+    const docId = `doc_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    const ok = await this.setDocument(`${collectionPath}/${docId}`, data, { merge: true });
+    return { success: ok, id: docId };
   }
 
   /**

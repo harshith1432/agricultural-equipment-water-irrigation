@@ -37,6 +37,7 @@ import { registerUICompleteOptionsAuditTests } from './ui-complete-options-audit
 import { registerMultilingualVerificationTests } from './multilingual-verification.test.js';
 import { registerSecurityHardeningTests } from './security-hardening.test.js';
 import { registerAuthLifecycleIsolationTests } from './auth-lifecycle-isolation.test.js';
+import { registerLocationServiceTests } from './location-service.test.js';
 
 async function main() {
   console.log('\x1b[35mStarting AgriSpectra Flow & Field Automated Test Suite...\x1b[0m');
@@ -55,6 +56,7 @@ async function main() {
   registerMultilingualVerificationTests();
   registerSecurityHardeningTests();
   registerAuthLifecycleIsolationTests();
+  registerLocationServiceTests();
 
   // Execute runner
   const success = await runner.run();

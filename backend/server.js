@@ -24,6 +24,7 @@ import { authLimiter } from './middleware/rateLimiter.js';
 import { firestoreClient } from './services/firestoreClient.js';
 import { enterpriseStore } from './services/enterpriseStore.js';
 import { centralStorage } from './services/centralStorage.js';
+import { schemaManager } from './services/schemaManager.js';
 
 // Load environment variables (.env in backend or root)
 const __filename = fileURLToPath(import.meta.url);
@@ -167,28 +168,35 @@ const isMainModule = process.argv[1] && (
 );
 
 if (isMainModule || process.env.START_SERVER === 'true') {
-  serverInstance = app.listen(PORT, '0.0.0.0', () => {
-    const token = firestoreClient.getAccessToken();
-    const isLiveDb = Boolean(firestoreClient.adminDb || (token && token.startsWith('ya29.')) || token === 'firebase-admin-sdk-active');
-    console.log("====================================================================");
-    console.log("   AGRISPECTRA FLOW & FIELD - ENTERPRISE BACKEND SERVER            ");
-    console.log("====================================================================");
-    console.log(` > Server Listening Port:  http://0.0.0.0:${PORT}`);
-    console.log(` > Health Endpoint:        /api/health`);
-    console.log(` > Admin Metrics:          /api/admin/metrics`);
-    console.log(` > Irrigation Control:     /api/irrigation/valves`);
-    console.log(` > Soil 8-in-1 Telemetry:  /api/soil/scans`);
-    console.log(` > NIR Spectroscopy:       /api/spectroscopy/scans`);
-    console.log(` > Environment & Weather:  /api/environment/latest`);
-    console.log(` > AI Closed-Loop Engine:  /api/ai/recommendations`);
-    console.log(` > Emergency Killswitch:   /api/irrigation/emergency-stop`);
-    console.log(` > Audit Trail:            /api/admin/audit-logs`);
-    console.log(` > Telemetry Sync:         /api/telemetry/sync`);
-    console.log(` > Cloud Firestore DB:     ${firestoreClient.projectId} (${isLiveDb ? `LIVE CLOUD LINK - ${firestoreClient.authProvider}` : 'OFFLINE STORE'})`);
-    console.log(` > Active Parcels:         ${centralStorage.getValves().length} Zones Managed`);
-    console.log(` > Registered Users:       ${enterpriseStore.users.length} Enterprise Operators`);
-    console.log("====================================================================");
-  });
+  (async () => {
+    // 1. Verify Database and Auto-Create Missing Tables / Collections on Startup
+    await schemaManager.ensureSchemaAndCollections();
+
+    serverInstance = app.listen(PORT, '0.0.0.0', () => {
+      const token = firestoreClient.getAccessToken();
+      const isLiveDb = Boolean(firestoreClient.adminDb || (token && token.startsWith('ya29.')) || token === 'firebase-admin-sdk-active');
+      console.log("====================================================================");
+      console.log("   AGRISPECTRA FLOW & FIELD - ENTERPRISE BACKEND SERVER            ");
+      console.log("====================================================================");
+      console.log(` > Server Listening Port:  http://0.0.0.0:${PORT}`);
+      console.log(` > Health Endpoint:        /api/health`);
+      console.log(` > Admin Metrics:          /api/admin/metrics`);
+      console.log(` > User Authentication:    /api/auth/login | /api/auth/register`);
+      console.log(` > Irrigation Control:     /api/irrigation/valves`);
+      console.log(` > Soil 8-in-1 Telemetry:  /api/soil/scans`);
+      console.log(` > NIR Spectroscopy:       /api/spectroscopy/scans`);
+      console.log(` > Environment & Weather:  /api/environment/latest`);
+      console.log(` > AI Closed-Loop Engine:  /api/ai/recommendations`);
+      console.log(` > Emergency Killswitch:   /api/irrigation/emergency-stop`);
+      console.log(` > Audit Trail:            /api/admin/audit-logs`);
+      console.log(` > Telemetry Sync:         /api/telemetry/sync`);
+      console.log(` > Cloud Firestore DB:     ${firestoreClient.projectId} (${isLiveDb ? `LIVE CLOUD LINK - ${firestoreClient.authProvider}` : 'OFFLINE STORE'})`);
+      console.log(` > Verified Tables:        farms, users, telemetry_logs, irrigation_logs, soil_scans, audit_logs`);
+      console.log(` > Active Parcels:         ${centralStorage.getValves().length} Zones Managed`);
+      console.log(` > Registered Users:       ${enterpriseStore.users.length} Enterprise Operators`);
+      console.log("====================================================================");
+    });
+  })();
 }
 
 export { app, serverInstance };

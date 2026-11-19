@@ -13,6 +13,7 @@
 import { Router } from 'express';
 import { centralStorage, CROP_PROFILES } from '../services/centralStorage.js';
 import { enterpriseStore } from '../services/enterpriseStore.js';
+import { schemaManager } from '../services/schemaManager.js';
 
 const router = Router();
 
@@ -62,6 +63,9 @@ router.post('/soil/scans', (req, res) => {
         }
       }
     }
+
+    // Persist scan to Cloud Firestore database via schemaManager
+    schemaManager.saveSoilScan(record).catch(e => console.warn('[soilRoutes] DB scan save note:', e.message));
 
     res.status(201).json({
       success: true,

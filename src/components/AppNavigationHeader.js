@@ -148,45 +148,45 @@ export function createAppNavigationHeader({
       <!-- 3-DOT OVERFLOW FEATURE DRAWER / ACTION SHEET MODAL                     -->
       <!-- ===================================================================== -->
       <div id="header-more-menu-modal" class="${isMoreMenuOpen ? '' : 'hidden'} fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
-        <div class="bg-[#F7F9F6] dark:bg-slate-900 border border-emerald-900/15 dark:border-slate-800 rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-md max-h-[88vh] overflow-y-auto no-scrollbar text-slate-800 dark:text-slate-100 flex flex-col animate-fadeIn">
+        <div class="bg-white border border-slate-200 rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-md max-h-[88vh] overflow-y-auto no-scrollbar text-slate-800 flex flex-col animate-fadeIn">
           
-          <!-- Modal Header with Agricultural Green Gradient -->
-          <div class="bg-gradient-to-r from-[#092B19] via-[#0E5431] to-[#146B40] text-white p-4 sm:p-5 rounded-t-3xl flex-shrink-0 flex items-center justify-between">
+          <!-- Modal Header (Pure White with Emerald Accents) -->
+          <div class="bg-white border-b border-slate-200/80 p-4 sm:p-5 rounded-t-3xl flex-shrink-0 flex items-center justify-between">
             <div class="flex items-center gap-2.5">
-              <div class="w-8 h-8 rounded-xl bg-white/15 flex items-center justify-center text-emerald-200">
+              <div class="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200/80 flex items-center justify-center text-[#0E5431] shadow-sm">
                 ${icon('sliders', 'w-4 h-4')}
               </div>
               <div>
-                <h3 class="text-sm sm:text-base font-bold text-white tracking-tight">${t('menu_title')}</h3>
-                <p class="text-[11px] text-emerald-200/90">${t('menu_subtitle')}</p>
+                <h3 class="text-sm sm:text-base font-bold text-slate-900 tracking-tight">${t('menu_title')}</h3>
+                <p class="text-[11px] text-slate-500 font-medium">${t('menu_subtitle')}</p>
               </div>
             </div>
             <button 
               type="button" 
               id="header-menu-close-btn"
-              class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition active:scale-95 cursor-pointer"
+              class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition active:scale-95 cursor-pointer"
               aria-label="Close menu"
             >
               ${icon('x', 'w-4 h-4')}
             </button>
           </div>
 
-          <!-- Modal Body -->
-          <div class="p-4 sm:p-5 space-y-4 overflow-y-auto flex-1">
+          <!-- Modal Body (Clean Soft Cream/White Background with White Cards) -->
+          <div class="bg-[#F8FAF6] p-4 sm:p-5 space-y-4 overflow-y-auto flex-1">
             <!-- Section 1: Farm Profile Card -->
-            <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-700 shadow-sm space-y-3">
+            <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3">
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                  <div class="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-400/30 text-[#0E5431] dark:text-emerald-300 font-bold text-sm flex items-center justify-center flex-shrink-0">
+                  <div class="w-10 h-10 rounded-full bg-emerald-100 border border-emerald-400/30 text-[#0E5431] font-bold text-sm flex items-center justify-center flex-shrink-0">
                     ${avatarInitial}
                   </div>
                   <div>
-                    <div class="text-xs font-bold text-slate-900 dark:text-white">${cleanDisplayName}</div>
-                    <div class="text-[10px] text-slate-500 dark:text-slate-400">${currentUser?.email || 'offline.guest@agrispectra.local'}</div>
-                    <div class="text-[10px] font-mono text-emerald-700 dark:text-emerald-400 font-semibold mt-0.5">${currentUser?.farmName || t('sonoma_parcels', 'Sonoma Parcels')} • ${plots.length || 6} ${t('active_zones', 'Active Zones')}</div>
+                    <div class="text-xs font-bold text-slate-900">${cleanDisplayName}</div>
+                    <div class="text-[10px] text-slate-500">${currentUser?.email || 'offline.guest@agrispectra.local'}</div>
+                    <div class="text-[10px] font-mono text-emerald-700 font-semibold mt-0.5">${currentUser?.farmName || t('sonoma_parcels', 'Sonoma Parcels')} • ${plots.length || 6} ${t('active_zones', 'Active Zones')}</div>
                   </div>
                 </div>
-                <span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                <span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
                   ${getRoleName(currentUser?.role || 'Farm Admin')}
                 </span>
               </div>
@@ -195,9 +195,9 @@ export function createAppNavigationHeader({
               <button 
                 type="button" 
                 id="drawer-logout-btn" 
-                class="w-full py-2 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/30 dark:hover:bg-rose-900/40 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300 text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer"
+                class="w-full py-2 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer"
               >
-                ${icon('power', 'w-3.5 h-3.5 text-rose-600 dark:text-rose-400')}
+                ${icon('power', 'w-3.5 h-3.5 text-rose-600')}
                 <span>${t('log_out', 'Log Out / Switch Account')}</span>
               </button>
             </div>
@@ -205,11 +205,11 @@ export function createAppNavigationHeader({
             <!-- Section 2: Language Selector (All Native Languages) -->
             <div class="space-y-2">
               <div class="flex items-center justify-between">
-                <label class="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                  ${icon('globe', 'w-3.5 h-3.5 text-[#0E5431] dark:text-emerald-400')}
+                <label class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  ${icon('globe', 'w-3.5 h-3.5 text-[#0E5431]')}
                   <span>${t('menu_language')} (${SUPPORTED_LOCALES.length} ${t('languages_label', 'Languages')})</span>
                 </label>
-                <span class="text-[10px] text-[#0E5431] dark:text-emerald-400 font-mono font-semibold">${activeLocale.native}</span>
+                <span class="text-[10px] text-[#0E5431] font-mono font-semibold">${activeLocale.native}</span>
               </div>
               <div class="grid grid-cols-2 gap-1.5">
                 ${SUPPORTED_LOCALES.map(l => `
@@ -218,30 +218,30 @@ export function createAppNavigationHeader({
                     data-lang-code="${l.code}"
                     class="menu-lang-pill-btn px-2.5 py-2 rounded-xl text-left border flex items-center justify-between transition cursor-pointer ${
                       l.code === locale 
-                        ? 'bg-emerald-50 dark:bg-emerald-950/60 border-[#0E5431] dark:border-emerald-500 text-[#0E5431] dark:text-emerald-200 font-bold shadow-sm ring-1 ring-[#0E5431]/20' 
-                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 shadow-sm'
+                        ? 'bg-emerald-50 border-[#0E5431] text-[#0E5431] font-bold shadow-sm ring-1 ring-[#0E5431]/20' 
+                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm'
                     }"
                   >
                     <div class="flex flex-col">
                       <span class="text-xs font-semibold">${l.native}</span>
-                      <span class="text-[9px] ${l.code === locale ? 'text-emerald-700/70 dark:text-emerald-300/70' : 'text-slate-400 dark:text-slate-500'}">${l.name}</span>
+                      <span class="text-[9px] ${l.code === locale ? 'text-emerald-700/70' : 'text-slate-400'}">${l.name}</span>
                     </div>
-                    ${l.code === locale ? icon('check', 'w-3.5 h-3.5 text-[#0E5431] dark:text-emerald-400 flex-shrink-0') : ''}
+                    ${l.code === locale ? icon('check', 'w-3.5 h-3.5 text-[#0E5431] flex-shrink-0') : ''}
                   </button>
                 `).join('')}
               </div>
             </div>
 
             <!-- Section 3: Theme Selector (Preserves #header-theme-select for automated QA) -->
-            <div class="space-y-1.5 pt-1 border-t border-slate-200/80 dark:border-slate-800">
-              <label for="header-theme-select" class="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                ${icon('sparkles', 'w-3.5 h-3.5 text-[#0E5431] dark:text-emerald-400')}
+            <div class="space-y-1.5 pt-1 border-t border-slate-200/80">
+              <label for="header-theme-select" class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                ${icon('sparkles', 'w-3.5 h-3.5 text-[#0E5431]')}
                 <span>${t('menu_theme')}</span>
               </label>
               <div class="relative">
                 <select 
                   id="header-theme-select" 
-                  class="w-full min-h-[40px] px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-800 dark:text-slate-100 shadow-sm pr-8 focus:outline-none focus:ring-2 focus:ring-[#0E5431] cursor-pointer"
+                  class="w-full min-h-[40px] px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs font-semibold text-slate-800 shadow-sm pr-8 focus:outline-none focus:ring-2 focus:ring-[#0E5431] cursor-pointer"
                   title="Select Theme"
                 >
                   <option value="creamy-agri" class="text-slate-900" ${currentTheme === 'creamy-agri' ? 'selected' : ''}>${t('theme_creamy_agri', 'Forest Cream (Agricultural Default)')}</option>
@@ -256,30 +256,30 @@ export function createAppNavigationHeader({
             </div>
 
             <!-- Section 3b: Active Field Zone Selector (Relocated from Top Header to Drawer) -->
-            <div class="space-y-1.5 pt-1 border-t border-slate-200/80 dark:border-slate-800">
+            <div class="space-y-1.5 pt-1 border-t border-slate-200/80">
               <div class="flex items-center justify-between">
-                <label class="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                  ${icon('mapPin', 'w-3.5 h-3.5 text-[#0E5431] dark:text-emerald-400')}
+                <label class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  ${icon('mapPin', 'w-3.5 h-3.5 text-[#0E5431]')}
                   <span>${(t('field_zones_active') || 'Field Zones ({count} Active)').replace('{count}', plots.length || 1)}</span>
                 </label>
-                <span class="text-[10px] text-emerald-700 dark:text-emerald-400 font-mono font-semibold">${t('live_db', 'Live DB')}</span>
+                <span class="text-[10px] text-emerald-700 font-mono font-semibold">${t('live_db', 'Live DB')}</span>
               </div>
 
               <div class="relative" id="zone-picker-wrapper">
                 <button 
                   type="button" 
                   id="header-zone-btn"
-                  class="w-full min-h-[40px] px-3 py-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/60 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-800 dark:text-slate-100 shadow-sm flex items-center justify-between transition cursor-pointer"
+                  class="w-full min-h-[40px] px-3 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800 shadow-sm flex items-center justify-between transition cursor-pointer"
                 >
                   <div class="flex items-center gap-2 min-w-0">
-                    ${icon('sprout', 'w-4 h-4 text-[#0E5431] dark:text-emerald-400 flex-shrink-0')}
+                    ${icon('sprout', 'w-4 h-4 text-[#0E5431] flex-shrink-0')}
                     <span class="truncate">${t('zone_label')} ${currentPlot.plotNumber}: ${getCropName(currentPlot.crop)}</span>
                   </div>
                   ${icon('chevronDown', 'w-3.5 h-3.5 text-slate-400 flex-shrink-0')}
                 </button>
 
                 <!-- Zone Dropdown Menu -->
-                <div id="header-zone-dropdown" class="hidden mt-1.5 w-full rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl p-1.5 z-50 text-xs">
+                <div id="header-zone-dropdown" class="hidden mt-1.5 w-full rounded-2xl bg-white border border-slate-200 shadow-xl p-1.5 z-50 text-xs">
                   <div class="max-h-48 overflow-y-auto space-y-0.5 no-scrollbar">
                     ${plots.map(p => `
                       <button 
@@ -287,26 +287,26 @@ export function createAppNavigationHeader({
                         data-plot-id="${p.id}"
                         class="zone-select-option w-full text-left px-2.5 py-2 rounded-xl flex items-center justify-between transition cursor-pointer ${
                           p.id === currentPlot.id 
-                            ? 'bg-emerald-50 dark:bg-emerald-950/60 text-[#0E5431] dark:text-emerald-300 font-bold' 
-                            : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60'
+                            ? 'bg-emerald-50 text-[#0E5431] font-bold' 
+                            : 'text-slate-700 hover:bg-slate-50'
                         }"
                       >
                         <div class="flex flex-col min-w-0">
                           <span class="font-medium truncate">${t('zone_label')} ${p.plotNumber}: ${getCropName(p.crop)}</span>
-                          <span class="text-[10px] ${p.id === currentPlot.id ? 'text-emerald-700/80 dark:text-emerald-400/80' : 'text-slate-400 dark:text-slate-500'} font-mono truncate">${p.name || ''}</span>
+                          <span class="text-[10px] ${p.id === currentPlot.id ? 'text-emerald-700/80' : 'text-slate-400'} font-mono truncate">${p.name || ''}</span>
                         </div>
-                        ${p.id === currentPlot.id ? icon('check', 'w-3.5 h-3.5 text-[#0E5431] dark:text-emerald-400 flex-shrink-0') : ''}
+                        ${p.id === currentPlot.id ? icon('check', 'w-3.5 h-3.5 text-[#0E5431] flex-shrink-0') : ''}
                       </button>
                     `).join('')}
                   </div>
                   <!-- Manage Zones & Crops Button -->
-                  <div class="pt-1 mt-1 border-t border-slate-200 dark:border-slate-700">
+                  <div class="pt-1 mt-1 border-t border-slate-200">
                     <button 
                       type="button" 
                       id="header-manage-zones-btn"
-                      class="w-full text-left px-2.5 py-2 rounded-xl flex items-center gap-2 text-[#0E5431] dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 font-semibold transition active:scale-98 cursor-pointer"
+                      class="w-full text-left px-2.5 py-2 rounded-xl flex items-center gap-2 text-[#0E5431] hover:bg-emerald-50 font-semibold transition active:scale-98 cursor-pointer"
                     >
-                      ${icon('sprout', 'w-3.5 h-3.5 text-[#0E5431] dark:text-emerald-400 flex-shrink-0')}
+                      ${icon('sprout', 'w-3.5 h-3.5 text-[#0E5431] flex-shrink-0')}
                       <span class="truncate">${t('manage_zones_and_crops', 'Manage Zones & Crops')}</span>
                     </button>
                   </div>
@@ -315,97 +315,97 @@ export function createAppNavigationHeader({
             </div>
 
             <!-- Section 4: Hardware Diagnostics & Tools List -->
-            <div class="space-y-1.5 pt-1 border-t border-slate-200/80 dark:border-slate-800">
-              <span class="text-[10px] font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400 font-bold">Farm Management & Diagnostics</span>
+            <div class="space-y-1.5 pt-1 border-t border-slate-200/80">
+              <span class="text-[10px] font-mono uppercase tracking-wider text-slate-500 font-bold">Farm Management & Diagnostics</span>
               
               <div class="space-y-1.5">
                 <!-- Crops & Field Zones Manager -->
                 <button 
                   type="button" 
                   id="menu-btn-crop-zone-manager"
-                  class="w-full bg-white dark:bg-slate-800 hover:bg-emerald-50/60 dark:hover:bg-slate-700/60 border border-slate-200/80 dark:border-slate-700 rounded-xl p-3 shadow-sm text-left flex items-center justify-between text-xs transition cursor-pointer"
+                  class="w-full bg-white hover:bg-emerald-50/60 border border-slate-200/80 rounded-xl p-3 shadow-sm text-left flex items-center justify-between text-xs transition cursor-pointer"
                 >
                   <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-[#0E5431] dark:text-emerald-300 flex items-center justify-center shrink-0">
+                    <div class="w-8 h-8 rounded-lg bg-emerald-50 text-[#0E5431] flex items-center justify-center shrink-0">
                       ${icon('sprout', 'w-4 h-4')}
                     </div>
                     <div>
-                      <div class="font-bold text-slate-800 dark:text-white flex items-center gap-1.5">
+                      <div class="font-bold text-slate-800 flex items-center gap-1.5">
                         <span>${t('menu_crop_zone_manager', 'Crops & Field Zones Manager')}</span>
                         <span class="px-1.5 py-0.2 rounded text-[8px] font-mono bg-emerald-600 text-white font-bold">DB</span>
                       </div>
-                      <div class="text-[10px] text-slate-500 dark:text-slate-400">${t('menu_crop_zone_manager_sub', 'Live database plots & crop catalog')}</div>
+                      <div class="text-[10px] text-slate-500">${t('menu_crop_zone_manager_sub', 'Live database plots & crop catalog')}</div>
                     </div>
                   </div>
-                  ${icon('chevronRight', 'w-3.5 h-3.5 text-slate-400 dark:text-slate-500')}
+                  ${icon('chevronRight', 'w-3.5 h-3.5 text-slate-400')}
                 </button>
 
                 <!-- Sensor Calibration Wizard -->
                 <button 
                   type="button" 
                   id="menu-btn-calibration"
-                  class="w-full bg-white dark:bg-slate-800 hover:bg-emerald-50/60 dark:hover:bg-slate-700/60 border border-slate-200/80 dark:border-slate-700 rounded-xl p-3 shadow-sm text-left flex items-center justify-between text-xs transition cursor-pointer"
+                  class="w-full bg-white hover:bg-emerald-50/60 border border-slate-200/80 rounded-xl p-3 shadow-sm text-left flex items-center justify-between text-xs transition cursor-pointer"
                 >
                   <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-[#0E5431] dark:text-emerald-300 flex items-center justify-center shrink-0">
+                    <div class="w-8 h-8 rounded-lg bg-emerald-50 text-[#0E5431] flex items-center justify-center shrink-0">
                       ${icon('microscope', 'w-4 h-4')}
                     </div>
                     <div>
-                      <div class="font-bold text-slate-800 dark:text-white">${t('menu_calibration')}</div>
-                      <div class="text-[10px] text-slate-500 dark:text-slate-400">${t('menu_calibration_sub', 'White PTFE & Dark zeroing')}</div>
+                      <div class="font-bold text-slate-800">${t('menu_calibration')}</div>
+                      <div class="text-[10px] text-slate-500">${t('menu_calibration_sub', 'White PTFE & Dark zeroing')}</div>
                     </div>
                   </div>
-                  ${icon('chevronRight', 'w-3.5 h-3.5 text-slate-400 dark:text-slate-500')}
+                  ${icon('chevronRight', 'w-3.5 h-3.5 text-slate-400')}
                 </button>
 
                 <!-- IoT Telemetry Simulator -->
                 <button 
                   type="button" 
                   id="menu-btn-telemetry-sim"
-                  class="w-full bg-white dark:bg-slate-800 hover:bg-emerald-50/60 dark:hover:bg-slate-700/60 border border-slate-200/80 dark:border-slate-700 rounded-xl p-3 shadow-sm text-left flex items-center justify-between text-xs transition cursor-pointer"
+                  class="w-full bg-white hover:bg-emerald-50/60 border border-slate-200/80 rounded-xl p-3 shadow-sm text-left flex items-center justify-between text-xs transition cursor-pointer"
                 >
                   <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-[#0E5431] dark:text-emerald-300 flex items-center justify-center shrink-0">
+                    <div class="w-8 h-8 rounded-lg bg-emerald-50 text-[#0E5431] flex items-center justify-center shrink-0">
                       ${icon('wifi', 'w-4 h-4')}
                     </div>
                     <div>
-                      <div class="font-bold text-slate-800 dark:text-white">${t('menu_telemetry_sim')}</div>
-                      <div class="text-[10px] text-slate-500 dark:text-slate-400">${t('menu_telemetry_sim_sub', 'Simulate Modbus RS485 & MQTT')}</div>
+                      <div class="font-bold text-slate-800">${t('menu_telemetry_sim')}</div>
+                      <div class="text-[10px] text-slate-500">${t('menu_telemetry_sim_sub', 'Simulate Modbus RS485 & MQTT')}</div>
                     </div>
                   </div>
-                  ${icon('chevronRight', 'w-3.5 h-3.5 text-slate-400 dark:text-slate-500')}
+                  ${icon('chevronRight', 'w-3.5 h-3.5 text-slate-400')}
                 </button>
 
                 <!-- Platform Governance & Logs -->
                 <button 
                   type="button" 
                   id="menu-btn-governance"
-                  class="w-full bg-white dark:bg-slate-800 hover:bg-emerald-50/60 dark:hover:bg-slate-700/60 border border-slate-200/80 dark:border-slate-700 rounded-xl p-3 shadow-sm text-left flex items-center justify-between text-xs transition cursor-pointer"
+                  class="w-full bg-white hover:bg-emerald-50/60 border border-slate-200/80 rounded-xl p-3 shadow-sm text-left flex items-center justify-between text-xs transition cursor-pointer"
                 >
                   <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-[#0E5431] dark:text-emerald-300 flex items-center justify-center shrink-0">
+                    <div class="w-8 h-8 rounded-lg bg-emerald-50 text-[#0E5431] flex items-center justify-center shrink-0">
                       ${icon('shieldCheck', 'w-3.5 h-3.5')}
                     </div>
                     <div>
-                      <div class="font-bold text-slate-800 dark:text-white">${t('menu_governance')}</div>
-                      <div class="text-[10px] text-slate-500 dark:text-slate-400">${t('menu_governance_sub', 'Audit logs & valve actuation history')}</div>
+                      <div class="font-bold text-slate-800">${t('menu_governance')}</div>
+                      <div class="text-[10px] text-slate-500">${t('menu_governance_sub', 'Audit logs & valve actuation history')}</div>
                     </div>
                   </div>
-                  ${icon('chevronRight', 'w-3.5 h-3.5 text-slate-400 dark:text-slate-500')}
+                  ${icon('chevronRight', 'w-3.5 h-3.5 text-slate-400')}
                 </button>
               </div>
             </div>
 
             <!-- Section 5: Dedicated Emergency Hydraulic Shutoff Card -->
-            <div class="pt-2 border-t border-slate-200/80 dark:border-slate-800">
-              <div class="bg-rose-50/90 dark:bg-rose-950/30 rounded-2xl p-3.5 border border-rose-200 dark:border-rose-900/50 space-y-2.5">
+            <div class="pt-2 border-t border-slate-200/80">
+              <div class="bg-rose-50/90 rounded-2xl p-3.5 border border-rose-200 space-y-2.5">
                 <div class="flex items-start gap-2.5">
-                  <div class="w-8 h-8 rounded-xl bg-rose-100 dark:bg-rose-900/50 text-rose-600 dark:text-rose-300 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <div class="w-8 h-8 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center flex-shrink-0 mt-0.5">
                     ${icon('power', 'w-4 h-4')}
                   </div>
                   <div class="min-w-0">
-                    <h4 class="text-xs font-bold text-rose-900 dark:text-rose-200 tracking-tight">${t('menu_emergency_stop')}</h4>
-                    <p class="text-[10px] text-rose-700/80 dark:text-rose-300/80 leading-normal mt-0.5">
+                    <h4 class="text-xs font-bold text-rose-900 tracking-tight">${t('menu_emergency_stop')}</h4>
+                    <p class="text-[10px] text-rose-700/80 leading-normal mt-0.5">
                       ${t('menu_emergency_desc')}
                     </p>
                   </div>
@@ -426,7 +426,7 @@ export function createAppNavigationHeader({
 
             <!-- Help & Docs Link -->
             <div class="pt-1 text-center">
-              <span class="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+              <span class="text-[10px] text-slate-500 font-mono">
                 AgriSpectra Mobile v2.4 • Modbus RS485 & VIS-NIR Ready
               </span>
             </div>
@@ -438,13 +438,13 @@ export function createAppNavigationHeader({
       <!-- SAFETY CONFIRMATION DIALOG (Guards Against Accidental Triggering)      -->
       <!-- ===================================================================== -->
       <div id="safety-confirm-dialog" class="${isConfirmShutoffOpen ? '' : 'hidden'} fixed inset-0 z-[110] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-        <div class="bg-white dark:bg-slate-900 border border-rose-300 dark:border-rose-900/50 rounded-3xl shadow-2xl max-w-sm w-full p-5 text-slate-800 dark:text-white space-y-4 animate-fadeIn">
-          <div class="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 mx-auto flex items-center justify-center border border-rose-200 dark:border-rose-900/40">
+        <div class="bg-white border border-rose-200 rounded-3xl shadow-2xl max-w-sm w-full p-5 text-slate-800 space-y-4 animate-fadeIn">
+          <div class="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 mx-auto flex items-center justify-center border border-rose-200">
             ${icon('alert', 'w-6 h-6')}
           </div>
           <div class="text-center space-y-1">
-            <h3 class="text-sm font-bold text-slate-900 dark:text-white">${t('valve_emergency_stop')}</h3>
-            <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+            <h3 class="text-sm font-bold text-slate-900">${t('valve_emergency_stop')}</h3>
+            <p class="text-xs text-slate-600 leading-relaxed">
               ${t('valve_killswitch_confirm')}
             </p>
           </div>
@@ -452,7 +452,7 @@ export function createAppNavigationHeader({
             <button 
               type="button" 
               id="confirm-shutoff-cancel-btn"
-              class="flex-1 py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 transition cursor-pointer"
+              class="flex-1 py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-700 transition cursor-pointer"
             >
               ${t('dialog_cancel')}
             </button>

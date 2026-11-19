@@ -6,6 +6,7 @@
 
 import { describe, it, expect } from './framework.js';
 import { mockFirestore } from '../src/firebase/mockFirestore.js';
+import { irrigationControllerAdapter, IrrigationControllerAdapter, VALVE_STATES } from '../src/hardware/irrigationControllerAdapter.js';
 
 export function registerSolenoidValveTests() {
   describe('Solenoid Valve Latching - Bi-Stable Actuation & Pulse Polarity', () => {
@@ -200,6 +201,124 @@ export function registerSolenoidValveTests() {
       expect(updatedPlot2.valve.state).toBe('CLOSED');
       expect(updatedPlot2.valve.timerEnd).toBe(null);
       expect(updatedPlot2.valve.pulseVoltage).toBe(-12);
+    });
+  });
+
+  describe('Hydraulic Pipe Burst Safety & Minimum Open Valve Interlock', () => {
+    it('enforces minOpenValves safety setting and blocks closing the last open valve', async () => {
+      const adapter = new IrrigationControllerAdapter();
+      adapter.registerValve({ id: 'v1', gateIdentifier: 'G1', state: VALVE_STATES.CLOSED });
+      adapter.registerValve({ id: 'v2', gateIdentifier: 'G2', state: VALVE_STATES.CLOSED });
+
+      // Configure safety setting to 1 (safe default)
+      adapter.setMinOpenValves(1);
+      expect(adapter.getMinOpenValves()).toBe(1);
+
+      // Open v1
+      await adapter.openValve('v1', { durationMinutes: 30 });
+      expect(adapter.getValve('v1').state).toBe(VALVE_STATES.OPEN);
+
+      // Attempt to close v1 while it is the only open valve
+      const check = adapter.canCloseValve('v1');
+      expect(check.allowed).toBe(false);
+      expect(check.reason).toBe('MIN_OPEN_VALVES_ENFORCED');
+      expect(check.minRequired).toBe(1);
+
+      // Closing via adapter.closeValve without force is blocked to protect pipe
+      const closeResult = await adapter.closeValve('v1');
+      expect(closeResult.success).toBe(false);
+      expect(closeResult.blockedBySafety).toBe(true);
+      expect(closeResult.message.includes('Pipe Burst Protection')).toBe(true);
+      expect(adapter.getValve('v1').state).toBe(VALVE_STATES.OPEN); // Still OPEN
+    });
+
+    it('allows closing previous valve only after farmer opens another valve first (handoff flow)', async () => {
+      const adapter = new IrrigationControllerAdapter();
+      adapter.registerValve({ id: 'v1', gateIdentifier: 'G1', state: VALVE_STATES.CLOSED });
+      adapter.registerValve({ id: 'v2', gateIdentifier: 'G2', state: VALVE_STATES.CLOSED });
+      adapter.registerValve({ id: 'v3', gateIdentifier: 'G3', state: VALVE_STATES.CLOSED });
+
+      adapter.setMinOpenValves(1);
+
+      // Step 1: Open v1
+      await adapter.openValve('v1', { durationMinutes: 30 });
+      expect(adapter.canCloseValve('v1').allowed).toBe(false);
+
+      // Step 2: Farmer opens v2 first
+      await adapter.openValve('v2', { durationMinutes: 30 });
+      expect(adapter.getValve('v1').state).toBe(VALVE_STATES.OPEN);
+      expect(adapter.getValve('v2').state).toBe(VALVE_STATES.OPEN);
+
+      // Now with 2 valves open, closing v1 is safe and ALLOWED!
+      expect(adapter.canCloseValve('v1').allowed).toBe(true);
+      await adapter.closeValve('v1');
+      expect(adapter.getValve('v1').state).toBe(VALVE_STATES.CLOSED);
+      expect(adapter.getValve('v2').state).toBe(VALVE_STATES.OPEN);
+
+      // Now v2 is the only open valve; closing v2 is blocked again!
+      expect(adapter.canCloseValve('v2').allowed).toBe(false);
+    });
+
+    it('supports 2 valves always open setting for dual-line split irrigation', async () => {
+      const adapter = new IrrigationControllerAdapter();
+      adapter.registerValve({ id: 'v1', gateIdentifier: 'G1', state: VALVE_STATES.CLOSED });
+      adapter.registerValve({ id: 'v2', gateIdentifier: 'G2', state: VALVE_STATES.CLOSED });
+      adapter.registerValve({ id: 'v3', gateIdentifier: 'G3', state: VALVE_STATES.CLOSED });
+
+      adapter.setMinOpenValves(2);
+      expect(adapter.getMinOpenValves()).toBe(2);
+
+      await adapter.openValve('v1', { durationMinutes: 30 });
+      await adapter.openValve('v2', { durationMinutes: 30 });
+
+      // With 2 valves open and minRequired=2, closing either is blocked
+      expect(adapter.canCloseValve('v1').allowed).toBe(false);
+      expect(adapter.canCloseValve('v2').allowed).toBe(false);
+
+      // Open a 3rd valve
+      await adapter.openValve('v3', { durationMinutes: 30 });
+      // Now closing v1 is allowed because 3 - 1 = 2 >= 2
+      expect(adapter.canCloseValve('v1').allowed).toBe(true);
+      await adapter.closeValve('v1');
+      expect(adapter.getValve('v1').state).toBe(VALVE_STATES.CLOSED);
+    });
+
+    it('supports 0 valves (manual mode) allowing complete closure of all valves', async () => {
+      const adapter = new IrrigationControllerAdapter();
+      adapter.registerValve({ id: 'v1', gateIdentifier: 'G1', state: VALVE_STATES.CLOSED });
+      adapter.setMinOpenValves(0);
+
+      await adapter.openValve('v1', { durationMinutes: 30 });
+      expect(adapter.canCloseValve('v1').allowed).toBe(true);
+      await adapter.closeValve('v1');
+      expect(adapter.getValve('v1').state).toBe(VALVE_STATES.CLOSED);
+    });
+
+    it('allows emergency killswitch to bypass minOpenValves interlock during critical emergencies', async () => {
+      const adapter = new IrrigationControllerAdapter();
+      adapter.registerValve({ id: 'v1', gateIdentifier: 'G1', state: VALVE_STATES.CLOSED });
+      adapter.registerValve({ id: 'v2', gateIdentifier: 'G2', state: VALVE_STATES.CLOSED });
+      adapter.setMinOpenValves(1);
+
+      await adapter.openValve('v1', { durationMinutes: 30 });
+      expect(adapter.getValve('v1').state).toBe(VALVE_STATES.OPEN);
+
+      // Emergency killswitch immediately stops all valves regardless of minOpenValves
+      await adapter.emergencyAllStop('HIGH_PRESSURE_BURST_PREVENTION');
+      expect(adapter.getValve('v1').state).toBe(VALVE_STATES.CLOSED);
+    });
+
+    it('automatically ensures minimum valves are open on boot via ensureMinimumValvesOpen', async () => {
+      const adapter = new IrrigationControllerAdapter();
+      adapter.registerValve({ id: 'v1', gateIdentifier: 'G1', state: VALVE_STATES.CLOSED });
+      adapter.registerValve({ id: 'v2', gateIdentifier: 'G2', state: VALVE_STATES.CLOSED });
+      adapter.setMinOpenValves(1);
+
+      expect(adapter.getAllValves().filter(v => v.state === VALVE_STATES.OPEN).length).toBe(0);
+
+      const opened = adapter.ensureMinimumValvesOpen();
+      expect(opened.length).toBe(1);
+      expect(opened[0]).toBe('v1');
     });
   });
 }

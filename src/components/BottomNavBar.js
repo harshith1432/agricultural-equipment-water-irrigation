@@ -27,7 +27,7 @@ export function createBottomNavBar({
   badges = {} // e.g. { synergy: 2, irrigation: 1 }
 }) {
   const container = document.createElement('nav');
-  container.className = "fixed bottom-0 inset-x-0 z-40 px-1 sm:px-3 pb-2.5 pt-1 pointer-events-none select-none flex justify-center";
+  container.className = "fixed bottom-0 inset-x-0 z-50 px-1 sm:px-3 pb-2.5 pt-1 select-none flex justify-center";
   container.setAttribute('role', 'navigation');
   container.setAttribute('aria-label', 'Mobile Main Navigation');
 
@@ -109,16 +109,21 @@ export function createBottomNavBar({
       </div>
     `;
 
-    // Attach click handlers
+    // Attach click and touch handlers
     container.querySelectorAll('.bottom-nav-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
+      const handleSelect = (e) => {
+        if (e && e.type === 'touchend') {
+          e.preventDefault();
+        }
         const tabId = btn.getAttribute('data-tab-id');
         if (tabId && tabId !== currentTab) {
           currentTab = tabId;
           render();
           if (onTabChange) onTabChange(tabId);
         }
-      });
+      };
+      btn.addEventListener('click', handleSelect);
+      btn.addEventListener('touchend', handleSelect, { passive: false });
     });
   }
 

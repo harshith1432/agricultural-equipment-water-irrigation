@@ -21,6 +21,7 @@
 import { Router } from 'express';
 import { centralStorage } from '../services/centralStorage.js';
 import { enterpriseStore } from '../services/enterpriseStore.js';
+import { schemaManager } from '../services/schemaManager.js';
 
 const router = Router();
 
@@ -177,6 +178,18 @@ router.post('/irrigation/valves/:id/on', (req, res) => {
       }
     }
 
+    // Persist to Cloud Firestore database via schemaManager
+    schemaManager.saveIrrigationAction({
+      valveId: id,
+      plotId: result.valve.plotId || 'plot-1',
+      farmId: result.valve.farmId || 'farm-valley-1',
+      action: 'VALVE_ON',
+      state: 'OPEN',
+      durationMinutes: Number(durationMinutes) || 20,
+      litersDelivered: (Number(durationMinutes) || 20) * (result.valve.flowRateLpm || 18),
+      operator: operator || req.headers['x-operator-id'] || 'FIELD_APP'
+    }).catch(e => console.warn('[irrigationRoutes] DB action save note:', e.message));
+
     res.status(200).json({
       success: true,
       message: `Valve ${result.valve.code} (${result.valve.name}) latched to OPEN (+12V pulse).`,
@@ -218,6 +231,18 @@ router.post('/irrigation/valves/:id/off', (req, res) => {
         plot.valve.lastActuatedAt = result.valve.lastActuatedAt;
       }
     }
+
+    // Persist to Cloud Firestore database via schemaManager
+    schemaManager.saveIrrigationAction({
+      valveId: id,
+      plotId: result.valve.plotId || 'plot-1',
+      farmId: result.valve.farmId || 'farm-valley-1',
+      action: 'VALVE_OFF',
+      state: 'CLOSED',
+      durationMinutes: 0,
+      litersDelivered: 0,
+      operator: operator || req.headers['x-operator-id'] || 'FIELD_APP'
+    }).catch(e => console.warn('[irrigationRoutes] DB action save note:', e.message));
 
     res.status(200).json({
       success: true,
