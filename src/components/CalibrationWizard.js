@@ -245,6 +245,28 @@ export function createCalibrationModal({
       </div>
     `;
 
+    // Safe DOM population of dynamic/hardware fields (immune to CodeQL js/html-constructed-from-input)
+    const statEl = overlay.querySelector('#calib-progress-status');
+    if (statEl) statEl.textContent = statusText || '';
+
+    const pIn = overlay.querySelector('#calib-input-plant');
+    if (pIn && specimenData.plantNumber) pIn.value = specimenData.plantNumber;
+    const rIn = overlay.querySelector('#calib-input-port');
+    if (rIn && specimenData.portNumber) rIn.value = specimenData.portNumber;
+    const cIn = overlay.querySelector('#calib-input-crop');
+    if (cIn && specimenData.cropVariety) cIn.value = specimenData.cropVariety;
+
+    const zBadge = overlay.querySelector('#calib-res-zone');
+    if (zBadge) zBadge.textContent = specimenData.zone || '';
+    const pBadge = overlay.querySelector('#calib-res-plant');
+    if (pBadge) pBadge.textContent = specimenData.plantNumber || '';
+    const rBadge = overlay.querySelector('#calib-res-port');
+    if (rBadge) rBadge.textContent = specimenData.portNumber || '';
+    const cBadge = overlay.querySelector('#calib-res-crop');
+    if (cBadge) cBadge.textContent = specimenData.cropVariety || '';
+    const wIndex = overlay.querySelector('#calib-res-water-index');
+    if (wIndex) wIndex.textContent = scanResult?.chemometrics?.waterIndex || 'Optimal';
+
     attachEvents();
 
     if (currentStep === 'RESULTS') {
@@ -265,15 +287,15 @@ export function createCalibrationModal({
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-2">
                   <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                    ${t('calib_step1_badge', 'Step 1: Put on the dark')}
+                    ${t('calib_step1_badge', 'Step 1: Put on the dark (Dark reference cover)')}
                   </span>
                   ${isDarkDone ? `<span class="text-xs text-emerald-400 font-bold">✓ ${t('calib_verified', 'Verified')}</span>` : ''}
                 </div>
                 <h4 class="text-sm font-bold text-white mt-1">
-                  ${t('calib_dark_prompt_title', 'Dark Current Zero Baseline (0% Reflectance)')}
+                  ${t('calib_dark_prompt_title', 'Step 1: Dark Color Calibration (0% Baseline)')}
                 </h4>
                 <p class="text-xs text-slate-300 leading-relaxed mt-1">
-                  ${t('calib_step1_desc_long', 'Ensure the leaf-clip optical chamber is tightly closed or cover the optical aperture completely with zero light. This records CMOS thermal detector dark noise across all 76 wavelength photodiodes.')}
+                  ${t('calib_step1_desc_long', 'Step 1: Put the Dark reference cover on the optical sensor aperture. Ensure the leaf-clip optical chamber is tightly closed or cover the optical aperture completely with zero light. This records CMOS thermal detector dark noise across all 76 wavelength photodiodes.')}
                 </p>
               </div>
             </div>
@@ -305,15 +327,15 @@ export function createCalibrationModal({
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-2">
                   <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                    ${t('calib_step2_badge', 'Step 2: Put on the white light')}
+                    ${t('calib_step2_badge', 'Step 2: Put on the white light (99% PTFE White disc)')}
                   </span>
                   ${isWhiteDone ? `<span class="text-xs text-emerald-400 font-bold">✓ ${t('calib_calibrated', 'Calibrated')}</span>` : ''}
                 </div>
                 <h4 class="text-sm font-bold text-white mt-1">
-                  ${t('calib_white_prompt_title', '99% PTFE White Target Disc Standard')}
+                  ${t('calib_white_prompt_title', 'Step 2: White Color Calibration (99% PTFE Standard)')}
                 </h4>
                 <p class="text-xs text-slate-300 leading-relaxed mt-1">
-                  ${t('calib_step2_desc_long', 'Insert the 99% pure diffuse PTFE Spectralon disc into the probe clamp or activate the calibrated white reference illuminator. This normalizes 100% reflectance baseline across 350-1100 nm.')}
+                  ${t('calib_step2_desc_long', 'Step 2: Put the White reference disc (99% PTFE) on the optical aperture. Insert or place the 99% pure diffuse PTFE reference standard onto the sensor aperture. This turns on the spectroscope calibration lamp to normalize 100% reflectance baseline across 350-1100 nm.')}
                 </p>
               </div>
             </div>
@@ -365,7 +387,6 @@ export function createCalibrationModal({
                   <input
                     type="text"
                     id="calib-input-plant"
-                    value="${escapeHtml(specimenData.plantNumber)}"
                     placeholder="e.g. PLANT-042"
                     class="w-full px-3 py-2.5 rounded-xl bg-slate-950 border ${validationErrors.plantNumber ? 'border-rose-500' : 'border-slate-700'} text-white text-xs font-mono focus:border-emerald-500 focus:outline-none transition min-h-[44px]"
                   />
@@ -380,7 +401,6 @@ export function createCalibrationModal({
                   <input
                     type="text"
                     id="calib-input-port"
-                    value="${escapeHtml(specimenData.portNumber)}"
                     placeholder="e.g. PORT-08"
                     class="w-full px-3 py-2.5 rounded-xl bg-slate-950 border ${validationErrors.portNumber ? 'border-rose-500' : 'border-slate-700'} text-white text-xs font-mono focus:border-emerald-500 focus:outline-none transition min-h-[44px]"
                   />
@@ -397,7 +417,6 @@ export function createCalibrationModal({
                   <input
                     type="text"
                     id="calib-input-crop"
-                    value="${escapeHtml(specimenData.cropVariety)}"
                     placeholder="e.g. Roma Tomato"
                     class="flex-1 px-3 py-2.5 rounded-xl bg-slate-950 border ${validationErrors.cropVariety ? 'border-rose-500' : 'border-slate-700'} text-white text-xs focus:border-emerald-500 focus:outline-none transition min-h-[44px]"
                   />
@@ -459,13 +478,13 @@ export function createCalibrationModal({
               </div>
               <div class="min-w-0 flex-1">
                 <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                  ${t('calib_step4_badge', 'Step 4: Place on the plant leaf')}
+                  ${t('calib_step4_badge', 'Step 4: Place on the plant leaf (Leaf scan)')}
                 </span>
                 <h4 class="text-sm font-bold text-white mt-1">
                   ${t('calib_leaf_prompt_title', 'Guided Probe Clamp Placement')}
                 </h4>
                 <p class="text-xs text-slate-300 leading-relaxed mt-1">
-                  ${t('calib_leaf_instruction', 'Gently clamp the optical sensor probe onto the leaf lamina blade. Position the aperture squarely over interveinal green tissue, avoiding thick central midribs or heavy secondary veins.')}
+                  ${t('calib_leaf_instruction', 'Step 4: Place on the plant leaf (avoid thick main veins). Clip the optical sensor onto the interveinal leaf blade and click "Scan Leaf". The spectroscope light will illuminate to measure the leaf spectrum.')}
                 </p>
               </div>
             </div>
@@ -539,14 +558,14 @@ export function createCalibrationModal({
         return `
           <!-- Step 5: Spectral Capture & Results -->
           <div class="space-y-3.5">
-            <!-- Specimen Badge Header -->
+            <!-- Specimen Badge Header (Safe DOM Populated) -->
             <div class="p-3 rounded-2xl bg-slate-950 border border-emerald-800/40 flex items-center justify-between text-xs font-mono">
               <div class="flex items-center gap-2">
-                <span class="px-2 py-0.5 rounded-lg bg-[#0E5431] text-emerald-200 font-bold">${escapeHtml(specimenData.zone)}</span>
-                <span class="font-bold text-white">${escapeHtml(specimenData.plantNumber)}</span>
-                <span class="text-slate-400">${escapeHtml(specimenData.portNumber)}</span>
+                <span id="calib-res-zone" class="px-2 py-0.5 rounded-lg bg-[#0E5431] text-emerald-200 font-bold"></span>
+                <span id="calib-res-plant" class="font-bold text-white"></span>
+                <span id="calib-res-port" class="text-slate-400"></span>
               </div>
-              <span class="text-emerald-400 font-sans font-bold">${escapeHtml(specimenData.cropVariety)}</span>
+              <span id="calib-res-crop" class="text-emerald-400 font-sans font-bold"></span>
             </div>
 
             <!-- 76-Band Live Curve Canvas -->
@@ -601,7 +620,7 @@ export function createCalibrationModal({
               <div class="p-2.5 rounded-2xl bg-slate-950 border border-slate-800 text-center">
                 <div class="text-[10px] uppercase font-mono text-slate-400 font-semibold">WBI Water</div>
                 <div class="text-base font-bold font-mono text-white mt-0.5">${che.indices?.wbi?.toFixed(3) || '0.941'}</div>
-                <div class="text-[9px] text-slate-500 font-mono">${che.waterIndex || 'Optimal'}</div>
+                <div id="calib-res-water-index" class="text-[9px] text-slate-500 font-mono"></div>
               </div>
             </div>
           </div>
@@ -622,7 +641,7 @@ export function createCalibrationModal({
         <div class="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
           <div class="h-full bg-gradient-to-r from-amber-500 via-emerald-400 to-emerald-500 transition-all duration-200 rounded-full" style="width: ${progress}%"></div>
         </div>
-        <p class="text-[10px] font-mono text-slate-400 truncate">${statusText}</p>
+        <p id="calib-progress-status" class="text-[10px] font-mono text-slate-400 truncate"></p>
       </div>
     `;
   }
@@ -646,7 +665,7 @@ export function createCalibrationModal({
             class="min-h-[48px] px-5 py-2.5 rounded-2xl text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 transition shadow-lg flex items-center gap-2 disabled:opacity-50 cursor-pointer active:scale-95 ml-auto"
           >
             ${isRunning ? '<span class="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></span>' : icon('sunMoon', 'w-4 h-4')}
-            <span>${t('calib_start_dark', 'Start Dark Current Sweep')}</span>
+            <span>${t('calib_start_dark', 'Scan Dark')}</span>
           </button>
         `;
 
@@ -668,7 +687,7 @@ export function createCalibrationModal({
               class="min-h-[48px] px-5 py-2.5 rounded-2xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 transition shadow-lg flex items-center gap-2 disabled:opacity-50 cursor-pointer active:scale-95 ml-auto"
             >
               ${isRunning ? '<span class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>' : icon('sun', 'w-4 h-4')}
-              <span>${t('calib_start_white', 'Calibrate 99% White Disc')}</span>
+              <span>${t('calib_start_white', 'Scan White')}</span>
             </button>
           ` : `
             <div class="flex items-center gap-2 ml-auto">
@@ -717,7 +736,7 @@ export function createCalibrationModal({
             id="calib-to-placement-btn"
             class="min-h-[48px] px-5 py-2.5 rounded-2xl text-xs font-bold text-white bg-[#0E5431] hover:bg-[#083820] border border-emerald-500/60 transition shadow-lg flex items-center gap-1.5 cursor-pointer active:scale-95 ml-auto"
           >
-            <span>${t('calib_next_placement', 'Next: Leaf Placement →')}</span>
+            <span>${t('calib_next_placement', 'Save Specimen & Proceed to Leaf Scan →')}</span>
           </button>
         `;
 
@@ -749,7 +768,7 @@ export function createCalibrationModal({
             class="min-h-[48px] px-5 py-2.5 rounded-2xl text-xs font-bold text-slate-950 bg-emerald-400 hover:bg-emerald-300 transition shadow-lg flex items-center gap-2 disabled:opacity-50 cursor-pointer active:scale-95 ml-auto"
           >
             ${isRunning ? '<span class="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></span>' : icon('refresh', 'w-4 h-4 text-slate-950')}
-            <span>${t('calib_acquire_scan_btn', 'Acquire 76-Band Spectral Scan')}</span>
+            <span>${t('calib_acquire_scan_btn', 'Scan Leaf')}</span>
           </button>
         `;
 
@@ -965,7 +984,7 @@ export function createCalibrationModal({
             // Step 2 stays on WHITE_REFERENCE so the user can either click Done & Return or proceed to Metadata
           }
         } catch (err) {
-          statusText = t('calib_err_failed', 'Calibration failed: ') + (err.message || err);
+          statusText = sanitizeText(t('calib_err_failed', 'Calibration failed: ') + (err?.message || String(err)));
         } finally {
           isRunning = false;
           render();
@@ -1033,6 +1052,28 @@ export function createCalibrationModal({
       }
 
       if (validateMetadata()) {
+        try {
+          if (typeof leafClipDevice.sendBatchSpecimenData === 'function') {
+            leafClipDevice.sendBatchSpecimenData({
+              plantName: specimenData.cropVariety,
+              plantNumber: specimenData.plantNumber,
+              potNumber: specimenData.portNumber,
+              cropVariety: specimenData.cropVariety,
+              zone: specimenData.zone
+            }).catch(e => console.warn('[BLE Specimen Batch Notice]', e));
+          }
+          if (typeof spectrometerUSBAdapter.sendBatchSpecimenData === 'function') {
+            spectrometerUSBAdapter.sendBatchSpecimenData({
+              plantName: specimenData.cropVariety,
+              plantNumber: specimenData.plantNumber,
+              potNumber: specimenData.portNumber,
+              cropVariety: specimenData.cropVariety,
+              zone: specimenData.zone
+            }).catch(e => console.warn('[USB Specimen Batch Notice]', e));
+          }
+        } catch (batchErr) {
+          console.warn('[Batch Specimen Send Error]', batchErr);
+        }
         currentStep = 'LEAF_PLACEMENT';
         render();
       } else {
@@ -1055,24 +1096,40 @@ export function createCalibrationModal({
           render();
         });
 
-        // Acquire scan safely from spectrometer adapter
+        // Acquire scan safely: prioritize connected Bluetooth spectroscope
         let acquired = null;
-        if (typeof spectrometerUSBAdapter.acquireSample === 'function') {
+        if (leafClipDevice.isConnected) {
+          acquired = await leafClipDevice.triggerLeafMeasurement({
+            cropName: specimenData.cropVariety,
+            plotNumber: parseInt(specimenData.zone.replace(/\D/g, '')) || 1,
+            metadata: {
+              plantName: specimenData.cropVariety,
+              plantNumber: specimenData.plantNumber,
+              potNumber: specimenData.portNumber,
+              cropVariety: specimenData.cropVariety,
+              zone: specimenData.zone
+            }
+          });
+        } else if (typeof spectrometerUSBAdapter.acquireSample === 'function') {
           acquired = await spectrometerUSBAdapter.acquireSample({
             cropName: specimenData.cropVariety,
             plotNumber: parseInt(specimenData.zone.replace(/\D/g, '')) || 1
           });
         } else if (typeof leafClipDevice.acquireScan === 'function') {
-          acquired = await leafClipDevice.acquireScan({
-            cropName: specimenData.cropVariety,
-            plotNumber: parseInt(specimenData.zone.replace(/\D/g, '')) || 1
-          });
+          try {
+            acquired = await leafClipDevice.acquireScan({
+              cropName: specimenData.cropVariety,
+              plotNumber: parseInt(specimenData.zone.replace(/\D/g, '')) || 1
+            });
+          } catch (e) {
+            acquired = spectrometerUSBAdapter.lastScan;
+          }
         }
 
-        scanResult = acquired || spectrometerUSBAdapter.lastScan;
+        scanResult = acquired || leafClipDevice.lastRawReading || spectrometerUSBAdapter.lastScan;
         currentStep = 'RESULTS';
       } catch (err) {
-        statusText = "Scan error: " + (err.message || err);
+        statusText = sanitizeText("Scan error: " + (err?.message || String(err)));
       } finally {
         isRunning = false;
         render();

@@ -98,7 +98,7 @@ async function runAudit() {
     assert(healthRes.body.service.includes("AgriSpectra"), "Service name matches AgriSpectra Enterprise Backend");
     assert(healthRes.body.database.projectId === "water-irrigation-system-8aeeb", "Database targeted to water-irrigation-system-8aeeb");
     assert(healthRes.body.systemMetrics.activePlotsManaged === 6, "6 1-Acre agricultural zones actively monitored in memory");
-    assert(healthRes.body.systemMetrics.registeredUsers >= 4, "Enterprise user directory loaded with multi-tenant operators");
+    assert(healthRes.body.systemMetrics.registeredUsers >= 1, "Enterprise user directory loaded with authentic admin/operators");
 
     // Test 2: Unauthenticated /api/admin/metrics returns 401
     const unauthMetrics = await request(testServer, '/api/admin/metrics', {

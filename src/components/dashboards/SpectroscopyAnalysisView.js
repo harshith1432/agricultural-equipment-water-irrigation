@@ -21,6 +21,7 @@ import {
 import { leafClipDevice } from '../../hardware/webBluetoothLeafClip.js';
 import { createCalibrationModal } from '../CalibrationWizard.js';
 import { createBluetoothDevicePickerModal } from '../BluetoothDevicePickerModal.js';
+import { createSpecimenSetupModal } from '../SpecimenSetupModal.js';
 import { escapeHtml } from '../../utils/sanitizer.js';
 
 export function createSpectroscopyAnalysisView({
@@ -28,7 +29,7 @@ export function createSpectroscopyAnalysisView({
   onOpenCalibration,
   onAcquireScan,
   latestScanAnalysis = null
-}) {
+} = {}) {
   const container = document.createElement('div');
   container.className = "spectroscopy-analysis-view w-full space-y-4 pb-36 sm:pb-40 text-slate-800 dark:text-slate-100 select-none overflow-x-hidden";
 
@@ -44,19 +45,48 @@ export function createSpectroscopyAnalysisView({
     timestamp: null
   };
 
+  let terminalLogLines = [];
+  let latestHardwarePrompt = null;
+
   leafClipDevice.on('rawData', (raw) => {
     liveRawData = raw;
+    const txt = (raw.text || raw.hex || '').trim();
+    if (txt) {
+      terminalLogLines.push(`[${new Date().toLocaleTimeString()}] ${txt}`);
+      if (terminalLogLines.length > 40) terminalLogLines.shift();
+    }
+
+    // Check if the stream contains interactive hardware questions/prompts
+    if (txt && /Enter Plant Name|Enter Plant Number|Enter Pot Number|Correct\?|Ready\?/i.test(txt)) {
+      latestHardwarePrompt = txt;
+      const banner = container.querySelector('#ble-prompt-alert-banner');
+      const bannerText = container.querySelector('#ble-prompt-alert-text');
+      if (banner) banner.classList.remove('hidden');
+      if (bannerText) bannerText.textContent = txt;
+    }
+
     const rawBox = container.querySelector('#live-ble-raw-output');
     const rawBytesElem = container.querySelector('#live-ble-raw-bytes');
     const rawTimeElem = container.querySelector('#live-ble-raw-time');
     if (rawBox) {
-      rawBox.textContent = raw.text || raw.hex || 'Frame received';
+      rawBox.textContent = terminalLogLines.length > 0 ? terminalLogLines.join('\n') : (raw.text || raw.hex || 'Frame received');
+      rawBox.scrollTop = rawBox.scrollHeight;
     }
     if (rawBytesElem) {
-      rawBytesElem.textContent = `${raw.bytes} B`;
+      rawBytesElem.textContent = `${raw.bytes || (raw.byteLength || 0)} B`;
     }
     if (rawTimeElem && raw.timestamp) {
       rawTimeElem.textContent = new Date(raw.timestamp).toLocaleTimeString();
+    }
+  });
+
+  leafClipDevice.on('devicePrompt', (data) => {
+    if (data?.prompt) {
+      latestHardwarePrompt = data.prompt;
+      const banner = container.querySelector('#ble-prompt-alert-banner');
+      const bannerText = container.querySelector('#ble-prompt-alert-text');
+      if (banner) banner.classList.remove('hidden');
+      if (bannerText) bannerText.textContent = data.prompt;
     }
   });
 
@@ -326,83 +356,172 @@ export function createSpectroscopyAnalysisView({
       </div>
 
       <!-- Live Bluetooth Hardware Telemetry & Raw Data Stream -->
-      <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 shadow-sm border ${leafClipDevice.isConnected ? 'border-emerald-500/40' : 'border-slate-200 dark:border-slate-800'} space-y-3">
-        <div class="flex items-center justify-between">
+      <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-5 shadow-sm border ${leafClipDevice.isConnected ? 'border-emerald-500/40' : 'border-slate-200 dark:border-slate-800'} space-y-3.5">
+        
+        <!-- Header Row -->
+        <div class="flex items-center justify-between flex-wrap gap-2">
           <div class="flex items-center gap-2.5">
-            <div class="w-8 h-8 rounded-xl ${leafClipDevice.isConnected ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'} flex items-center justify-center shrink-0">
+            <div class="w-9 h-9 rounded-2xl ${leafClipDevice.isConnected ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'} flex items-center justify-center shrink-0">
               <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="7 7 17 17 12 22 12 2 17 7 7 17"/></svg>
             </div>
             <div>
               <div class="flex items-center gap-2">
-                <h3 class="text-xs font-bold text-slate-900 dark:text-white">
+                <h3 class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
                   Live Hardware Raw Stream
                 </h3>
-                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold ${leafClipDevice.isConnected ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'}">
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold ${leafClipDevice.isConnected ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}">
                   ${leafClipDevice.isConnected ? (leafClipDevice.deviceInfo?.model || 'BlueNRG_Chat') : 'Disconnected'}
                 </span>
               </div>
-              <p class="text-[10px] text-slate-500">
+              <p class="text-[10px] sm:text-[11px] text-slate-500">
                 Direct UART/Chat packets received from ST BlueNRG spectroscope
               </p>
             </div>
           </div>
 
-          <div class="flex items-center gap-2 text-[10px] font-mono text-slate-500">
-            <span id="live-ble-raw-bytes" class="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">${liveRawData.bytes || 0} B</span>
-            <span id="live-ble-raw-time" class="text-slate-400">${liveRawData.timestamp ? new Date(liveRawData.timestamp).toLocaleTimeString() : 'No data yet'}</span>
+          <!-- Open Pop-Up Window Button in Card Header -->
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              id="btn-open-specimen-popup"
+              class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm transition flex items-center gap-1.5 cursor-pointer active:scale-95"
+              title="Open full pop-up window to enter Plant Name, Number, and Pot all at once"
+            >
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              <span>Enter Data in Popup</span>
+            </button>
+
+            <div class="flex items-center gap-1.5 text-[10px] font-mono text-slate-500">
+              <span id="live-ble-raw-bytes" class="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">${liveRawData.bytes || 0} B</span>
+              <span id="live-ble-raw-time" class="text-slate-400 hidden sm:inline">${liveRawData.timestamp ? new Date(liveRawData.timestamp).toLocaleTimeString() : 'No data yet'}</span>
+            </div>
           </div>
         </div>
 
-        <!-- Raw Data Terminal Console Box -->
-        <div class="bg-slate-950 text-emerald-400 p-3 rounded-2xl font-mono text-xs overflow-x-auto max-h-28 border border-slate-800 shadow-inner">
-          <div class="text-[10px] text-slate-500 uppercase tracking-wider mb-1 flex items-center justify-between">
-            <span>Raw Hardware RX Buffer</span>
-            <span id="live-ble-command-status" class="text-emerald-300">Ready</span>
+        <!-- Sensor Prompt Attention Banner (Visible when hardware prompt detected) -->
+        <div id="ble-prompt-alert-banner" class="${latestHardwarePrompt ? '' : 'hidden'} p-3 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-between gap-3 text-xs">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping shrink-0"></span>
+            <div class="min-w-0">
+              <span class="font-bold uppercase tracking-wider text-[10px] text-amber-400">Sensor Prompt Waiting:</span>
+              <p id="ble-prompt-alert-text" class="font-mono text-white text-[11px] truncate">${escapeHtml(latestHardwarePrompt || '')}</p>
+            </div>
           </div>
-          <pre id="live-ble-raw-output" class="whitespace-pre-wrap break-all leading-tight text-[11px] select-text">${escapeHtml(liveRawData.text || liveRawData.hex || 'Waiting for incoming Bluetooth frames...')}</pre>
+          <button
+            type="button"
+            id="btn-open-specimen-from-banner"
+            class="px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs shrink-0 cursor-pointer shadow-sm transition active:scale-95"
+          >
+            Enter Data Now
+          </button>
         </div>
 
-        <!-- Quick Hardware Command Actions -->
-        <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1">
-          <button 
-            type="button" 
-            id="btn-ble-send-ping" 
-            class="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold flex items-center gap-1 transition shrink-0 cursor-pointer"
-            title="Send *IDN? status check to Bluetooth"
-          >
-            <svg class="w-3 h-3 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-            <span>Ping Hardware</span>
-          </button>
+        <!-- Readable, Proper Layout Size Terminal Console Box -->
+        <div class="bg-slate-950 text-emerald-400 p-3.5 rounded-2xl font-mono text-xs border border-slate-800 shadow-inner space-y-2">
+          <div class="text-[10px] text-slate-400 uppercase tracking-wider flex items-center justify-between pb-1 border-b border-slate-900">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full ${leafClipDevice.isConnected ? 'bg-emerald-400' : 'bg-slate-600'}"></span>
+              <span class="font-bold">Raw Hardware RX Buffer</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span id="live-ble-command-status" class="text-emerald-300 font-semibold">Ready</span>
+              <button
+                type="button"
+                id="btn-clear-ble-terminal"
+                class="text-slate-500 hover:text-slate-300 text-[10px] uppercase font-bold tracking-wider cursor-pointer"
+                title="Clear terminal window"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
 
-          <button 
-            type="button" 
-            id="btn-ble-send-dark" 
-            class="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold flex items-center gap-1 transition shrink-0 cursor-pointer"
-            title="Send DARK command"
-          >
-            <span class="w-2 h-2 rounded-full bg-slate-400"></span>
-            <span>Send DARK</span>
-          </button>
+          <pre id="live-ble-raw-output" class="whitespace-pre-wrap break-all leading-relaxed text-[11px] select-text min-h-[90px] max-h-[180px] overflow-y-auto no-scrollbar">${escapeHtml(terminalLogLines.length > 0 ? terminalLogLines.join('\n') : (liveRawData.text || liveRawData.hex || 'Waiting for incoming Bluetooth frames...'))}</pre>
+        </div>
 
-          <button 
-            type="button" 
-            id="btn-ble-send-white" 
-            class="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold flex items-center gap-1 transition shrink-0 cursor-pointer"
-            title="Send WHITE command"
-          >
-            <span class="w-2 h-2 rounded-full bg-amber-400"></span>
-            <span>Send WHITE</span>
-          </button>
+        <!-- Interactive Terminal Command Input Bar -->
+        <div class="space-y-1.5">
+          <div class="flex items-center gap-2">
+            <input
+              type="text"
+              id="ble-terminal-input"
+              class="flex-1 min-h-[44px] px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-mono text-xs placeholder-slate-600 focus:border-emerald-500 outline-none transition"
+              placeholder="Type command to send to sensor (e.g. Y, N, DARK, WHITE, SCAN)..."
+              autocomplete="off"
+            />
+            <button
+              type="button"
+              id="btn-ble-terminal-send"
+              class="min-h-[44px] px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shrink-0 shadow-sm"
+              title="Transmit command string to spectroscope"
+            >
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              <span>Send</span>
+            </button>
+          </div>
 
-          <button 
-            type="button" 
-            id="btn-ble-send-scan" 
-            class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1 transition shrink-0 cursor-pointer shadow-sm"
-            title="Send SCAN command"
-          >
-            <svg class="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-            <span>Trigger Scan</span>
-          </button>
+          <!-- Quick Hardware Command & Response Shortcuts -->
+          <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5">
+            <span class="text-[10px] text-slate-500 shrink-0">Quick send:</span>
+            
+            <button 
+              type="button" 
+              class="ble-quick-cmd-btn px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-mono font-bold flex items-center gap-1 transition shrink-0 cursor-pointer"
+              data-cmd="Y"
+              title="Send Y (Yes / Confirm prompt)"
+            >
+              <span>Send "Y"</span>
+            </button>
+
+            <button 
+              type="button" 
+              class="ble-quick-cmd-btn px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-mono font-bold flex items-center gap-1 transition shrink-0 cursor-pointer"
+              data-cmd="N"
+              title="Send N (No)"
+            >
+              <span>Send "N"</span>
+            </button>
+
+            <button 
+              type="button" 
+              id="btn-ble-send-dark" 
+              class="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold flex items-center gap-1 transition shrink-0 cursor-pointer"
+              title="Send DARK command"
+            >
+              <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+              <span>Scan DARK</span>
+            </button>
+
+            <button 
+              type="button" 
+              id="btn-ble-send-white" 
+              class="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold flex items-center gap-1 transition shrink-0 cursor-pointer"
+              title="Send WHITE command (turns on spectroscope light)"
+            >
+              <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+              <span>Scan WHITE</span>
+            </button>
+
+            <button 
+              type="button" 
+              id="btn-ble-send-scan" 
+              class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1 transition shrink-0 cursor-pointer shadow-sm"
+              title="Send SCAN command (turns on measurement light)"
+            >
+              <svg class="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              <span>Trigger Scan</span>
+            </button>
+
+            <button 
+              type="button" 
+              id="btn-ble-send-ping" 
+              class="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold flex items-center gap-1 transition shrink-0 cursor-pointer"
+              title="Send STATUS check to Bluetooth"
+            >
+              <svg class="w-3 h-3 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              <span>Ping Hardware</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -779,6 +898,76 @@ export function createSpectroscopyAnalysisView({
       });
     });
 
+    // Specimen Setup Pop-up Window Triggers
+    container.querySelector('#btn-open-specimen-popup')?.addEventListener('click', () => {
+      openSpecimenSetupModal();
+    });
+
+    container.querySelector('#btn-open-specimen-from-banner')?.addEventListener('click', () => {
+      openSpecimenSetupModal(latestHardwarePrompt);
+    });
+
+    // Clear Terminal Log
+    container.querySelector('#btn-clear-ble-terminal')?.addEventListener('click', () => {
+      terminalLogLines = [];
+      const rawBox = container.querySelector('#live-ble-raw-output');
+      if (rawBox) rawBox.textContent = 'Terminal cleared. Waiting for frames...';
+    });
+
+    // Interactive Terminal Send
+    const sendTerminalCmd = async () => {
+      const inputEl = container.querySelector('#ble-terminal-input');
+      const val = (inputEl?.value || '').trim();
+      if (!val) return;
+      const statusEl = container.querySelector('#live-ble-command-status');
+      try {
+        if (!leafClipDevice.isConnected) throw new Error("Bluetooth not connected");
+        if (statusEl) statusEl.textContent = `Transmitting "${val}"...`;
+        await leafClipDevice.sendRawLine(val);
+        terminalLogLines.push(`[TX] > ${val}`);
+        const rawBox = container.querySelector('#live-ble-raw-output');
+        if (rawBox) {
+          rawBox.textContent = terminalLogLines.join('\n');
+          rawBox.scrollTop = rawBox.scrollHeight;
+        }
+        if (statusEl) statusEl.textContent = `Sent "${val}"`;
+        if (inputEl) inputEl.value = '';
+      } catch (e) {
+        if (statusEl) statusEl.textContent = e.message;
+      }
+    };
+
+    container.querySelector('#btn-ble-terminal-send')?.addEventListener('click', sendTerminalCmd);
+    container.querySelector('#ble-terminal-input')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        sendTerminalCmd();
+      }
+    });
+
+    // Quick Command Pills (Y, N)
+    container.querySelectorAll('.ble-quick-cmd-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const cmd = btn.getAttribute('data-cmd');
+        if (!cmd) return;
+        const statusEl = container.querySelector('#live-ble-command-status');
+        try {
+          if (!leafClipDevice.isConnected) throw new Error("Bluetooth not connected");
+          if (statusEl) statusEl.textContent = `Transmitting "${cmd}"...`;
+          await leafClipDevice.sendRawLine(cmd);
+          terminalLogLines.push(`[TX] > ${cmd}`);
+          const rawBox = container.querySelector('#live-ble-raw-output');
+          if (rawBox) {
+            rawBox.textContent = terminalLogLines.join('\n');
+            rawBox.scrollTop = rawBox.scrollHeight;
+          }
+          if (statusEl) statusEl.textContent = `Sent "${cmd}"`;
+        } catch (e) {
+          if (statusEl) statusEl.textContent = e.message;
+        }
+      });
+    });
+
     // Quick Bluetooth Hardware Command Handlers
     container.querySelector('#btn-ble-send-ping')?.addEventListener('click', async () => {
       const statusEl = container.querySelector('#live-ble-command-status');
@@ -786,6 +975,7 @@ export function createSpectroscopyAnalysisView({
         if (!leafClipDevice.isConnected) throw new Error("Bluetooth not connected");
         if (statusEl) statusEl.textContent = 'Transmitting STATUS...';
         await leafClipDevice.sendCommand('STATUS\r\n');
+        terminalLogLines.push(`[TX] > STATUS`);
         if (statusEl) statusEl.textContent = 'Transmitted STATUS';
       } catch (e) {
         if (statusEl) statusEl.textContent = e.message;
@@ -798,6 +988,7 @@ export function createSpectroscopyAnalysisView({
         if (!leafClipDevice.isConnected) throw new Error("Bluetooth not connected");
         if (statusEl) statusEl.textContent = 'Transmitting DARK...';
         await leafClipDevice.triggerDarkCalibration();
+        terminalLogLines.push(`[TX] > DARK (Dark Current Baseline)`);
         if (statusEl) statusEl.textContent = 'DARK Calibration Sent';
       } catch (e) {
         if (statusEl) statusEl.textContent = e.message;
@@ -810,7 +1001,8 @@ export function createSpectroscopyAnalysisView({
         if (!leafClipDevice.isConnected) throw new Error("Bluetooth not connected");
         if (statusEl) statusEl.textContent = 'Transmitting WHITE...';
         await leafClipDevice.triggerWhiteReference();
-        if (statusEl) statusEl.textContent = 'WHITE Calibration Sent';
+        terminalLogLines.push(`[TX] > WHITE (White Lamp Active)`);
+        if (statusEl) statusEl.textContent = 'WHITE Calibration Sent (Lamp Active)';
       } catch (e) {
         if (statusEl) statusEl.textContent = e.message;
       }
@@ -825,6 +1017,7 @@ export function createSpectroscopyAnalysisView({
           plotNumber: 1,
           cropName: 'Bell Peppers'
         });
+        terminalLogLines.push(`[TX] > SCAN (Leaf Measurement Light Active)`);
         currentScan = scan;
         if (statusEl) statusEl.textContent = 'SCAN Received';
         render();
@@ -905,6 +1098,40 @@ export function createSpectroscopyAnalysisView({
         });
       }
     }
+  }
+
+  function openSpecimenSetupModal(promptText = null) {
+    const existing = document.querySelector('#specimen-data-modal');
+    if (existing) existing.remove();
+
+    const modal = createSpecimenSetupModal({
+      hardwarePrompt: promptText || latestHardwarePrompt,
+      initialData: {
+        plantName: leafClipDevice.specimenMetadata?.plantName || plot?.crop || 'Roma Tomato',
+        plantNumber: leafClipDevice.specimenMetadata?.plantNumber || 'PLANT-101',
+        potNumber: leafClipDevice.specimenMetadata?.potNumber || 'POT-01',
+        cropVariety: leafClipDevice.specimenMetadata?.cropVariety || plot?.crop || 'Roma Tomato',
+        zone: leafClipDevice.specimenMetadata?.zone || plot?.name || 'Zone 1'
+      },
+      onSaveAndTransmit: (data) => {
+        const statusEl = container.querySelector('#live-ble-command-status');
+        if (statusEl) statusEl.textContent = `Transmitted: ${data.plantName} (#${data.plantNumber})`;
+        latestHardwarePrompt = null;
+        const banner = container.querySelector('#ble-prompt-alert-banner');
+        if (banner) banner.classList.add('hidden');
+      },
+      onStartCalibration: (data) => {
+        latestHardwarePrompt = null;
+        const banner = container.querySelector('#ble-prompt-alert-banner');
+        if (banner) banner.classList.add('hidden');
+        openCalibrationModal('DARK_CURRENT');
+      },
+      onClose: () => {
+        if (modal.parentNode) modal.parentNode.removeChild(modal);
+      }
+    });
+
+    document.body.appendChild(modal);
   }
 
   function openCalibrationModal(initialStep = 'DARK_CURRENT') {

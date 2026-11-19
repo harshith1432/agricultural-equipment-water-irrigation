@@ -659,4 +659,161 @@ export function registerBleNusSpectrometerTests() {
       expect(spectrometer.specimenMetadata.specimenId).toBe('EGG-092');
     });
   });
+
+  describe('Interactive Firmware Terminal Prompts & Intelligent Dialogue State Machine', () => {
+    it('sendBatchSpecimenData transmits Plant Number, Plant Name, Pot Number, and confirmation Y sequentially', async () => {
+      const device = new LeafClipBluetoothDevice();
+      await device.connect({ forceSimulation: true });
+
+      const res = await device.sendBatchSpecimenData({
+        plantNumber: 'PLANT-101',
+        plantName: 'Cotton',
+        potNumber: 'POT-1'
+      });
+
+      expect(res.success).toBe(true);
+      expect(device.specimenMetadata.plantNumber).toBe('PLANT-101');
+      expect(device.specimenMetadata.plantName).toBe('Cotton');
+      expect(device.specimenMetadata.potNumber).toBe('POT-1');
+      expect(device.sentCommandsHistory).toContain('PLANT-101\r\n');
+      expect(device.sentCommandsHistory).toContain('Cotton\r\n');
+      expect(device.sentCommandsHistory).toContain('POT-1\r\n');
+      expect(device.sentCommandsHistory).toContain('Y\r\n');
+    });
+
+    it('auto-responds to Enter Plant Number, Enter Plant Name, Enter Pot Number, and Correct? Y/N', async () => {
+      const device = new LeafClipBluetoothDevice();
+      await device.connect({ forceSimulation: true });
+
+      device.specimenMetadata.plantNumber = 'PLANT-555';
+      device.specimenMetadata.plantName = 'Roma Tomato';
+      device.specimenMetadata.potNumber = 'POT-09';
+
+      const promptsCaptured = [];
+      device.on('dialoguePrompt', p => promptsCaptured.push(p));
+
+      // 1. Enter Plant Number:
+      device.accumulator.pushChunk('Enter Plant Number: ');
+      expect(promptsCaptured.some(p => p.prompt === 'ENTER_PLANT_NUMBER' && p.response === 'PLANT-555\r\n')).toBe(true);
+      expect(device.sentCommandsHistory).toContain('PLANT-555\r\n');
+
+      // 2. Enter Plant Name:
+      device.accumulator.pushChunk('Enter Plant Name: ');
+      expect(promptsCaptured.some(p => p.prompt === 'ENTER_PLANT_NAME' && p.response === 'Roma Tomato\r\n')).toBe(true);
+      expect(device.sentCommandsHistory).toContain('Roma Tomato\r\n');
+
+      // 3. Enter Pot Number:
+      device.accumulator.pushChunk('Enter Pot Number: ');
+      expect(promptsCaptured.some(p => p.prompt === 'ENTER_POT_NUMBER' && p.response === 'POT-09\r\n')).toBe(true);
+      expect(device.sentCommandsHistory).toContain('POT-09\r\n');
+
+      // 4. Correct? Y/N:
+      device.accumulator.pushChunk('Correct? Y/N: ');
+      expect(promptsCaptured.some(p => p.prompt === 'CONFIRM_METADATA' && p.response === 'Y\r\n')).toBe(true);
+      expect(device.sentCommandsHistory).toContain('Y\r\n');
+    });
+
+    it('auto-responds to DARK prompts and auto-saves calibration baseline', async () => {
+      const device = new LeafClipBluetoothDevice();
+      await device.connect({ forceSimulation: true });
+
+      const prompts = [];
+      device.on('dialoguePrompt', p => prompts.push(p));
+
+      device.darkCalibPending = true;
+      device.accumulator.pushChunk('Ready for DARK measurement? Y/N: ');
+      expect(prompts.some(p => p.prompt === 'DARK_READY' && p.response === 'Y\r\n')).toBe(true);
+
+      device.accumulator.pushChunk('Save DARK? Y/N: ');
+      expect(prompts.some(p => p.prompt === 'SAVE_DARK' && p.response === 'Y\r\n')).toBe(true);
+    });
+
+    it('auto-responds to WHITE prompts (turning on white light) and auto-saves white baseline', async () => {
+      const device = new LeafClipBluetoothDevice();
+      await device.connect({ forceSimulation: true });
+
+      const prompts = [];
+      device.on('dialoguePrompt', p => prompts.push(p));
+
+      device.whiteCalibPending = true;
+      device.accumulator.pushChunk('Ready for WHITE measurement? Y/N: ');
+      expect(prompts.some(p => p.prompt === 'WHITE_READY' && p.response === 'Y\r\n')).toBe(true);
+
+      device.accumulator.pushChunk('Save WHITE? Y/N: ');
+      expect(prompts.some(p => p.prompt === 'SAVE_WHITE' && p.response === 'Y\r\n')).toBe(true);
+    });
+
+    it('auto-responds to leaf scan and spot number prompts (turning on leaf illumination light)', async () => {
+      const device = new LeafClipBluetoothDevice();
+      await device.connect({ forceSimulation: true });
+
+      const prompts = [];
+      device.on('dialoguePrompt', p => prompts.push(p));
+
+      device.leafScanPending = true;
+      device.accumulator.pushChunk('Ready for leaf scan? Y/N: ');
+      expect(prompts.some(p => p.prompt === 'LEAF_SCAN_READY' && p.response === 'Y\r\n')).toBe(true);
+
+      device.accumulator.pushChunk('Enter Spot Number (1..): ');
+      expect(prompts.some(p => p.prompt === 'LEAF_SPOT_NUMBER' && p.response === '1\r\n')).toBe(true);
+      expect(device.sentCommandsHistory).toContain('1\r\n');
+    });
+
+    it('triggerDarkCalibration, triggerWhiteReference, and triggerLeafMeasurement transmit both prompt confirmation and command', async () => {
+      const device = new LeafClipBluetoothDevice();
+      device.isConnected = true;
+      device.isSimulated = false;
+
+      // Mock write endpoint to verify transmitted raw commands
+      const writes = [];
+      device.rxCharacteristic = {
+        writeValueWithoutResponse: async (data) => {
+          writes.push(new TextDecoder().decode(data));
+        },
+        writeValue: async (data) => {
+          writes.push(new TextDecoder().decode(data));
+        }
+      };
+
+      // 1. Dark Calibration
+      setTimeout(() => {
+        device.accumulator.pushChunk(JSON.stringify({ type: PACKET_TYPES.CALIB_DARK, status: 'OK' }) + '\n');
+      }, 50);
+      await device.triggerDarkCalibration();
+      expect(writes.some(w => w.includes('Y\r\n'))).toBe(true);
+      expect(writes.some(w => w.includes('DARK\r\n'))).toBe(true);
+
+      // 2. White Reference (turns on white light!)
+      setTimeout(() => {
+        device.accumulator.pushChunk(JSON.stringify({ type: PACKET_TYPES.CALIB_WHITE, status: 'OK' }) + '\n');
+      }, 50);
+      await device.triggerWhiteReference();
+      expect(writes.some(w => w.includes('WHITE\r\n'))).toBe(true);
+
+      // 3. Leaf Measurement (turns on leaf illumination light!)
+      setTimeout(() => {
+        const counts = Array.from({ length: 76 }, (_, i) => 20000 + i * 100);
+        device.accumulator.pushChunk(`$SPEC,76,${counts.join(',')}\r\n`);
+      }, 50);
+      await device.triggerLeafMeasurement({ cropName: 'Cotton', plotNumber: 1 });
+      expect(writes.some(w => w.includes('1\r\n'))).toBe(true);
+      expect(writes.some(w => w.includes('SCAN\r\n'))).toBe(true);
+    });
+
+    it('mirrors sendBatchSpecimenData and dialogue handling on SpectrometerUSBAdapter', async () => {
+      const spectrometer = new SpectrometerUSBAdapter();
+      await spectrometer.connect({ forceSimulation: true });
+
+      const res = await spectrometer.sendBatchSpecimenData({
+        plantNumber: 'PLANT-999',
+        plantName: 'Sweet Strawberry',
+        potNumber: 'POT-7'
+      });
+
+      expect(res.success).toBe(true);
+      expect(spectrometer.specimenMetadata.plantNumber).toBe('PLANT-999');
+      expect(spectrometer.specimenMetadata.plantName).toBe('Sweet Strawberry');
+      expect(spectrometer.specimenMetadata.potNumber).toBe('POT-7');
+    });
+  });
 }

@@ -131,7 +131,43 @@ export class PacketChunkAccumulator {
 
     // Process both text lines and binary frames
     this._processTextLines();
+    this._checkInteractivePrompts();
     this._processBinaryFrames();
+  }
+
+  /**
+   * Check for interactive hardware terminal prompts that might not be terminated with a newline
+   */
+  _checkInteractivePrompts() {
+    if (!this.textAccumulator) return;
+    const promptPatterns = [
+      { regex: /Enter Plant Number:\s*$/i, type: 'ENTER_PLANT_NUMBER' },
+      { regex: /Enter Plant Name:\s*$/i, type: 'ENTER_PLANT_NAME' },
+      { regex: /Enter Pot Number:\s*$/i, type: 'ENTER_POT_NUMBER' },
+      { regex: /Correct\?\s*Y\/N:\s*$/i, type: 'CONFIRM_METADATA' },
+      { regex: /(?:Ready for DARK measurement\?\s*Y\/N:|DARK:.*Ready\?\s*Y\/N:)/i, type: 'DARK_READY' },
+      { regex: /Save DARK\?\s*Y\/N:\s*$/i, type: 'SAVE_DARK' },
+      { regex: /(?:Ready for WHITE measurement\?\s*Y\/N:|WHITE:.*Ready\?\s*Y\/N:)/i, type: 'WHITE_READY' },
+      { regex: /Save WHITE\?\s*Y\/N:\s*$/i, type: 'SAVE_WHITE' },
+      { regex: /(?:Ready for leaf scan\?\s*Y\/N:|Start leaf scan\?\s*Y\/N:)/i, type: 'START_LEAF_SCAN' },
+      { regex: /(?:Enter|Leaf)\s*Spot\s*Number(?:\s*\([^\)]*\))?:\s*$/i, type: 'LEAF_SPOT_NUMBER' }
+    ];
+
+    for (const p of promptPatterns) {
+      if (p.regex.test(this.textAccumulator)) {
+        const line = this.textAccumulator.trim();
+        const packet = {
+          format: 'DEVICE_PROMPT',
+          type: PACKET_TYPES.DEVICE_PROMPT,
+          data: { promptType: p.type, prompt: line },
+          rawText: line,
+          timestamp: Date.now()
+        };
+        this.textAccumulator = '';
+        this._dispatchPacket(packet);
+        break;
+      }
+    }
   }
 
   /**

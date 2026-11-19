@@ -1258,33 +1258,24 @@ class AuthService {
 
     const rawEmail = user.email || additionalData.email || "";
     const cleanEmail = String(rawEmail).trim().toLowerCase();
-
-    // Prevent any demo/fake users from being written to live Cloud Firestore
-    const isDemoOrGuest = Boolean(
-      user.isDemo ||
-      user.isAnonymous ||
-      user.uid === 'guest-offline-farmer' ||
-      ['user-carlos-1', 'user-elena-2', 'user-mateo-3', 'usr-ent-02', 'user-acchu-harshith'].includes(user.uid) ||
-      (cleanEmail && (cleanEmail.includes('valleyfarms.com') || cleanEmail.includes('solenoidflow.org')))
-    );
-    if (isDemoOrGuest) {
-      return {
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName,
-        role: user.role,
-        farmId: user.farmId,
-        farmName: user.farmName,
-        isOffline: true
-      };
-    }
-
     const isHarshith = cleanEmail === 'harshithkd0321@gmail.com' || cleanEmail === 'harshithkd032@gmail.com';
 
     let targetUid = user.uid || (isHarshith ? 'system-admin-harshith' : this._generateSecureUid('usr'));
-    if (isHarshith && (!user.uid || user.uid.startsWith('usr') || user.uid.startsWith('guest'))) {
+    if (isHarshith) {
       targetUid = 'system-admin-harshith';
     }
+
+    // Prevent any test runner, synthetic, or demo/fake users from being written to live Cloud Firestore
+    const isTestRunner = (typeof process !== 'undefined' && process.env?.NODE_ENV === 'test') || Boolean(globalThis.__IS_TEST_ENV__);
+    const isDemoOrGuest = Boolean(
+      isTestRunner ||
+      user.isDemo ||
+      user.isAnonymous ||
+      user.uid === 'guest-offline-farmer' ||
+      (typeof user.uid === 'string' && (user.uid.startsWith('usr-') || user.uid.startsWith('test-'))) ||
+      ['user-carlos-1', 'user-elena-2', 'user-mateo-3', 'usr-ent-02', 'user-acchu-harshith'].includes(user.uid) ||
+      (cleanEmail && (cleanEmail.includes('valleyfarms.com') || cleanEmail.includes('solenoidflow.org') || cleanEmail.includes('example.com') || cleanEmail.includes('test')))
+    );
 
     let existingData = null;
     let targetDocRef = null;
@@ -1293,7 +1284,7 @@ class AuthService {
       this.db = db;
     }
 
-    if (this.db) {
+    if (this.db && !isDemoOrGuest) {
       try {
         // 1. If harshith, check system-admin-harshith document first
         if (isHarshith) {

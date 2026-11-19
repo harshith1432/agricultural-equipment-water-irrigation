@@ -53,6 +53,35 @@ export const BLE_SERVICES = {
   LEGACY_COMMAND_CHAR: '0000ffe2-0000-1000-8000-00805f9b34fb'
 };
 
+function parseLocalNameFromRawAdvertisement(rawHex) {
+  if (!rawHex || typeof rawHex !== 'string') return null;
+  try {
+    const cleanHex = rawHex.replace(/[^0-9A-Fa-f]/g, '');
+    const bytes = [];
+    for (let i = 0; i < cleanHex.length; i += 2) {
+      bytes.push(parseInt(cleanHex.substr(i, 2), 16));
+    }
+    let idx = 0;
+    while (idx < bytes.length) {
+      const length = bytes[idx++];
+      if (length <= 0 || idx + length - 1 > bytes.length) break;
+      const type = bytes[idx];
+      // 0x08 = Shortened Local Name, 0x09 = Complete Local Name
+      if (type === 0x08 || type === 0x09) {
+        const nameBytes = bytes.slice(idx + 1, idx + length);
+        const name = String.fromCharCode(...nameBytes).trim();
+        if (name && /^[\x20-\x7E]+$/.test(name)) {
+          return name;
+        }
+      }
+      idx += length;
+    }
+  } catch (err) {
+    console.warn('[BLE] Error parsing raw advertisement:', err);
+  }
+  return null;
+}
+
 export class LeafClipBluetoothDevice {
   constructor() {
     this.device = null;
@@ -98,11 +127,24 @@ export class LeafClipBluetoothDevice {
     this.specimenMetadata = {
       plotNumber: 1,
       cropName: "Bell Peppers",
+      cropVariety: "Standard",
       growthStage: "Fruit Formation",
       cultivar: "Standard",
       specimenId: "SPEC-001",
+      plantNumber: "PLANT-042",
+      plantName: "Roma Tomato",
+      potNumber: "POT-01",
+      portNumber: "PORT-08",
       notes: ""
     };
+
+    // Dialogue State Machine & Auto-Responder
+    this.autoResponderEnabled = true;
+    this.dialogueBuffer = '';
+    this.darkCalibPending = false;
+    this.whiteCalibPending = false;
+    this.leafScanPending = false;
+    this.sentCommandsHistory = [];
 
     // Streaming ring buffer / packet chunk accumulator
     this.accumulator = new PacketChunkAccumulator({ capacity: 65536 });
@@ -115,11 +157,20 @@ export class LeafClipBluetoothDevice {
   _attachAccumulatorListeners() {
     this.accumulator.on('rawChunk', (chunk) => {
       this._recordRawChunk(chunk);
+      if (chunk && chunk.rawText) {
+        this._handleDialoguePrompts(chunk.rawText);
+      }
     });
 
     this.accumulator.on('packet', (packet) => {
       this._recordRawPacket(packet);
       this.emit('packetReceived', packet);
+      if (packet.type === PACKET_TYPES.DEVICE_PROMPT) {
+        this.emit('devicePrompt', packet.data);
+        if (packet.rawText) {
+          this._handleDialoguePrompts(packet.rawText);
+        }
+      }
     });
 
     this.accumulator.on('spectrum', (packet) => {
@@ -143,12 +194,28 @@ export class LeafClipBluetoothDevice {
       byteLength: chunk.length || (chunk.rawBytes ? chunk.rawBytes.length : 0)
     };
 
+    this.latestRawData = {
+      text: chunk.rawText || '',
+      hex: '',
+      bytes: this.accumulator?.stats?.totalBytesReceived || rawEntry.byteLength,
+      timestamp: rawEntry.timestamp
+    };
+
     this.rawHistory.push(rawEntry);
     if (this.rawHistory.length > 50) {
       this.rawHistory.shift();
     }
 
     this.emit('rawData', rawEntry);
+
+    // Auto-detect interactive hardware prompt questions in raw stream
+    if (chunk.rawText && /Enter Plant Name|Enter Plant Number|Enter Pot Number|Correct\?|Ready\?/i.test(chunk.rawText)) {
+      this.emit('devicePrompt', {
+        prompt: chunk.rawText,
+        isSpecimenPrompt: /Enter Plant Name|Enter Plant Number|Enter Pot Number/i.test(chunk.rawText),
+        timestamp: rawEntry.timestamp
+      });
+    }
   }
 
   _recordRawPacket(packet) {
@@ -171,6 +238,13 @@ export class LeafClipBluetoothDevice {
       mtu: this.negotiatedMtu,
       bytesCount: this.accumulator.stats.totalBytesReceived,
       packetsCount: this.accumulator.stats.packetsReassembled
+    };
+
+    this.latestRawData = {
+      text: reading.rawText,
+      hex: '',
+      bytes: reading.bytesCount || reading.byteLength,
+      timestamp: reading.timestamp
     };
 
     if (rawCounts || packet.type === PACKET_TYPES.SPECTRUM) {
@@ -468,10 +542,24 @@ export class LeafClipBluetoothDevice {
 
     const discovered = new Map();
     const addDevice = (entry) => {
-      if (!discovered.has(entry.deviceId)) {
+      const existing = discovered.get(entry.deviceId);
+      if (existing) {
+        // If device already registered, update with richer name or fresher signal
+        const existingHasGenericName = !existing.name || /unknown/i.test(existing.name);
+        const incomingHasBetterName = entry.name && !/unknown/i.test(entry.name);
+        const updated = {
+          ...existing,
+          ...entry,
+          name: incomingHasBetterName ? entry.name : (existingHasGenericName ? (entry.name || existing.name) : existing.name),
+          rssi: entry.rssi ?? existing.rssi
+        };
+        discovered.set(entry.deviceId, updated);
+        if (onDeviceFound) onDeviceFound(updated, Array.from(discovered.values()));
+        this.emit('scanResult', updated);
+      } else {
         discovered.set(entry.deviceId, entry);
-        this.emit('scanResult', entry);
         if (onDeviceFound) onDeviceFound(entry, Array.from(discovered.values()));
+        this.emit('scanResult', entry);
         this.emit('deviceDiscovered', { device: entry, devices: Array.from(discovered.values()) });
       }
     };
@@ -497,31 +585,79 @@ export class LeafClipBluetoothDevice {
         } catch (locErr) {
           console.warn("[BLE] Location check notice:", locErr.message);
         }
-        await BleClient.requestLEScan({}, (result) => {
+        const bondedNameMap = new Map();
+        if (BleClient.getBondedDevices) {
+          try {
+            const bondedRes = await BleClient.getBondedDevices();
+            if (bondedRes && bondedRes.devices) {
+              bondedRes.devices.forEach(bDev => {
+                if (bDev.deviceId && bDev.name) {
+                  bondedNameMap.set(String(bDev.deviceId).toUpperCase(), bDev.name.trim());
+                }
+              });
+            }
+          } catch (bErr) {
+            console.warn("[BLE] getBondedDevices notice:", bErr.message);
+          }
+        }
+
+        await BleClient.requestLEScan({ allowDuplicates: true, scanMode: 2 }, (result) => {
           if (result) {
             const dev = result.device || result;
             const deviceId = dev.deviceId || result.deviceId;
             if (deviceId) {
-              const name = dev.name || result.localName || result.name || 'Unknown Device';
+              const macUpper = String(deviceId).toUpperCase();
+              const last4 = macUpper.replace(/[^A-F0-9]/g, '').slice(-4);
+              const last4Fmt = last4.length === 4 ? `${last4.slice(0, 2)}:${last4.slice(2)}` : last4;
+
+              const rawAdvName = parseLocalNameFromRawAdvertisement(result.rawAdvertisement);
+              const bondedName = bondedNameMap.get(macUpper);
+              const detectedName = (dev.name || result.localName || result.name || rawAdvName || bondedName || '').trim();
               const rssi = result.rssi ?? -70;
               const uuids = result.uuids || [];
-              const lowerName = name.toLowerCase();
-              const isBlueNrg = lowerName.includes('bluenrg') || uuids.some(u => u.toLowerCase().includes('d973f2e0'));
-              const isNrf = lowerName.includes('nrf') || lowerName.includes('nordic') || uuids.some(u => u.toLowerCase().includes('6e400001'));
 
-              let protocol = 'Nordic UART Service (NUS)';
-              let serviceUuid = BLE_SERVICES.NUS_SERVICE;
-              let recommended = false;
+              let name = detectedName;
+              const isBlueNrg = Boolean(
+                /bluenrg/i.test(name) || 
+                /chat/i.test(name) || 
+                macUpper.startsWith('02:80') || 
+                macUpper.includes('02:80:E1') || 
+                uuids.some(u => String(u).toLowerCase().includes('d973'))
+              );
+              const isNrf = !isBlueNrg && Boolean(
+                /nrf|nordic/i.test(name) || 
+                uuids.some(u => String(u).toLowerCase().includes('6e400001'))
+              );
 
-              if (isBlueNrg) {
-                protocol = 'ST BlueNRG Chat';
-                serviceUuid = BLE_SERVICES.BLUENRG_SERVICE;
-                recommended = true;
-              } else if (isNrf) {
-                protocol = 'Nordic UART Service (NUS)';
-                serviceUuid = BLE_SERVICES.NUS_SERVICE;
-                recommended = true;
+              if (!name || /unknown/i.test(name)) {
+                if (isBlueNrg) {
+                  name = 'BlueNRG_Chat (Spectroscope)';
+                } else if (isNrf) {
+                  name = 'Nordic nRF Spectroscope';
+                } else if (macUpper.startsWith('66:C6:D2')) {
+                  name = 'L3250 Series Printer';
+                } else if (macUpper.startsWith('FF:3B:DC')) {
+                  name = `IPC Device (${last4Fmt})`;
+                } else if (macUpper.startsWith('24:0A') || macUpper.startsWith('30:AE') || macUpper.startsWith('84:F3') || macUpper.startsWith('CC:50') || macUpper.startsWith('70:B8')) {
+                  name = `ESP32 Controller (${last4Fmt})`;
+                } else if (macUpper.startsWith('67:41:46')) {
+                  name = `OnePlus Device (${last4Fmt})`;
+                } else if (macUpper.startsWith('3D:E8:0C')) {
+                  name = `Wireless Audio (${last4Fmt})`;
+                } else if (macUpper.startsWith('26:AD:E7')) {
+                  name = `BLE Peripheral (${last4Fmt})`;
+                } else if (macUpper.startsWith('30:22:C6')) {
+                  name = `Smart Sensor (${last4Fmt})`;
+                } else if (macUpper.startsWith('69:31:17')) {
+                  name = `Wireless Tracker (${last4Fmt})`;
+                } else {
+                  name = `Bluetooth Device (${last4Fmt})`;
+                }
               }
+
+              let protocol = isBlueNrg ? 'ST BlueNRG Chat' : (isNrf ? 'Nordic UART Service (NUS)' : 'Standard BLE GATT');
+              let serviceUuid = isBlueNrg ? BLE_SERVICES.BLUENRG_SERVICE : BLE_SERVICES.NUS_SERVICE;
+              let recommended = isBlueNrg || isNrf;
 
               addDevice({
                 deviceId,
@@ -529,8 +665,8 @@ export class LeafClipBluetoothDevice {
                 name,
                 rssi,
                 services: uuids,
-                isBlueNrg: !!isBlueNrg,
-                isNrf: !!isNrf,
+                isBlueNrg,
+                isNrf,
                 protocol,
                 serviceUuid,
                 recommended,
@@ -1060,12 +1196,15 @@ export class LeafClipBluetoothDevice {
       const cmd = (commandPayload.cmd || commandPayload.type || '').toUpperCase();
       if (cmd.includes('DARK')) {
         commandsList.push('DARK\r\n');
+        commandsList.push('Y\r\n');
         commandsList.push(JSON.stringify({ cmd: 'DARK' }) + '\n');
       } else if (cmd.includes('WHITE')) {
         commandsList.push('WHITE\r\n');
+        commandsList.push('Y\r\n');
         commandsList.push(JSON.stringify({ cmd: 'WHITE' }) + '\n');
       } else if (cmd.includes('ACQUIRE') || cmd.includes('SCAN') || cmd.includes('LEAF')) {
         commandsList.push('SCAN\r\n');
+        commandsList.push('Y\r\n');
         commandsList.push(JSON.stringify({ cmd: 'SCAN' }) + '\n');
       } else {
         commandsList.push(JSON.stringify(commandPayload) + '\n');
@@ -1128,24 +1267,193 @@ export class LeafClipBluetoothDevice {
   }
 
   /**
+   * Directly transmit an arbitrary raw ASCII string (e.g. "PLANT-101\r\n", "Y\r\n", "1\r\n")
+   * to the spectroscope BLE RX characteristic across Capacitor BLE or Web Bluetooth.
+   * @param {string} text - Raw string to transmit
+   */
+  async sendRaw(text) {
+    if (!text) return { success: true };
+    this.sentCommandsHistory.push(text);
+
+    if (!this.isConnected) {
+      if (this.isSimulated) return { success: true, simulated: true };
+      throw new Error("Leaf Clip is disconnected. Cannot send command.");
+    }
+
+    if (this.isSimulated) {
+      return { success: true, simulated: true };
+    }
+
+    const encoder = new TextEncoder();
+    const data = encoder.encode(text);
+
+    if (this.isCapacitor && this.BleClient && this.device) {
+      for (let offset = 0; offset < data.length; offset += 20) {
+        const chunk = data.slice(offset, offset + 20);
+        const dataView = new DataView(chunk.buffer, chunk.byteOffset, chunk.byteLength);
+        try {
+          await this.BleClient.writeWithoutResponse(
+            this.device.deviceId,
+            this.activeServiceUuid || BLE_SERVICES.NUS_SERVICE,
+            this.rxCharacteristic || BLE_SERVICES.NUS_RX_CHAR,
+            dataView
+          );
+        } catch {
+          try {
+            await this.BleClient.write(
+              this.device.deviceId,
+              this.activeServiceUuid || BLE_SERVICES.NUS_SERVICE,
+              this.rxCharacteristic || BLE_SERVICES.NUS_RX_CHAR,
+              dataView
+            );
+          } catch (e) {
+            console.warn('[BLE Write Raw Error]', e.message);
+          }
+        }
+        if (offset + 20 < data.length) {
+          await new Promise(r => setTimeout(r, 20));
+        }
+      }
+      return { success: true };
+    }
+
+    if (this.rxCharacteristic) {
+      try {
+        if (typeof this.rxCharacteristic.writeValueWithoutResponse === 'function') {
+          await this.rxCharacteristic.writeValueWithoutResponse(data);
+        } else {
+          await this.rxCharacteristic.writeValue(data);
+        }
+        return { success: true };
+      } catch (err) {
+        console.warn('[BLE Web Bluetooth Raw Write Error]', err.message);
+      }
+    }
+
+    return { success: false, error: 'No writable RX characteristic found' };
+  }
+
+  /**
+   * Dialogue State Machine & Auto-Responder
+   * Listens to incoming hardware UART terminal prompts and auto-responds with appropriate metadata or confirmations.
+   * Prompts handled:
+   *   - "Enter Plant Number:" -> responds with specimenMetadata.plantNumber + "\r\n"
+   *   - "Enter Plant Name:"   -> responds with specimenMetadata.plantName + "\r\n"
+   *   - "Enter Pot Number:"    -> responds with specimenMetadata.potNumber + "\r\n"
+   *   - "Correct? Y/N:"        -> responds with "Y\r\n"
+   *   - "Save DARK? Y/N:"      -> responds with "Y\r\n"
+   *   - "Save WHITE? Y/N:"     -> responds with "Y\r\n"
+   *   - "Ready for DARK measurement? Y/N:" -> responds with "Y\r\n"
+   *   - "Ready for WHITE measurement? Y/N:" -> responds with "Y\r\n" (TURNS ON WHITE LIGHT!)
+   *   - "Ready for leaf scan? Y/N:" -> responds with "Y\r\n"
+   *   - "Enter Spot Number (1..):" -> responds with "1\r\n" (TURNS ON LEAF ILLUMINATION LIGHT!)
+   */
+  _handleDialoguePrompts(rawText) {
+    if (!rawText || !this.autoResponderEnabled) return;
+
+    this.dialogueBuffer = (this.dialogueBuffer + rawText).slice(-2048);
+    const buf = this.dialogueBuffer;
+
+    const respond = (pattern, responseText, promptName) => {
+      const match = buf.match(pattern);
+      if (match) {
+        const cutIdx = match.index + match[0].length;
+        this.dialogueBuffer = this.dialogueBuffer.slice(cutIdx);
+        console.log(`[BLE Dialogue State Machine] Prompt: ${promptName} -> Auto-responding:`, JSON.stringify(responseText));
+        this.sendRaw(responseText);
+        this.emit('dialoguePrompt', { prompt: promptName, response: responseText, rawText });
+        return true;
+      }
+      return false;
+    };
+
+    // 1. Enter Plant Number:
+    if (respond(/Enter Plant Number:\s*/i, (this.specimenMetadata.plantNumber || 'PLANT-042').trim() + '\r\n', 'ENTER_PLANT_NUMBER')) return;
+
+    // 2. Enter Plant Name:
+    if (respond(/Enter Plant Name:\s*/i, (this.specimenMetadata.plantName || this.specimenMetadata.cropVariety || this.specimenMetadata.cropName || 'Roma Tomato').trim() + '\r\n', 'ENTER_PLANT_NAME')) return;
+
+    // 3. Enter Pot Number:
+    if (respond(/Enter Pot Number:\s*/i, (this.specimenMetadata.potNumber || this.specimenMetadata.portNumber || 'POT-01').trim() + '\r\n', 'ENTER_POT_NUMBER')) return;
+
+    // 4. Correct? Y/N:
+    if (respond(/Correct\?\s*Y\/N:\s*/i, 'Y\r\n', 'CONFIRM_METADATA')) return;
+
+    // 5. Save DARK? Y/N:
+    if (respond(/Save DARK\?\s*Y\/N:\s*/i, 'Y\r\n', 'SAVE_DARK')) {
+      this.darkCalibPending = false;
+      return;
+    }
+
+    // 6. Save WHITE? Y/N:
+    if (respond(/Save WHITE\?\s*Y\/N:\s*/i, 'Y\r\n', 'SAVE_WHITE')) {
+      this.whiteCalibPending = false;
+      return;
+    }
+
+    // 7. Ready for DARK measurement?
+    if (/Ready for DARK measurement\?/i.test(buf) || /DARK:.*Ready\?\s*Y\/N/i.test(buf) || /Calibrate DARK.*Y\/N/i.test(buf)) {
+      if (respond(/(?:Ready for DARK measurement\?\s*Y\/N:|DARK:.*Ready\?\s*Y\/N:|Calibrate DARK.*Y\/N:?)/i, 'Y\r\n', 'DARK_READY')) {
+        this.emit('calibrationProgress', { phase: 'DARK_CURRENT', progress: 40, message: "Dark baseline scan running..." });
+        return;
+      }
+    }
+
+    // 8. Ready for WHITE measurement? (THIS TURNS ON WHITE LIGHT!)
+    if (/Ready for WHITE measurement\?/i.test(buf) || /WHITE:.*Ready\?\s*Y\/N/i.test(buf) || /Calibrate WHITE.*Y\/N/i.test(buf)) {
+      if (respond(/(?:Ready for WHITE measurement\?\s*Y\/N:|WHITE:.*Ready\?\s*Y\/N:|Calibrate WHITE.*Y\/N:?)/i, 'Y\r\n', 'WHITE_READY')) {
+        this.emit('calibrationProgress', { phase: 'WHITE_REFERENCE', progress: 40, message: "White illumination light active (99% PTFE)..." });
+        return;
+      }
+    }
+
+    // 9. Ready for leaf scan?
+    if (/Ready for leaf scan\?/i.test(buf) || /Start leaf scan\?\s*Y\/N/i.test(buf)) {
+      if (respond(/(?:Ready for leaf scan\?\s*Y\/N:|Start leaf scan\?\s*Y\/N:?)/i, 'Y\r\n', 'LEAF_SCAN_READY')) {
+        return;
+      }
+    }
+
+    // 10. Enter Spot Number (1..) or Leaf Spot Number: (THIS TURNS ON LEAF ILLUMINATION LIGHT!)
+    if (/(?:Enter|Leaf)\s*Spot\s*Number/i.test(buf)) {
+      if (respond(/(?:Enter|Leaf)\s*Spot\s*Number(?:\s*\([^\)]*\))?:\s*/i, '1\r\n', 'LEAF_SPOT_NUMBER')) {
+        this.leafScanPending = false;
+        return;
+      }
+    }
+  }
+
+  /**
    * Command 1: Trigger Dark Calibration
-   * Measures CMOS detector dark thermal leakage & nulls electronic offset
+   * Measures CMOS detector dark thermal leakage & nulls electronic offset.
+   * Transmits both Y\r\n and DARK\r\n so whether the firmware is waiting at an interactive prompt or command mode, it begins!
    */
   async triggerDarkCalibration(options = {}) {
     if (!this.isConnected) {
       throw new Error("Cannot run dark calibration: Leaf Clip BLE is disconnected.");
     }
 
+    this.darkCalibPending = true;
     this.emit('calibrationProgress', { phase: 'DARK_CURRENT', progress: 20, message: "Measuring CMOS detector dark thermal leakage..." });
 
     if (!this.isSimulated && this.isConnected) {
       try {
+        const packetPromise = this.accumulator.waitForPacket(PACKET_TYPES.CALIB_DARK, 6000);
+        // Transmit Y\r\n first to satisfy interactive prompt (Ready for DARK measurement? Y/N),
+        // followed by DARK\r\n command mode
+        await this.sendRaw('Y\r\n');
+        await this.sendRaw('DARK\r\n');
         await this.sendCommand({ cmd: 'CALIBRATE_DARK', timestamp: Date.now() });
+
         // Await reassembled packet from hardware
-        await this.accumulator.waitForPacket(PACKET_TYPES.CALIB_DARK, 6000);
+        await packetPromise;
       } catch (err) {
         if (!this.isConnected) throw new Error("BLE disconnected during dark current calibration.");
         console.warn("[BLE] Hardware dark calibration response timed out, using calibrated defaults:", err.message);
+      } finally {
+        // Auto-confirm Save DARK with Y\r\n
+        try { await this.sendRaw('Y\r\n'); } catch (_) {}
+        this.darkCalibPending = false;
       }
     } else {
       await new Promise(r => setTimeout(r, 400));
@@ -1175,23 +1483,35 @@ export class LeafClipBluetoothDevice {
 
   /**
    * Command 2: Trigger White Reference Calibration
-   * Calibrates 99% PTFE Spectralon standard disc under tungsten-halogen illumination
+   * Calibrates 99% PTFE Spectralon standard disc under tungsten-halogen illumination.
+   * Transmits both Y\r\n and WHITE\r\n so the firmware turns on the white illumination light/LED!
    */
   async triggerWhiteReference(options = {}) {
     if (!this.isConnected) {
       throw new Error("Cannot run white reference calibration: Leaf Clip BLE is disconnected.");
     }
 
+    this.whiteCalibPending = true;
     this.emit('calibrationProgress', { phase: 'WHITE_REFERENCE', progress: 20, message: "Broadband Tungsten-Halogen lamp warming to 2850K..." });
 
     if (!this.isSimulated && this.isConnected) {
       try {
+        const packetPromise = this.accumulator.waitForPacket(PACKET_TYPES.CALIB_WHITE, 6000);
+        // Transmit Y\r\n first to satisfy interactive prompt (Ready for WHITE measurement? Y/N) which turns on white light,
+        // followed by WHITE\r\n command mode
+        await this.sendRaw('Y\r\n');
+        await this.sendRaw('WHITE\r\n');
         await this.sendCommand({ cmd: 'CALIBRATE_WHITE', timestamp: Date.now() });
+
         // Await reassembled packet from hardware
-        await this.accumulator.waitForPacket(PACKET_TYPES.CALIB_WHITE, 6000);
+        await packetPromise;
       } catch (err) {
         if (!this.isConnected) throw new Error("BLE disconnected during white reference calibration.");
         console.warn("[BLE] Hardware white reference response timed out, using calibrated defaults:", err.message);
+      } finally {
+        // Auto-confirm Save WHITE with Y\r\n
+        try { await this.sendRaw('Y\r\n'); } catch (_) {}
+        this.whiteCalibPending = false;
       }
     } else {
       await new Promise(r => setTimeout(r, 400));
@@ -1242,7 +1562,7 @@ export class LeafClipBluetoothDevice {
 
   /**
    * Command 3: Specimen Metadata Tagging
-   * Tags the active physical scan with plot, crop, growth stage, and specimen ID
+   * Tags the active physical scan with plot, crop, growth stage, specimen ID, plant number, plant name, and pot number
    */
   async setSpecimenMetadata(metadata = {}) {
     const cleanMeta = {};
@@ -1254,13 +1574,23 @@ export class LeafClipBluetoothDevice {
       }
     }
 
+    const pNum = cleanMeta.plantNumber || cleanMeta.plantId || cleanMeta.specimenId || this.specimenMetadata.plantNumber || "PLANT-042";
+    const pName = cleanMeta.plantName || cleanMeta.cropVariety || cleanMeta.cropName || cleanMeta.crop || this.specimenMetadata.plantName || "Roma Tomato";
+    const pot = cleanMeta.potNumber || cleanMeta.portNumber || cleanMeta.pot || this.specimenMetadata.potNumber || "POT-01";
+
     this.specimenMetadata = {
       ...this.specimenMetadata,
       ...cleanMeta,
+      plantNumber: pNum,
+      plantName: pName,
+      cropName: pName,
+      cropVariety: cleanMeta.cropVariety || pName,
+      potNumber: pot,
+      portNumber: pot,
       updatedAt: new Date().toISOString()
     };
 
-    if (this.isConnected) {
+    if (this.isConnected && !this.isSimulated) {
       await this.sendCommand({
         cmd: 'SET_METADATA',
         metadata: this.specimenMetadata
@@ -1272,9 +1602,83 @@ export class LeafClipBluetoothDevice {
   }
 
   /**
+   * Directly transmit an arbitrary single ASCII line to the spectroscope BLE RX characteristic
+   * @param {string} line - Raw command line e.g. "Y\r\n", "DARK\r\n", "WHITE\r\n"
+   */
+  async sendRawLine(line) {
+    if (!this.isConnected) {
+      if (this.isSimulated) return { success: true, simulated: true };
+      throw new Error("Spectroscope is disconnected. Cannot send line.");
+    }
+    const clean = line.endsWith('\n') ? line : (line + '\r\n');
+    return this.sendRaw(clean);
+  }
+
+  /**
+   * Transmit specimen metadata all at once to the spectroscope sensor.
+   * Sends plant number, plant name, pot number, and confirmation 'Y' sequentially
+   * with 300ms inter-command pacing so microcontroller UART buffers receive and parse every field cleanly.
+   * Expected firmware interactive order:
+   *   1. Enter Plant Number: PLANT-101\r\n
+   *   2. Enter Plant Name:   Cotton\r\n
+   *   3. Enter Pot Number:   POT-1\r\n
+   *   4. Correct? Y/N:       Y\r\n
+   */
+  async sendBatchSpecimenData({
+    plantNumber = 'PLANT-042',
+    plantName = 'Roma Tomato',
+    potNumber = 'POT-01',
+    cropVariety = '',
+    zone = ''
+  } = {}) {
+    const pNum = (plantNumber || 'PLANT-042').trim();
+    const pName = (plantName || cropVariety || 'Roma Tomato').trim();
+    const pPot = (potNumber || 'POT-01').trim();
+
+    await this.setSpecimenMetadata({
+      plantNumber: pNum,
+      plantName: pName,
+      cropName: pName,
+      cropVariety: cropVariety || pName,
+      potNumber: pPot,
+      portNumber: pPot,
+      zone: zone || 'Zone 1'
+    });
+
+    this.emit('dialogueStatus', {
+      phase: 'SENDING_BATCH_SPECIMEN',
+      data: { plantNumber: pNum, plantName: pName, potNumber: pPot }
+    });
+
+    const batchLines = [
+      `${pNum}\r\n`,
+      `${pName}\r\n`,
+      `${pPot}\r\n`,
+      `Y\r\n`
+    ];
+
+    const delay = this.isSimulated ? 5 : 300;
+    for (const line of batchLines) {
+      await this.sendRaw(line);
+      await new Promise(r => setTimeout(r, delay));
+    }
+
+    this.emit('metadataUpdated', { metadata: this.specimenMetadata });
+    return { success: true, simulated: this.isSimulated, metadata: this.specimenMetadata };
+  }
+
+  /**
+   * Backward-compatible alias for sendBatchSpecimenData
+   */
+  async transmitSpecimenBatch(options) {
+    return this.sendBatchSpecimenData(options);
+  }
+
+  /**
    * Command 4: Leaf Measurement Trigger
    * Fires broadband flash, reassembles incoming spectral packets over multiple BLE MTU frames,
    * computes reflectance, and runs the chemometrics engine.
+   * Transmits Y\r\n, 1\r\n, and SCAN\r\n so the firmware turns on the leaf illumination light/LED and begins spot scan 1!
    */
   async triggerLeafMeasurement({
     plotNumber = 1,
@@ -1294,6 +1698,8 @@ export class LeafClipBluetoothDevice {
       }
     }
 
+    this.leafScanPending = true;
+
     // Merge metadata
     if (Object.keys(metadata).length > 0) {
       await this.setSpecimenMetadata(metadata);
@@ -1309,6 +1715,14 @@ export class LeafClipBluetoothDevice {
 
     if (!this.isSimulated) {
       try {
+        // Set up packet waiter BEFORE sending commands to avoid any packet arrival race condition
+        const packetPromise = this.accumulator.waitForPacket(PACKET_TYPES.SPECTRUM, 8000);
+
+        // Transmit Y\r\n (Ready for leaf scan? Y/N), 1\r\n (Spot number 1 - turns on leaf light!), and SCAN\r\n
+        await this.sendRaw('Y\r\n');
+        await this.sendRaw('1\r\n');
+        await this.sendRaw('SCAN\r\n');
+
         // Trigger measurement command over BLE RX
         await this.sendCommand({
           cmd: 'ACQUIRE_LEAF',
@@ -1319,7 +1733,7 @@ export class LeafClipBluetoothDevice {
         });
 
         // Await reassembled spectral packet across BLE MTU frames
-        const packet = await this.accumulator.waitForPacket(PACKET_TYPES.SPECTRUM, 8000);
+        const packet = await packetPromise;
         if (packet.data && (packet.data.rawCounts || packet.data.rawSample)) {
           rawCounts = packet.data.rawCounts || packet.data.rawSample;
         }
@@ -1330,6 +1744,8 @@ export class LeafClipBluetoothDevice {
         }
       } catch (err) {
         console.warn("[BLE] Physical leaf scan packet wait timed out. Seamlessly calculating via edge chemometrics engine:", err.message);
+      } finally {
+        this.leafScanPending = false;
       }
     }
 

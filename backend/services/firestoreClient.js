@@ -179,15 +179,30 @@ export class FirestoreClient {
 
   /**
    * Validate and construct a safe Firestore REST API URL
-   * Defends against Server-Side Request Forgery (SSRF - CWE-918)
+   * Defends against Server-Side Request Forgery (SSRF - CWE-918) and ReDoS (CWE-1333)
    */
   buildSafeFirestoreUrl(relativePath, queryParams = {}) {
     if (!relativePath || typeof relativePath !== 'string') return null;
     const segments = relativePath.split('/').filter(Boolean);
     const ALLOWED_ROOT_COLLECTIONS = new Set(['farms', 'users', 'irrigation_logs', 'telemetry_logs', 'soil_scans', 'spectral_scans', 'crops', 'plots']);
-    if (segments.length === 0 || !ALLOWED_ROOT_COLLECTIONS.has(segments[0]) || segments.some(s => !/^[a-zA-Z0-9_-]+$/.test(s))) {
+    if (segments.length === 0 || !ALLOWED_ROOT_COLLECTIONS.has(segments[0])) {
       return null;
     }
+
+    // Deterministic loop validation replacing regex to eliminate catastrophic backtracking (ReDoS)
+    for (const segment of segments) {
+      if (typeof segment !== 'string' || segment.length === 0 || segment.length > 128) {
+        return null;
+      }
+      for (let i = 0; i < segment.length; i++) {
+        const code = segment.charCodeAt(i);
+        const isAlphaNum = (code >= 48 && code <= 57) || (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
+        if (!isAlphaNum && code !== 95 && code !== 45) { // '_' is 95, '-' is 45
+          return null;
+        }
+      }
+    }
+
     const cleanPath = segments.map(s => encodeURIComponent(s)).join('/');
     const FIRESTORE_ORIGIN = 'https://firestore.googleapis.com';
     const basePath = `/v1/projects/${encodeURIComponent(this.projectId)}/databases/(default)/documents/${cleanPath}`;

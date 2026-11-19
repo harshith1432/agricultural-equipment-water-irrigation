@@ -52,6 +52,7 @@ import { registerScrollRetentionTests } from './scroll-retention.test.js';
 import { registerBleNusSpectrometerTests } from './ble-nus-spectrometer.test.js';
 import { registerSpectroscopyGuidedFlowTests } from './spectroscopy-guided-flow.test.js';
 import { registerCalibrationWizardTests } from './calibration-wizard.test.js';
+import { registerSpecimenSetupModalTests } from './specimen-setup-modal.test.js';
 
 async function main() {
   console.log('\x1b[35mStarting AgriSpectra Flow & Field Automated Test Suite...\x1b[0m');
@@ -75,6 +76,7 @@ async function main() {
   registerScrollRetentionTests();
   registerSpectroscopyGuidedFlowTests();
   registerCalibrationWizardTests();
+  registerSpecimenSetupModalTests();
 
   // Execute runner
   const success = await runner.run();
