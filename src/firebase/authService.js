@@ -23,6 +23,7 @@ import {
   getAuth,
   signInWithPopup,
   signInWithRedirect,
+  signInWithCredential,
   GoogleAuthProvider,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -31,6 +32,8 @@ import {
   onAuthStateChanged as firebaseOnAuthStateChanged,
   updateProfile
 } from 'firebase/auth';
+import { Capacitor } from '@capacitor/core';
+import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import {
   doc,
   getDoc,
@@ -325,7 +328,7 @@ class AuthService {
   }
 
   /**
-   * Google Sign-In with popup and webview fallback
+   * Google Sign-In with popup, native mobile Google Play Services, and webview fallback
    * Gracefully falls back to offline guest if network or configuration fails
    */
   async signInWithGoogle(options = {}) {
@@ -337,6 +340,69 @@ class AuthService {
       const offlineUid = this._generateSecureUid('usr');
       const offlineFarmId = 'farm_' + offlineUid;
       return this._activateOfflineFallback("Google Agronomist", "agronomist.grower@agrispectra.io", options?.role || "Agronomist", "Central Valley Alpha Block", false, offlineUid, offlineFarmId);
+    }
+
+    // Native Mobile Container (Capacitor Android / iOS) with Google Play Services
+    if (typeof Capacitor !== 'undefined' && typeof Capacitor.isNativePlatform === 'function' && Capacitor.isNativePlatform()) {
+      try {
+        console.log("[AuthService] Initiating Native Mobile Google Authentication...");
+        const result = await FirebaseAuthentication.signInWithGoogle();
+        console.log("[AuthService] Native Google Sign-In success:", result);
+
+        const nativeUser = result.user || result;
+        const googleEmail = nativeUser.email || (result.additionalUserInfo?.profile?.email) || "grower@agrispectra.io";
+        const googleName = nativeUser.displayName || nativeUser.name || googleEmail.split('@')[0];
+        const googlePhoto = nativeUser.photoUrl || nativeUser.imageUrl || null;
+        const googleUid = nativeUser.uid || this._generateSecureUid('usr_g');
+
+        // Link with web Firebase Auth instance if ID token is present
+        if (result.credential?.idToken && this.auth) {
+          try {
+            const credential = GoogleAuthProvider.credential(result.credential.idToken);
+            await signInWithCredential(this.auth, credential);
+          } catch (credErr) {
+            console.warn("[AuthService] Firebase credential sync note:", credErr.message);
+          }
+        }
+
+        const role = options?.role || "Agronomist";
+        const profile = await this.syncUserProfile({
+          uid: googleUid,
+          email: googleEmail,
+          displayName: googleName,
+          photoURL: googlePhoto
+        }, { role, farmId: DEFAULT_FARM_ID });
+
+        this.currentUser = {
+          uid: googleUid,
+          email: googleEmail,
+          displayName: googleName,
+          photoURL: googlePhoto,
+          role,
+          farmName: "Sonoma Valley Parcel"
+        };
+        this.currentUserProfile = profile;
+        this.isOfflineSession = false;
+        this._saveCachedSession(this.currentUser);
+        this._notifyListeners();
+
+        try {
+          firestoreService.setActiveUser(this.currentUser);
+        } catch (e) {}
+
+        return {
+          ...this.currentUser,
+          success: true,
+          user: this.currentUser,
+          message: `Welcome, ${googleName} (${googleEmail})!`
+        };
+      } catch (nativeErr) {
+        console.warn("[AuthService] Native Google Sign-In error:", nativeErr);
+        if (nativeErr.code === '12501' || nativeErr.message?.includes('cancel') || nativeErr.message?.includes('12501')) {
+          throw new Error("Google Sign-In was cancelled.");
+        }
+        // If native auth fails, proceed to web fallback below
+      }
     }
 
     const provider = new GoogleAuthProvider();
@@ -353,23 +419,35 @@ class AuthService {
           popupErr.code === 'auth/configuration-not-found' ||
           popupErr.code === 'auth/invalid-api-key'
         ) {
-          console.info("[AuthService] Popup blocked/unsupported, falling back to field mode:", popupErr.code);
-          return this._activateOfflineFallback("Google Agronomist", "agronomist.grower@agrispectra.io", options?.role || "Agronomist");
+          console.info("[AuthService] Popup blocked/unsupported, attempting redirect:", popupErr.code);
+          try {
+            await signInWithRedirect(this.auth, provider);
+            return;
+          } catch (redirErr) {
+            console.info("[AuthService] Redirect also unavailable, falling back:", redirErr.code);
+            return this._activateOfflineFallback("Google Agronomist", "agronomist.grower@agrispectra.io", options?.role || "Agronomist");
+          }
         }
         throw popupErr;
       }
 
       const user = result.user;
-      const profile = await this.syncUserProfile(user, { role: "Agronomist", farmId: DEFAULT_FARM_ID });
+      const role = options?.role || "Agronomist";
+      const profile = await this.syncUserProfile(user, { role, farmId: DEFAULT_FARM_ID });
       this.currentUser = {
         ...user,
-        role: "Agronomist",
-        farmName: "Central Valley Alpha Block"
+        displayName: user.displayName || user.email?.split('@')[0] || "Grower",
+        role,
+        farmName: "Sonoma Valley Parcel"
       };
       this.currentUserProfile = profile;
       this.isOfflineSession = false;
       this._saveCachedSession(this.currentUser);
       this._notifyListeners();
+
+      try {
+        firestoreService.setActiveUser(this.currentUser);
+      } catch (e) {}
 
       const finalUser = this.getCurrentUser();
       return {

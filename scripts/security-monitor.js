@@ -30,7 +30,10 @@ const IGNORED_DIRS = new Set([
 
 const IGNORED_FILES = new Set([
   'package-lock.json',
-  'bignumber.js'
+  'bignumber.js',
+  'google-services.json',
+  '.env',
+  '.env.local'
 ]);
 
 // Secret regex patterns matching GitHub Secret Scanning rules

@@ -171,6 +171,36 @@ export function registerCropZoneManagerTests() {
       expect(fallbackPlot).toBeDefined();
       expect(fallbackPlot !== 'plot-1').toBe(true);
     });
+
+    it('neutralizes malicious DOM XSS injection vectors in plots and crop types', async () => {
+      mockFirestore.resetToDefault();
+
+      // Inject an adversarial plot into Firestore data
+      mockFirestore.data.plots['xss-plot'] = {
+        id: 'xss-plot',
+        plotNumber: 99,
+        name: '<script>alert("XSS-ZONE")</script><img src=x onerror=alert(1)>Malicious Plot',
+        crop: '<svg onload=alert(2)>MaliciousCrop',
+        stage: 'Vegetative',
+        soilType: 'Red Soil',
+        targetVwcMin: 15,
+        targetVwcMax: 30,
+        valve: { id: 'G99', state: 'CLOSED', flowRate: 400 }
+      };
+
+      const modal = createCropZoneManagerModal({
+        initialTab: 'zones',
+        selectedPlotId: 'xss-plot'
+      });
+
+      // Verify that no raw script or image event handlers are executed or injected into DOM
+      expect(modal.innerHTML.includes('<script>alert("XSS-ZONE")</script>')).toBe(false);
+      expect(modal.innerHTML.includes('<img src=x onerror=alert(1)>')).toBe(false);
+      expect(modal.innerHTML.includes('<svg onload=alert(2)>')).toBe(false);
+
+      // Verify that content is properly sanitized and escaped
+      expect(modal.innerHTML).toContain('Malicious Plot');
+    });
   });
 
   describe('UI Entrypoints - AppNavigationHeader & FieldOverviewDashboard Integration', () => {

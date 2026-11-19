@@ -11,7 +11,7 @@
  */
 
 import { icon } from '../../utils/icons.js';
-import { t, onLocaleChange } from '../../utils/i18n.js';
+import { t, onLocaleChange, getCropName } from '../../utils/i18n.js';
 import { 
   irrigationControllerAdapter, 
   VALVE_STATES 
@@ -261,7 +261,7 @@ export function createIrrigationManagementView({
 
                     <div class="flex flex-col min-w-0 flex-1">
                       <div class="flex items-center gap-1.5 flex-wrap min-w-0">
-                        <span class="text-xs font-bold text-slate-900 dark:text-white break-words leading-snug">${escapeHtml(valve.name)}</span>
+                        <span class="text-xs font-bold text-slate-900 dark:text-white break-words leading-snug">${escapeHtml(getValveDisplayName(valve))}</span>
                         <!-- Status Pill -->
                         ${renderStatusPill(currentPill)}
                       </div>
@@ -359,6 +359,18 @@ export function createIrrigationManagementView({
       `;
       container.querySelector('#btn-irrigation-recovery-retry')?.addEventListener('click', () => render());
     }
+  }
+
+  function getValveDisplayName(valve) {
+    if (!valve) return '';
+    const zoneMatch = (valve.name || '').match(/Zone\s+(\d+)/i);
+    const zoneNum = zoneMatch ? zoneMatch[1] : (valve.plotId ? valve.plotId.replace('plot-', '') : '1');
+    const plot = (plots || []).find(p => p.id === valve.plotId || p.plotNumber === Number(zoneNum));
+    const cropStr = plot ? getCropName(plot.crop) : '';
+    if (cropStr) {
+      return `${t('zone_label', 'Zone')} ${zoneNum}: ${cropStr}`;
+    }
+    return valve.name;
   }
 
   function renderStatusPill(status) {

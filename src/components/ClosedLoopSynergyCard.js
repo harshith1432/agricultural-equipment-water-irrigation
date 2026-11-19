@@ -94,9 +94,9 @@ export function createClosedLoopSynergySection(recommendations = [], onAction) {
                 </button>
 
                 <!-- Approve Button -->
-                <button data-rec-id="${escapeHtml(rec.id)}" data-action="APPROVE" class="rec-action-btn min-h-[44px] px-3.5 sm:px-5 py-2 rounded-xl text-xs font-bold text-white bg-[#0E5431] hover:bg-[#083820] shadow-sm transition active:scale-95 flex items-center justify-center gap-1.5 w-full sm:w-auto cursor-pointer">
+                <button data-rec-id="${escapeHtml(rec.id)}" data-action="APPROVE" class="rec-action-btn min-h-[44px] px-3.5 sm:px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#0E5431] hover:bg-[#083820] shadow-sm transition active:scale-95 flex items-center justify-center gap-1.5 w-full sm:w-auto cursor-pointer">
                   <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                  <span class="truncate">${t('approve_actuate')}</span>
+                  <span class="whitespace-normal text-center leading-tight">${t('approve_actuate')}</span>
                 </button>
               </div>
             </div>

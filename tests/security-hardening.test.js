@@ -205,6 +205,28 @@ export function registerSecurityHardeningTests() {
       expect(sanitizeUrl('javascript:alert(1)')).toBeNull();
       expect(sanitizeUrl('data:text/html,<script>alert(1)</script>')).toBeNull();
     });
+
+    it('defends against nested and recursive tag evasions (CodeQL incomplete-multi-character-sanitization)', () => {
+      // Nested <script> tag evasions
+      expect(sanitizeText('<<script>script>alert(1)</script>')).toBe('');
+      expect(sanitizeText('<script<script>>alert(1)</script>')).toBe('');
+      expect(sanitizeText('<script><script>alert(1)</script></script>')).toBe('');
+      expect(sanitizeText('<scr<script>ipt>alert(1)</script>')).toBe('scr');
+      
+      // Nested style tags
+      expect(sanitizeText('<style>body{color:red}</style>Salinas')).toBe('Salinas');
+      expect(sanitizeText('<style<style>body{color:red}</style>>Salinas')).toBe('');
+
+      // Nested event handlers
+      expect(sanitizeText('<img src=x oneronerrorror=alert(1)>Almond')).toBe('Almond');
+
+      // Nested dangerous tags
+      expect(sanitizeText('<<iframe src="evil.com">iframe>Corn Parcel')).toBe('Corn Parcel');
+
+      // Unclosed and malformed script tags
+      expect(sanitizeText('Vineyard <script src="evil.js"')).toBe('Vineyard');
+      expect(sanitizeText('<script>/* incomplete code')).toBe('');
+    });
   });
 
   // =========================================================================
@@ -360,4 +382,25 @@ export function registerSecurityHardeningTests() {
       }
     });
   });
+}
+
+// Self-execution hook when run directly via `node tests/security-hardening.test.js`
+if (process.argv[1] && /security-hardening\.test\.js$/i.test(process.argv[1].replace(/\\/g, '/'))) {
+  if (!globalThis.localStorage) {
+    const store = new Map();
+    globalThis.localStorage = {
+      getItem: (key) => store.get(key) || null,
+      setItem: (key, value) => store.set(key, String(value)),
+      removeItem: (key) => store.delete(key),
+      clear: () => store.clear(),
+      get length() { return store.size; },
+      key: (i) => Array.from(store.keys())[i] || null
+    };
+  }
+  const { runner } = await import('./framework.js');
+  registerSecurityHardeningTests();
+  const success = await runner.run();
+  if (!success) {
+    process.exit(1);
+  }
 }

@@ -11,11 +11,71 @@
  */
 
 const DANGEROUS_TAGS_REGEX = /<\/?(?:script|iframe|object|embed|applet|meta|link|style|form|input|button|svg|base)\b[^>]*>/gi;
-const SCRIPT_BLOCK_REGEX = /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi;
-const STYLE_BLOCK_REGEX = /<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi;
 const EVENT_HANDLER_REGEX = /\bon\w+\s*=\s*(?:'[^']*'|"[^"]*"|[^\s>]+)/gi;
 const JAVASCRIPT_PROTOCOL_REGEX = /(?:javascript|vbscript|data\s*:\s*text\/html)\s*:[^"'\s]*/gi;
 const CONTROL_CHARS_REGEX = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g;
+const GENERIC_TAG_REGEX = /<[^>]*>/g;
+
+/**
+ * Safely strips paired block tags (<tag>...</tag>) including their contents
+ * using deterministic iterative string processing.
+ * Avoids complex/backtracking regular expressions, completely eliminating CodeQL js/bad-tag-filter.
+ *
+ * @param {string} source - Input string
+ * @param {string} tagName - Tag name (e.g. 'script', 'style')
+ * @returns {string} Sanitized string with tag blocks removed
+ */
+function stripTagBlock(source, tagName) {
+  let str = source;
+  let prev;
+
+  // Outer loop ensures nested or newly exposed tag pairs (e.g. <scr<script>ipt>) are stripped
+  do {
+    prev = str;
+    let lower = str.toLowerCase();
+    const openPrefix = `<${tagName}`;
+
+    let startIdx = lower.indexOf(openPrefix);
+    while (startIdx !== -1) {
+      // Verify tag boundary: character following tagName must be whitespace, '>', '/', or undefined
+      const boundaryChar = lower[startIdx + openPrefix.length];
+      if (boundaryChar === undefined || /[\s>/]/.test(boundaryChar)) {
+        // Find closing bracket of opening tag
+        const openTagEnd = str.indexOf('>', startIdx + openPrefix.length);
+        if (openTagEnd === -1) {
+          // Unclosed opening tag - strip to end of string to prevent script leakage
+          str = str.slice(0, startIdx);
+          break;
+        }
+
+        // Search for matching closing tag </tagName>
+        const closePrefix = `</${tagName}`;
+        const closeIdx = lower.indexOf(closePrefix, openTagEnd + 1);
+        if (closeIdx !== -1) {
+          const closeTagEnd = str.indexOf('>', closeIdx + closePrefix.length);
+          if (closeTagEnd !== -1) {
+            str = str.slice(0, startIdx) + str.slice(closeTagEnd + 1);
+          } else {
+            str = str.slice(0, startIdx);
+            break;
+          }
+        } else {
+          // Opening tag was closed, but no closing tag exists - strip entire block
+          str = str.slice(0, startIdx);
+          break;
+        }
+
+        lower = str.toLowerCase();
+        startIdx = lower.indexOf(openPrefix);
+      } else {
+        // False match (e.g. <scripture>), skip past this occurrence
+        startIdx = lower.indexOf(openPrefix, startIdx + openPrefix.length);
+      }
+    }
+  } while (str !== prev && str.length > 0);
+
+  return str;
+}
 
 const HTML_ENTITIES = {
   '&': '&amp;',
@@ -57,7 +117,11 @@ export function unescapeHtml(str) {
 }
 
 /**
- * Strips all HTML tags, script execution vectors, event handlers and control characters
+ * Strips all HTML tags, script execution vectors, event handlers and control characters.
+ * All multi-character replacements are executed within defensive fixed-point loops,
+ * guaranteeing complete sanitization against nested evasion payloads (CodeQL js/incomplete-multi-character-sanitization)
+ * and avoiding catastrophic backtracking (CodeQL js/bad-tag-filter).
+ *
  * @param {*} input - String or primitive value
  * @returns {string} Clean, safe text string
  */
@@ -65,25 +129,53 @@ export function sanitizeText(input) {
   if (input === null || input === undefined) return '';
   let str = typeof input === 'string' ? input : String(input);
 
-  // 1. Remove entire <script>...</script> and <style>...</style> blocks
-  str = str.replace(SCRIPT_BLOCK_REGEX, '');
-  str = str.replace(STYLE_BLOCK_REGEX, '');
+  let outerPrev;
+  do {
+    outerPrev = str;
 
-  // 2. Remove dangerous HTML tags
-  str = str.replace(DANGEROUS_TAGS_REGEX, '');
+    // 1. Remove entire <script>...</script> and <style>...</style> blocks iteratively without regex
+    str = stripTagBlock(str, 'script');
+    str = stripTagBlock(str, 'style');
 
-  // 3. Remove inline event handlers (onload=, onerror=, onclick=)
-  str = str.replace(EVENT_HANDLER_REGEX, '');
+    // 2. Remove dangerous HTML tags in a loop until fixed point
+    let prevDangerous;
+    do {
+      prevDangerous = str;
+      str = str.replace(DANGEROUS_TAGS_REGEX, '');
+    } while (str !== prevDangerous && str.length > 0);
 
-  // 4. Neutralize javascript:, data:text/html protocols
-  str = str.replace(JAVASCRIPT_PROTOCOL_REGEX, '');
+    // 3. Remove inline event handlers (onload=, onerror=, onclick=) in a loop until fixed point
+    let prevEvents;
+    do {
+      prevEvents = str;
+      str = str.replace(EVENT_HANDLER_REGEX, '');
+    } while (str !== prevEvents && str.length > 0);
 
-  // 5. Remove ASCII control characters
-  str = str.replace(CONTROL_CHARS_REGEX, '');
+    // 4. Neutralize javascript:, vbscript:, data:text/html protocols in a loop until fixed point
+    let prevProtocols;
+    do {
+      prevProtocols = str;
+      str = str.replace(JAVASCRIPT_PROTOCOL_REGEX, '');
+    } while (str !== prevProtocols && str.length > 0);
 
-  // 6. Strip any residual unclosed/unmatched tag markers '<' and '>'
-  str = str.replace(/<[^>]*>/g, '');
-  str = str.replace(/[<>]/g, '');
+    // 5. Remove ASCII control characters
+    let prevControl;
+    do {
+      prevControl = str;
+      str = str.replace(CONTROL_CHARS_REGEX, '');
+    } while (str !== prevControl && str.length > 0);
+
+    // 6. Strip any residual unclosed/unmatched tag markers '<...>' in a loop until fixed point
+    let prevTags;
+    do {
+      prevTags = str;
+      str = str.replace(GENERIC_TAG_REGEX, '');
+    } while (str !== prevTags && str.length > 0);
+
+    // 7. Strip isolated angle brackets
+    str = str.replace(/[<>]/g, '');
+
+  } while (str !== outerPrev && str.length > 0);
 
   return str.trim();
 }
