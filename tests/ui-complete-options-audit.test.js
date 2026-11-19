@@ -1009,8 +1009,8 @@ export function registerUICompleteOptionsAuditTests() {
       // 3. Test Language Pills
       const langPills = drawer.querySelectorAll('.menu-lang-pill-btn');
       expect(langPills.length).toBe(SUPPORTED_LOCALES.length);
-      langPills.find(p => p.getAttribute('data-lang-code') === 'es')?.click();
-      expect(getLocale()).toBe('es');
+      langPills.find(p => p.getAttribute('data-lang-code') === 'kn')?.click();
+      expect(getLocale()).toBe('kn');
       setLocale('en'); // Restore English
 
       // 4. Test Theme Select

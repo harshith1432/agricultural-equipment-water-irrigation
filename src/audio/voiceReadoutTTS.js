@@ -7,7 +7,6 @@ export const SUPPORTED_LANGUAGES = [
   { code: 'en-US', label: 'English (US/Global)', flag: '' },
   { code: 'kn-IN', label: 'ಕನ್ನಡ (Kannada)', flag: '' },
   { code: 'hi-IN', label: 'हिन्दी (Hindi)', flag: '' },
-  { code: 'es-ES', label: 'Español (Spanish)', flag: '' },
   { code: 'sw-KE', label: 'Kiswahili (Swahili)', flag: '' }
 ];
 

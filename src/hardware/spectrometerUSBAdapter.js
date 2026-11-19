@@ -59,8 +59,16 @@ export const SPECTROMETER_USB_FILTERS = [
   { vendorId: 0x2e8a, productId: 0x0003 }  // Raspberry Pi Micro-Spectrometer
 ];
 
-// BLE GATT UUIDs for wireless spectrometer clip (Nordic UART Service & Fallback)
+// BLE GATT UUIDs for wireless spectrometer clip (ST BlueNRG Chat, Nordic UART Service & Fallback)
 export const BLE_SPECTROMETER_SERVICES = {
+  // STMicroelectronics BlueNRG BLE Chat Profile (B-L475E-IOT01A2 / SPBTLE-RF)
+  BLUENRG_SERVICE: 'd973f2e0-b19e-11e2-9e96-0800200c9a66',
+  BLUENRG_TX_CHAR: 'd973f2e1-b19e-11e2-9e96-0800200c9a66',
+  BLUENRG_RX_CHAR: 'd973f2e2-b19e-11e2-9e96-0800200c9a66',
+  BLUENRG_SERVICE_UUID: 'd973f2e0-b19e-11e2-9e96-0800200c9a66',
+  BLUENRG_TX_CHAR_UUID: 'd973f2e1-b19e-11e2-9e96-0800200c9a66',
+  BLUENRG_RX_CHAR_UUID: 'd973f2e2-b19e-11e2-9e96-0800200c9a66',
+
   // Nordic UART Service (NUS) - Primary direct interface (no external nRF Toolbox required)
   NUS_SERVICE_UUID: '6e400001-b5a3-f393-e0a9-e50e24dcca9e',
   NUS_TX_CHAR_UUID: '6e400003-b5a3-f393-e0a9-e50e24dcca9e',
@@ -83,6 +91,8 @@ export const BLE_SPECTROMETER_SERVICES = {
   LEGACY_DATA_CHAR_UUID: '0000ffe1-0000-1000-8000-00805f9b34fb',
   LEGACY_COMMAND_CHAR_UUID: '0000ffe2-0000-1000-8000-00805f9b34fb'
 };
+
+export const BLE_SERVICES = NATIVE_BLE_SERVICES;
 
 export class SpectrometerUSBAdapter {
   constructor() {
@@ -339,36 +349,62 @@ export class SpectrometerUSBAdapter {
   async _connectBLE(options = {}) {
     this.emit('statusChange', { status: 'PAIRING_BLE', mode: CONNECTION_MODES.BLUETOOTH_BLE });
 
-    // 1. Try Web Bluetooth with Nordic UART Service (NUS)
+    // 1. Try Web Bluetooth with ST BlueNRG Chat Service & Nordic UART Service (NUS)
     if (typeof navigator !== 'undefined' && navigator.bluetooth) {
-      this.device = await navigator.bluetooth.requestDevice({
-        filters: [
-          { namePrefix: 'AgriSpectra' },
-          { namePrefix: 'Spectra' },
-          { namePrefix: 'Nordic_UART' },
-          { namePrefix: 'NUS' }
-        ],
-        optionalServices: [
-          BLE_SPECTROMETER_SERVICES.NUS_SERVICE_UUID,
-          BLE_SPECTROMETER_SERVICES.FALLBACK_SERVICE_UUID,
-          BLE_SPECTROMETER_SERVICES.BATTERY_SERVICE,
-          BLE_SPECTROMETER_SERVICES.LEGACY_SERVICE_UUID
-        ]
-      });
+      const optionalServices = [
+        BLE_SPECTROMETER_SERVICES.BLUENRG_SERVICE_UUID,
+        BLE_SPECTROMETER_SERVICES.NUS_SERVICE_UUID,
+        BLE_SPECTROMETER_SERVICES.FALLBACK_SERVICE_UUID,
+        BLE_SPECTROMETER_SERVICES.BATTERY_SERVICE,
+        BLE_SPECTROMETER_SERVICES.LEGACY_SERVICE_UUID
+      ];
+
+      try {
+        this.device = await navigator.bluetooth.requestDevice({
+          acceptAllDevices: true,
+          optionalServices
+        });
+      } catch (acceptErr) {
+        console.warn("[BLE Spectrometer] acceptAllDevices requestDevice rejected, trying filters fallback:", acceptErr.message);
+        this.device = await navigator.bluetooth.requestDevice({
+          filters: [
+            { namePrefix: 'BlueNRG' },
+            { namePrefix: 'AgriSpectra' },
+            { namePrefix: 'Spectra' },
+            { namePrefix: 'Nordic_UART' },
+            { namePrefix: 'NUS' },
+            { services: [BLE_SPECTROMETER_SERVICES.BLUENRG_SERVICE_UUID] },
+            { services: [BLE_SPECTROMETER_SERVICES.NUS_SERVICE_UUID] }
+          ],
+          optionalServices
+        });
+      }
 
       const server = await this.device.gatt.connect();
 
-      // Discover NUS or fallback service
+      // Discover BlueNRG, NUS or fallback service
+      let isBlueNrg = false;
       let isNus = false;
+      let protocol = 'Fallback FFE0 Service';
+
       try {
-        const service = await server.getPrimaryService(BLE_SPECTROMETER_SERVICES.NUS_SERVICE_UUID);
-        this.txChar = await service.getCharacteristic(BLE_SPECTROMETER_SERVICES.NUS_TX_CHAR_UUID);
-        this.rxChar = await service.getCharacteristic(BLE_SPECTROMETER_SERVICES.NUS_RX_CHAR_UUID);
-        isNus = true;
+        const service = await server.getPrimaryService(BLE_SPECTROMETER_SERVICES.BLUENRG_SERVICE_UUID);
+        this.txChar = await service.getCharacteristic(BLE_SPECTROMETER_SERVICES.BLUENRG_TX_CHAR_UUID);
+        this.rxChar = await service.getCharacteristic(BLE_SPECTROMETER_SERVICES.BLUENRG_RX_CHAR_UUID);
+        isBlueNrg = true;
+        protocol = 'ST BlueNRG Chat Service';
       } catch {
-        const service = await server.getPrimaryService(BLE_SPECTROMETER_SERVICES.FALLBACK_SERVICE_UUID);
-        this.txChar = await service.getCharacteristic(BLE_SPECTROMETER_SERVICES.FALLBACK_DATA_CHAR_UUID);
-        this.rxChar = await service.getCharacteristic(BLE_SPECTROMETER_SERVICES.FALLBACK_COMMAND_CHAR_UUID);
+        try {
+          const service = await server.getPrimaryService(BLE_SPECTROMETER_SERVICES.NUS_SERVICE_UUID);
+          this.txChar = await service.getCharacteristic(BLE_SPECTROMETER_SERVICES.NUS_TX_CHAR_UUID);
+          this.rxChar = await service.getCharacteristic(BLE_SPECTROMETER_SERVICES.NUS_RX_CHAR_UUID);
+          isNus = true;
+          protocol = 'Nordic UART Service (NUS)';
+        } catch {
+          const service = await server.getPrimaryService(BLE_SPECTROMETER_SERVICES.FALLBACK_SERVICE_UUID);
+          this.txChar = await service.getCharacteristic(BLE_SPECTROMETER_SERVICES.FALLBACK_DATA_CHAR_UUID);
+          this.rxChar = await service.getCharacteristic(BLE_SPECTROMETER_SERVICES.FALLBACK_COMMAND_CHAR_UUID);
+        }
       }
 
       if (this.txChar) {
@@ -390,8 +426,8 @@ export class SpectrometerUSBAdapter {
         simulated: false,
         device: {
           ...this.deviceInfo,
-          model: this.device.name || (isNus ? 'AgriSpectra BLE Spectrometer (Nordic NUS)' : 'AgriSpectra BLE Spectrometer'),
-          protocol: isNus ? 'Nordic UART Service (NUS)' : 'Fallback FFE0 Service',
+          model: this.device.name || (isBlueNrg ? 'BlueNRG_Chat Spectrometer' : (isNus ? 'AgriSpectra BLE Spectrometer (Nordic NUS)' : 'AgriSpectra BLE Spectrometer')),
+          protocol: protocol,
           mtu: this.negotiatedMtu
         }
       };

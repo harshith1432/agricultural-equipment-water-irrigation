@@ -54,12 +54,6 @@ export const SUPPORTED_LOCALES = [
     "name": "Marathi",
     "native": "मराठी",
     "region": "Maharashtra, India"
-  },
-  {
-    "code": "es",
-    "name": "Spanish",
-    "native": "Español",
-    "region": "Spain & Americas"
   }
 ];
 

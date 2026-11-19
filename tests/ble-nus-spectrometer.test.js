@@ -32,6 +32,15 @@ import {
 
 export function registerBleNusSpectrometerTests() {
   describe('Nordic UART Service (NUS) & GATT Protocol Profile', () => {
+    it('defines STMicroelectronics BlueNRG BLE Chat Profile UUIDs (B-L475E-IOT01A2 / SPBTLE-RF)', () => {
+      expect(BLE_SERVICES.BLUENRG_SERVICE).toBe('d973f2e0-b19e-11e2-9e96-0800200c9a66');
+      expect(BLE_SERVICES.BLUENRG_TX_CHAR).toBe('d973f2e1-b19e-11e2-9e96-0800200c9a66');
+      expect(BLE_SERVICES.BLUENRG_RX_CHAR).toBe('d973f2e2-b19e-11e2-9e96-0800200c9a66');
+      expect(BLE_SPECTROMETER_SERVICES.BLUENRG_SERVICE).toBe('d973f2e0-b19e-11e2-9e96-0800200c9a66');
+      expect(BLE_SPECTROMETER_SERVICES.BLUENRG_TX_CHAR).toBe('d973f2e1-b19e-11e2-9e96-0800200c9a66');
+      expect(BLE_SPECTROMETER_SERVICES.BLUENRG_RX_CHAR).toBe('d973f2e2-b19e-11e2-9e96-0800200c9a66');
+    });
+
     it('defines primary Nordic UART Service (NUS) UUIDs with direct in-app GATT communication', () => {
       expect(BLE_SERVICES.NUS_SERVICE).toBe('6e400001-b5a3-f393-e0a9-e50e24dcca9e');
       expect(BLE_SERVICES.NUS_TX_CHAR).toBe('6e400003-b5a3-f393-e0a9-e50e24dcca9e');
@@ -350,6 +359,154 @@ export function registerBleNusSpectrometerTests() {
       expect(freshDevice.isConnected).toBe(false);
       expect(freshDevice.connectionStatus).toBe('DISCONNECTED');
       expect(freshDevice.device).toBe(null);
+    });
+
+    it('discovers BlueNRG_Chat device via scanForDevices with ST BlueNRG Chat protocol and recommendations', async () => {
+      const device = new LeafClipBluetoothDevice();
+      const devices = await device.scanForDevices(200);
+
+      const blueNrgDevice = devices.find(d => d.name === 'BlueNRG_Chat' || d.isBlueNrg);
+      expect(blueNrgDevice).toBeDefined();
+      expect(blueNrgDevice.isBlueNrg).toBe(true);
+      expect(blueNrgDevice.protocol).toBe('ST BlueNRG Chat');
+      expect(blueNrgDevice.serviceUuid).toBe(BLE_SERVICES.BLUENRG_SERVICE);
+      expect(blueNrgDevice.recommended).toBe(true);
+      expect(blueNrgDevice.mac).toBe('02:80:E1:00:00:AA');
+    });
+
+    it('connects to BlueNRG_Chat device and configures ST BlueNRG Chat Service protocol', async () => {
+      const device = new LeafClipBluetoothDevice();
+      const res = await device.connectToDevice({
+        deviceId: '02:80:E1:00:00:AA',
+        name: 'BlueNRG_Chat'
+      });
+
+      expect(res.success).toBe(true);
+      expect(device.isConnected).toBe(true);
+      expect(device.deviceInfo.protocol).toBe('ST BlueNRG Chat Service');
+      expect(device.deviceInfo.model).toBe('BlueNRG_Chat');
+    });
+
+    it('binds ST BlueNRG Chat GATT characteristics when Web Bluetooth discovers BLUENRG_SERVICE', async () => {
+      const device = new LeafClipBluetoothDevice();
+      
+      const mockTxChar = {
+        uuid: BLE_SERVICES.BLUENRG_TX_CHAR,
+        startNotifications: async () => {},
+        addEventListener: (event, cb) => {}
+      };
+      const mockRxChar = {
+        uuid: BLE_SERVICES.BLUENRG_RX_CHAR,
+        writeValueWithoutResponse: async () => {}
+      };
+
+      const mockService = {
+        uuid: BLE_SERVICES.BLUENRG_SERVICE,
+        getCharacteristic: async (uuid) => {
+          if (uuid === BLE_SERVICES.BLUENRG_TX_CHAR) return mockTxChar;
+          if (uuid === BLE_SERVICES.BLUENRG_RX_CHAR) return mockRxChar;
+          throw new Error('Characteristic not found: ' + uuid);
+        }
+      };
+
+      const mockGatt = {
+        connected: true,
+        connect: async () => mockGatt,
+        disconnect: () => {},
+        getPrimaryService: async (uuid) => {
+          if (uuid === BLE_SERVICES.BLUENRG_SERVICE) return mockService;
+          throw new Error('Service not found: ' + uuid);
+        }
+      };
+
+      let requestedOptions = null;
+      const originalBluetooth = globalThis.navigator?.bluetooth;
+      Object.defineProperty(globalThis.navigator, 'bluetooth', {
+        value: {
+          requestDevice: async (opts) => {
+            requestedOptions = opts;
+            return {
+              id: '02:80:E1:00:00:AA',
+              name: 'BlueNRG_Chat',
+              gatt: mockGatt,
+              addEventListener: () => {}
+            };
+          }
+        },
+        configurable: true,
+        writable: true
+      });
+
+      try {
+        const res = await device.connect({ preferredMtu: 247 });
+        expect(res.success).toBe(true);
+        expect(device.isConnected).toBe(true);
+        expect(device.isSimulated).toBe(false);
+        expect(device.activeServiceUuid).toBe(BLE_SERVICES.BLUENRG_SERVICE);
+        expect(device.deviceInfo.protocol).toBe('ST BlueNRG Chat Service');
+        expect(device.txCharacteristic).toBe(mockTxChar);
+        expect(device.rxCharacteristic).toBe(mockRxChar);
+        expect(requestedOptions.optionalServices).toContain(BLE_SERVICES.BLUENRG_SERVICE);
+      } finally {
+        if (originalBluetooth !== undefined) {
+          Object.defineProperty(globalThis.navigator, 'bluetooth', {
+            value: originalBluetooth,
+            configurable: true,
+            writable: true
+          });
+        } else {
+          delete globalThis.navigator.bluetooth;
+        }
+        device.disconnect();
+      }
+    });
+
+    it('binds ST BlueNRG Chat GATT characteristics when Native Capacitor BLE connects', async () => {
+      const device = new LeafClipBluetoothDevice();
+      
+      const notificationsStarted = [];
+      const mockBleClient = {
+        initialize: async () => {},
+        connect: async (id, onDisconnect) => {},
+        requestMtu: async (id, mtu) => mtu,
+        startNotifications: async (id, serviceUuid, charUuid, cb) => {
+          notificationsStarted.push({ serviceUuid, charUuid });
+          if (serviceUuid !== BLE_SERVICES.BLUENRG_SERVICE) {
+            throw new Error('Service not supported');
+          }
+        },
+        read: async () => new DataView(new Uint8Array([95]).buffer),
+        disconnect: async () => {}
+      };
+
+      // Mock Capacitor native platform
+      const originalWindow = globalThis.window;
+      globalThis.window = {
+        ...originalWindow,
+        Capacitor: {
+          isNativePlatform: () => true,
+          getPlatform: () => 'android',
+          Plugins: { BleClient: mockBleClient }
+        }
+      };
+
+      try {
+        const res = await device.connectToDevice({
+          deviceId: '02:80:E1:00:00:AA',
+          name: 'BlueNRG_Chat'
+        });
+
+        expect(res.success).toBe(true);
+        expect(device.isConnected).toBe(true);
+        expect(device.isSimulated).toBe(false);
+        expect(device.activeServiceUuid).toBe(BLE_SERVICES.BLUENRG_SERVICE);
+        expect(device.txCharacteristic).toBe(BLE_SERVICES.BLUENRG_TX_CHAR);
+        expect(device.rxCharacteristic).toBe(BLE_SERVICES.BLUENRG_RX_CHAR);
+        expect(device.deviceInfo.protocol).toBe('ST BlueNRG Chat Service');
+      } finally {
+        globalThis.window = originalWindow;
+        device.disconnect();
+      }
     });
 
     it('discovers nearby devices unrestricted via scanForDevices and streams scanResult events', async () => {

@@ -167,7 +167,7 @@ export function createSpectroscopyStudio({
         </div>
         <div class="bg-slate-900/80 rounded-xl p-3 border border-slate-750">
           <div class="text-[10px] font-mono uppercase text-slate-400">Active Protocol</div>
-          <div id="raw-metric-protocol" class="text-xs font-bold font-mono text-slate-200 mt-0.5 truncate">${leafClipDevice.deviceInfo?.protocol?.split(' ')[0] || 'NUS'}</div>
+          <div id="raw-metric-protocol" class="text-xs font-bold font-mono text-slate-200 mt-0.5 truncate">${(leafClipDevice.deviceInfo?.model?.includes('BlueNRG') || leafClipDevice.device?.name?.includes('BlueNRG') || leafClipDevice.deviceInfo?.protocol?.includes('BlueNRG')) ? 'ST BlueNRG Chat' : (leafClipDevice.deviceInfo?.protocol?.split(' ')[0] || 'NUS')}</div>
         </div>
         <div class="bg-slate-900/80 rounded-xl p-3 border border-slate-750">
           <div class="text-[10px] font-mono uppercase text-slate-400">Last Telemetry</div>
@@ -187,7 +187,7 @@ export function createSpectroscopyStudio({
             <span class="w-2.5 h-2.5 rounded-full bg-emeraldGlow ${leafClipDevice.isConnected ? 'animate-pulse' : ''}"></span>
             <span class="font-bold text-white tracking-wider">HARDWARE RX CONSOLE</span>
             <span class="text-slate-500">•</span>
-            <span class="text-slate-400 text-[11px]">${leafClipDevice.deviceInfo?.model || 'nRF52 Spectroscope'}</span>
+            <span id="hardware-console-model-tag" class="text-slate-400 text-[11px]">${(leafClipDevice.deviceInfo?.model?.includes('BlueNRG') || leafClipDevice.device?.name?.includes('BlueNRG')) ? 'BlueNRG_Chat (ST B-L475E)' : (leafClipDevice.deviceInfo?.model || 'nRF52 Spectroscope')}</span>
           </div>
 
           <div class="flex flex-wrap items-center gap-2">
@@ -295,9 +295,35 @@ export function createSpectroscopyStudio({
    */
   function updateBluetoothControls() {
     const isConn = leafClipDevice.isConnected;
+    const isPairing = leafClipDevice.connectionStatus === 'PAIRING';
     const isSim = leafClipDevice.isSimulated;
-    const model = leafClipDevice.deviceInfo?.model || (isConn ? (isSim ? 'Simulated BLE 5.0' : 'Clip-Pro 500') : 'Spectroscope');
-    const proto = leafClipDevice.deviceInfo?.protocol ? `(${leafClipDevice.deviceInfo.protocol.split(' ')[0]})` : '';
+
+    const devName = leafClipDevice.device?.name || leafClipDevice.deviceInfo?.model || '';
+    const devId = leafClipDevice.device?.id || leafClipDevice.device?.deviceId || leafClipDevice.deviceInfo?.id || '';
+    const isBlueNrg = Boolean(
+      /bluenrg/i.test(devName) || 
+      /bluenrg/i.test(devId) || 
+      /02:80/i.test(devId) || 
+      devName === 'BlueNRG_Chat' ||
+      leafClipDevice.deviceInfo?.protocol?.includes('BlueNRG') ||
+      leafClipDevice.deviceInfo?.model?.includes('BlueNRG')
+    );
+
+    const defaultModel = isConn ? (isSim ? 'Simulated BLE 5.0' : 'Clip-Pro 500') : 'Spectroscope';
+    const rawModel = leafClipDevice.deviceInfo?.model || defaultModel;
+    const model = isBlueNrg ? 'BlueNRG_Chat (ST B-L475E)' : rawModel;
+
+    const rawProto = leafClipDevice.deviceInfo?.protocol;
+    const protoDisplay = isBlueNrg ? 'ST BlueNRG Chat' : (rawProto || 'NUS');
+    const proto = isConn ? `(${isBlueNrg ? 'ST BlueNRG Chat' : protoDisplay.split(' ')[0]})` : '';
+
+    if (rawMetricProtocol) {
+      rawMetricProtocol.textContent = protoDisplay;
+    }
+    const consoleModelTag = container.querySelector('#hardware-console-model-tag');
+    if (consoleModelTag) {
+      consoleModelTag.textContent = model;
+    }
 
     bleHeaderControls.innerHTML = `
       <!-- High Visibility Status & Connect Button -->
@@ -327,7 +353,7 @@ export function createSpectroscopyStudio({
       <button 
         id="btn-ble-open-picker"
         class="min-h-[44px] px-3 py-1.5 rounded-xl text-xs font-mono font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-750 border border-slate-700 transition flex items-center gap-1.5 active:scale-95 cursor-pointer"
-        title="Scan and select nearby Bluetooth devices (including NRF)"
+        title="Scan and select nearby Bluetooth devices (including NRF and ST BlueNRG)"
       >
         <svg class="w-4 h-4 text-emeraldGlow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polyline points="7 7 17 17 12 22 12 2 17 7 7 17"/>
@@ -352,7 +378,7 @@ export function createSpectroscopyStudio({
         <span class="text-slate-600">|</span>
         <span class="text-slate-300">Battery: <strong class="text-emeraldGlow font-mono">${leafClipDevice.batteryLevel}%</strong></span>
         <span class="text-slate-600">|</span>
-        <span class="text-slate-300">Protocol: <strong class="text-slate-200 font-mono">${leafClipDevice.deviceInfo?.protocol || 'NUS'}</strong></span>
+        <span class="text-slate-300">Protocol: <strong class="text-slate-200 font-mono">${protoDisplay}</strong></span>
       </div>
 
       <button id="recalibrate-link-btn" class="text-xs text-amberPulse hover:text-amber-300 font-medium flex items-center gap-1 cursor-pointer">
@@ -491,7 +517,13 @@ export function createSpectroscopyStudio({
     rawMetricBytes.textContent = totalBytes > 1024 ? `${(totalBytes / 1024).toFixed(1)} KB` : `${totalBytes} B`;
     rawMetricPackets.textContent = `${packetsCount} pkts`;
     rawMetricMtu.textContent = `${packet.mtu || leafClipDevice.negotiatedMtu} Bytes`;
-    rawMetricProtocol.textContent = leafClipDevice.deviceInfo?.protocol?.split(' ')[0] || 'NUS';
+    const isBlueNrgPkt = Boolean(
+      leafClipDevice.deviceInfo?.model?.includes('BlueNRG') ||
+      leafClipDevice.device?.name?.includes('BlueNRG') ||
+      leafClipDevice.deviceInfo?.protocol?.includes('BlueNRG') ||
+      leafClipDevice.deviceInfo?.id?.includes('02:80')
+    );
+    rawMetricProtocol.textContent = isBlueNrgPkt ? 'ST BlueNRG Chat' : (leafClipDevice.deviceInfo?.protocol?.split(' ')[0] || 'NUS');
     rawMetricTime.textContent = lastPacketTime;
     rawMetricRssi.textContent = `${leafClipDevice.rssi} dBm`;
 

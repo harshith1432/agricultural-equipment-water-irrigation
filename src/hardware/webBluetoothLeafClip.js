@@ -18,6 +18,11 @@ import { PacketChunkAccumulator, PACKET_TYPES } from './packetChunkAccumulator.j
 import { sanitizeText } from '../utils/sanitizer.js';
 
 export const BLE_SERVICES = {
+  // STMicroelectronics BlueNRG BLE Chat Profile (B-L475E-IOT01A2 / SPBTLE-RF)
+  BLUENRG_SERVICE: 'd973f2e0-b19e-11e2-9e96-0800200c9a66',
+  BLUENRG_TX_CHAR: 'd973f2e1-b19e-11e2-9e96-0800200c9a66', // Server -> Client / Notifications from device
+  BLUENRG_RX_CHAR: 'd973f2e2-b19e-11e2-9e96-0800200c9a66', // Client -> Server / Commands to device
+
   // Nordic UART Service (NUS) - Primary direct interface (no external nRF Toolbox required)
   NUS_SERVICE: '6e400001-b5a3-f393-e0a9-e50e24dcca9e',
   NUS_TX_CHAR: '6e400003-b5a3-f393-e0a9-e50e24dcca9e', // Notify device -> phone
@@ -264,12 +269,13 @@ export class LeafClipBluetoothDevice {
         this.connectionStatus = 'PAIRING';
         this.emit('connectionChange', { status: 'PAIRING', simulated: false, backend: 'CAPACITOR_BLE' });
 
+        // Unrestricted requestDevice without restrictive service filter so BlueNRG_Chat can be discovered
+        // On Android, passing services: [...] filters out devices not broadcasting 128-bit UUID in primary ADV packet.
         const device = await BleClient.requestDevice({
-          services: [
-            BLE_SERVICES.NUS_SERVICE,
-            BLE_SERVICES.FALLBACK_SERVICE
-          ],
           optionalServices: [
+            BLE_SERVICES.BLUENRG_SERVICE,
+            BLE_SERVICES.NUS_SERVICE,
+            BLE_SERVICES.FALLBACK_SERVICE,
             BLE_SERVICES.BATTERY_SERVICE,
             BLE_SERVICES.DEVICE_INFO_SERVICE,
             BLE_SERVICES.GENERIC_ACCESS_SERVICE,
@@ -290,18 +296,35 @@ export class LeafClipBluetoothDevice {
         this.connectionStatus = 'PAIRING';
         this.emit('connectionChange', { status: 'PAIRING', simulated: false, backend: 'WEB_BLUETOOTH' });
 
-        // Unrestricted Web Bluetooth device discovery using acceptAllDevices: true
-        this.device = await navigator.bluetooth.requestDevice({
-          acceptAllDevices: true,
-          optionalServices: [
-            BLE_SERVICES.NUS_SERVICE,
-            BLE_SERVICES.FALLBACK_SERVICE,
-            BLE_SERVICES.BATTERY_SERVICE,
-            BLE_SERVICES.DEVICE_INFO_SERVICE,
-            BLE_SERVICES.GENERIC_ACCESS_SERVICE,
-            BLE_SERVICES.GENERIC_ATTRIBUTE_SERVICE
-          ]
-        });
+        const optionalServices = [
+          BLE_SERVICES.BLUENRG_SERVICE,
+          BLE_SERVICES.NUS_SERVICE,
+          BLE_SERVICES.FALLBACK_SERVICE,
+          BLE_SERVICES.BATTERY_SERVICE,
+          BLE_SERVICES.DEVICE_INFO_SERVICE,
+          BLE_SERVICES.GENERIC_ACCESS_SERVICE,
+          BLE_SERVICES.GENERIC_ATTRIBUTE_SERVICE
+        ];
+
+        // Flexible requestDevice matching: try acceptAllDevices: true, fallback to filters if rejected
+        try {
+          this.device = await navigator.bluetooth.requestDevice({
+            acceptAllDevices: true,
+            optionalServices
+          });
+        } catch (acceptErr) {
+          console.warn("[BLE] acceptAllDevices requestDevice rejected, trying filters fallback:", acceptErr.message);
+          this.device = await navigator.bluetooth.requestDevice({
+            filters: [
+              { namePrefix: 'BlueNRG' },
+              { namePrefix: 'Agri' },
+              { namePrefix: 'Nordic' },
+              { services: [BLE_SERVICES.BLUENRG_SERVICE] },
+              { services: [BLE_SERVICES.NUS_SERVICE] }
+            ],
+            optionalServices
+          });
+        }
 
         this.device.addEventListener('gattserverdisconnected', () => {
           this.isConnected = false;
@@ -315,21 +338,36 @@ export class LeafClipBluetoothDevice {
         // Negotiate MTU / record MTU target
         await this.requestMtu(preferredMtu);
 
-        // Discover NUS service or Fallback service
+        // Discover BlueNRG Chat, NUS, or Fallback service
         let service;
+        let isBlueNrg = false;
         let isNus = false;
+        let protocol = 'Fallback FFE0 Service';
+
         try {
-          service = await this.server.getPrimaryService(BLE_SERVICES.NUS_SERVICE);
-          this.txCharacteristic = await service.getCharacteristic(BLE_SERVICES.NUS_TX_CHAR);
-          this.rxCharacteristic = await service.getCharacteristic(BLE_SERVICES.NUS_RX_CHAR);
-          this.activeServiceUuid = BLE_SERVICES.NUS_SERVICE;
-          isNus = true;
+          // Check ST BlueNRG Chat Service first
+          service = await this.server.getPrimaryService(BLE_SERVICES.BLUENRG_SERVICE);
+          this.txCharacteristic = await service.getCharacteristic(BLE_SERVICES.BLUENRG_TX_CHAR);
+          this.rxCharacteristic = await service.getCharacteristic(BLE_SERVICES.BLUENRG_RX_CHAR);
+          this.activeServiceUuid = BLE_SERVICES.BLUENRG_SERVICE;
+          isBlueNrg = true;
+          protocol = 'ST BlueNRG Chat Service';
         } catch {
-          // Fallback service
-          service = await this.server.getPrimaryService(BLE_SERVICES.FALLBACK_SERVICE);
-          this.txCharacteristic = await service.getCharacteristic(BLE_SERVICES.FALLBACK_DATA_CHAR);
-          this.rxCharacteristic = await service.getCharacteristic(BLE_SERVICES.FALLBACK_COMMAND_CHAR);
-          this.activeServiceUuid = BLE_SERVICES.FALLBACK_SERVICE;
+          try {
+            // Check Nordic UART Service (NUS)
+            service = await this.server.getPrimaryService(BLE_SERVICES.NUS_SERVICE);
+            this.txCharacteristic = await service.getCharacteristic(BLE_SERVICES.NUS_TX_CHAR);
+            this.rxCharacteristic = await service.getCharacteristic(BLE_SERVICES.NUS_RX_CHAR);
+            this.activeServiceUuid = BLE_SERVICES.NUS_SERVICE;
+            isNus = true;
+            protocol = 'Nordic UART Service (NUS)';
+          } catch {
+            // Fallback service
+            service = await this.server.getPrimaryService(BLE_SERVICES.FALLBACK_SERVICE);
+            this.txCharacteristic = await service.getCharacteristic(BLE_SERVICES.FALLBACK_DATA_CHAR);
+            this.rxCharacteristic = await service.getCharacteristic(BLE_SERVICES.FALLBACK_COMMAND_CHAR);
+            this.activeServiceUuid = BLE_SERVICES.FALLBACK_SERVICE;
+          }
         }
 
         // Subscribe to notifications on TX characteristic
@@ -354,12 +392,13 @@ export class LeafClipBluetoothDevice {
         this.isConnected = true;
         this.isSimulated = false;
         this.connectionStatus = 'CONNECTED';
+        const isBlueNrgWeb = Boolean(isBlueNrg || (this.device.name && this.device.name.toLowerCase().includes('bluenrg')));
         this.deviceInfo = {
-          model: this.device.name || "AgriSpectra Clip-Pro 500 (Web NUS)",
+          model: this.device.name || (isBlueNrgWeb ? "BlueNRG_Chat" : "AgriSpectra Clip-Pro 500 (Web NUS)"),
           id: this.device.id,
           deviceId: this.device.id,
-          firmware: "v2.5.0-NUS-edgeML",
-          protocol: isNus ? "Nordic UART Service (NUS)" : "Fallback FFE0 Service",
+          firmware: isBlueNrgWeb ? "v1.2.0-BlueNRG-Chat" : "v2.5.0-NUS-edgeML",
+          protocol: isBlueNrgWeb ? "ST BlueNRG Chat Service" : protocol,
           mtu: this.negotiatedMtu
         };
 
@@ -447,12 +486,36 @@ export class LeafClipBluetoothDevice {
             if (deviceId) {
               const name = dev.name || result.localName || result.name || 'Unknown Device';
               const rssi = result.rssi ?? -70;
+              const uuids = result.uuids || [];
+              const lowerName = name.toLowerCase();
+              const isBlueNrg = lowerName.includes('bluenrg') || uuids.some(u => u.toLowerCase().includes('d973f2e0'));
+              const isNrf = lowerName.includes('nrf') || lowerName.includes('nordic') || uuids.some(u => u.toLowerCase().includes('6e400001'));
+
+              let protocol = 'Nordic UART Service (NUS)';
+              let serviceUuid = BLE_SERVICES.NUS_SERVICE;
+              let recommended = false;
+
+              if (isBlueNrg) {
+                protocol = 'ST BlueNRG Chat';
+                serviceUuid = BLE_SERVICES.BLUENRG_SERVICE;
+                recommended = true;
+              } else if (isNrf) {
+                protocol = 'Nordic UART Service (NUS)';
+                serviceUuid = BLE_SERVICES.NUS_SERVICE;
+                recommended = true;
+              }
+
               addDevice({
                 deviceId,
                 id: deviceId,
                 name,
                 rssi,
-                services: result.uuids || [],
+                services: uuids,
+                isBlueNrg: !!isBlueNrg,
+                isNrf: !!isNrf,
+                protocol,
+                serviceUuid,
+                recommended,
                 nativeDevice: dev
               });
             }
@@ -476,6 +539,20 @@ export class LeafClipBluetoothDevice {
     // High-fidelity fallback / simulated discovered devices
     const nearbyPresets = [
       {
+        deviceId: "02:80:E1:00:00:AA",
+        id: "02:80:E1:00:00:AA",
+        name: "BlueNRG_Chat",
+        rssi: -60,
+        protocol: "ST BlueNRG Chat",
+        serviceUuid: BLE_SERVICES.BLUENRG_SERVICE,
+        mac: "02:80:E1:00:00:AA",
+        isBlueNrg: true,
+        isNrf: false,
+        recommended: true,
+        type: "STM32 B-L475E-IOT01A2 Spectroscope Clip",
+        battery: 98
+      },
+      {
         deviceId: "NRF52-NUS-9948",
         id: "NRF52-NUS-9948",
         name: "NRF52_AgriSpectra_NUS (Nordic nRF52840)",
@@ -483,6 +560,7 @@ export class LeafClipBluetoothDevice {
         protocol: "Nordic UART Service (NUS)",
         serviceUuid: BLE_SERVICES.NUS_SERVICE,
         mac: "C4:57:18:2B:99:A1",
+        isBlueNrg: false,
         isNrf: true,
         recommended: true,
         type: "Leaf-Clip Spectroscope",
@@ -496,6 +574,7 @@ export class LeafClipBluetoothDevice {
         protocol: "Nordic UART Service (NUS)",
         serviceUuid: BLE_SERVICES.NUS_SERVICE,
         mac: "E2:15:90:3A:4C:12",
+        isBlueNrg: false,
         isNrf: true,
         recommended: true,
         type: "Handheld Spectroscope",
@@ -509,6 +588,7 @@ export class LeafClipBluetoothDevice {
         protocol: "Fallback FFE0 Custom GATT",
         serviceUuid: BLE_SERVICES.FALLBACK_SERVICE,
         mac: "00:80:E1:26:BC:54",
+        isBlueNrg: false,
         isNrf: false,
         recommended: false,
         type: "VIS-NIR Spectrometer",
@@ -522,6 +602,7 @@ export class LeafClipBluetoothDevice {
         protocol: "Nordic UART Service (NUS)",
         serviceUuid: BLE_SERVICES.NUS_SERVICE,
         mac: "D4:36:39:BC:81:42",
+        isBlueNrg: false,
         isNrf: false,
         recommended: false,
         type: "Field Spectroscope Node",
@@ -535,6 +616,7 @@ export class LeafClipBluetoothDevice {
         protocol: "Custom Sensor Profile",
         serviceUuid: "0000ffe5-0000-1000-8000-00805f9b34fb",
         mac: "48:E7:29:1A:B3:88",
+        isBlueNrg: false,
         isNrf: false,
         recommended: false,
         type: "Soil 8-in-1 Sensor",
@@ -586,29 +668,50 @@ export class LeafClipBluetoothDevice {
         // MTU Negotiation (Request 247 bytes)
         await this.requestMtu(preferredMtu);
 
-        // Subscribe to Nordic UART notifications or Fallback
-        let activeService = BLE_SERVICES.NUS_SERVICE;
-        let activeTx = BLE_SERVICES.NUS_TX_CHAR;
-        let activeRx = BLE_SERVICES.NUS_RX_CHAR;
+        // Subscribe to BlueNRG Chat, Nordic UART notifications or Fallback
+        let activeService = null;
+        let activeTx = null;
+        let activeRx = null;
+        let protocol = 'Fallback FFE0 Service';
 
+        // 1. Check and bind ST BlueNRG Chat Service
         try {
+          activeService = BLE_SERVICES.BLUENRG_SERVICE;
+          activeTx = BLE_SERVICES.BLUENRG_TX_CHAR;
+          activeRx = BLE_SERVICES.BLUENRG_RX_CHAR;
           await BleClient.startNotifications(deviceId, activeService, activeTx, (dataView) => {
             this.accumulator.pushChunk(dataView);
           });
           this.activeServiceUuid = activeService;
           this.txCharacteristic = activeTx;
           this.rxCharacteristic = activeRx;
-        } catch {
-          // Fallback custom service (FFE0/FFE1)
-          activeService = BLE_SERVICES.FALLBACK_SERVICE;
-          activeTx = BLE_SERVICES.FALLBACK_DATA_CHAR;
-          activeRx = BLE_SERVICES.FALLBACK_COMMAND_CHAR;
-          await BleClient.startNotifications(deviceId, activeService, activeTx, (dataView) => {
-            this.accumulator.pushChunk(dataView);
-          });
-          this.activeServiceUuid = activeService;
-          this.txCharacteristic = activeTx;
-          this.rxCharacteristic = activeRx;
+          protocol = 'ST BlueNRG Chat Service';
+        } catch (bluenrgErr) {
+          // 2. Try Nordic UART Service (NUS)
+          try {
+            activeService = BLE_SERVICES.NUS_SERVICE;
+            activeTx = BLE_SERVICES.NUS_TX_CHAR;
+            activeRx = BLE_SERVICES.NUS_RX_CHAR;
+            await BleClient.startNotifications(deviceId, activeService, activeTx, (dataView) => {
+              this.accumulator.pushChunk(dataView);
+            });
+            this.activeServiceUuid = activeService;
+            this.txCharacteristic = activeTx;
+            this.rxCharacteristic = activeRx;
+            protocol = 'Nordic UART Service (NUS)';
+          } catch (nusErr) {
+            // 3. Fallback custom service (FFE0/FFE1)
+            activeService = BLE_SERVICES.FALLBACK_SERVICE;
+            activeTx = BLE_SERVICES.FALLBACK_DATA_CHAR;
+            activeRx = BLE_SERVICES.FALLBACK_COMMAND_CHAR;
+            await BleClient.startNotifications(deviceId, activeService, activeTx, (dataView) => {
+              this.accumulator.pushChunk(dataView);
+            });
+            this.activeServiceUuid = activeService;
+            this.txCharacteristic = activeTx;
+            this.rxCharacteristic = activeRx;
+            protocol = 'Fallback FFE0 Service';
+          }
         }
 
         // Attempt reading battery
@@ -622,12 +725,13 @@ export class LeafClipBluetoothDevice {
         this.isConnected = true;
         this.isSimulated = false;
         this.connectionStatus = 'CONNECTED';
+        const isBlueNrgNative = Boolean(protocol.includes('BlueNRG') || (typeof deviceName === 'string' && deviceName.toLowerCase().includes('bluenrg')) || String(deviceId).includes('02:80'));
         this.deviceInfo = {
-          model: deviceName || "AgriSpectra Clip-Pro 500 (Native NUS)",
+          model: deviceName || (isBlueNrgNative ? "BlueNRG_Chat" : "AgriSpectra Clip-Pro 500 (Native NUS)"),
           id: deviceId,
           deviceId,
-          firmware: "v2.5.0-NUS-edgeML",
-          protocol: activeService === BLE_SERVICES.NUS_SERVICE ? "Nordic UART Service (NUS)" : "Fallback FFE0 Service",
+          firmware: isBlueNrgNative ? "v1.2.0-BlueNRG-Chat" : "v2.5.0-NUS-edgeML",
+          protocol: isBlueNrgNative ? "ST BlueNRG Chat Service" : protocol,
           mtu: this.negotiatedMtu
         };
 
@@ -647,6 +751,14 @@ export class LeafClipBluetoothDevice {
     }
 
     // High-fidelity connected state for chosen device
+    const isBlueNrgDevice = Boolean(
+      (typeof deviceName === 'string' && (deviceName.toLowerCase().includes('bluenrg') || deviceName === 'BlueNRG_Chat')) ||
+      String(deviceId).toLowerCase().includes('bluenrg') ||
+      String(deviceId).includes('02:80')
+    );
+    const isNrfDevice = typeof deviceName === 'string' && (deviceName.toLowerCase().includes('nrf') || deviceName.toLowerCase().includes('nordic'));
+    const simulatedProtocol = isBlueNrgDevice ? "ST BlueNRG Chat Service" : "Nordic UART Service (NUS)";
+
     this.device = {
       id: deviceId,
       deviceId,
@@ -659,12 +771,12 @@ export class LeafClipBluetoothDevice {
     this.batteryLevel = 95;
     this.negotiatedMtu = preferredMtu || 247;
     this.deviceInfo = {
-      model: deviceName || "AgriSpectra Clip-Pro 500 (NUS BLE 5.0)",
+      model: deviceName || (isBlueNrgDevice ? "BlueNRG_Chat" : "AgriSpectra Clip-Pro 500 (NUS BLE 5.0)"),
       id: deviceId,
       deviceId,
-      firmware: "v2.5.0-NUS-edgeML",
-      serialNumber: `AGRI-${String(deviceId).slice(-4)}`,
-      protocol: "Nordic UART Service (NUS)",
+      firmware: isBlueNrgDevice ? "v1.2.0-BlueNRG-Chat" : "v2.5.0-NUS-edgeML",
+      serialNumber: isBlueNrgDevice ? "02:80:E1:00:00:AA" : `AGRI-${String(deviceId).slice(-4)}`,
+      protocol: simulatedProtocol,
       mtu: this.negotiatedMtu
     };
 

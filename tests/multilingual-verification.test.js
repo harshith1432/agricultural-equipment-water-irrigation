@@ -46,10 +46,10 @@ import { mockFirestore } from '../src/firebase/mockFirestore.js';
 export function registerMultilingualVerificationTests() {
   setupHeadlessDOM();
 
-  const TARGET_LOCALES = ['en', 'kn', 'hi', 'te', 'ta', 'ml', 'mr', 'es'];
+  const TARGET_LOCALES = ['en', 'kn', 'hi', 'te', 'ta', 'ml', 'mr'];
 
   describe('Comprehensive Multi-Language Dictionary Completeness', () => {
-    it('verifies all 8 languages have 100% of dictionary keys without missing tokens', () => {
+    it('verifies all 7 languages have 100% of dictionary keys without missing tokens', () => {
       const enKeys = Object.keys(DICTIONARY.en);
       expect(enKeys.length).toBeGreaterThan(250);
 
@@ -67,7 +67,7 @@ export function registerMultilingualVerificationTests() {
       });
     });
 
-    it('verifies guided calibration sequence and specimen metadata keys across all 8 languages', () => {
+    it('verifies guided calibration sequence and specimen metadata keys across all 7 languages', () => {
       const calibrationKeys = [
         'step_dark_calibration_title',
         'step_dark_calibration_desc',
@@ -107,7 +107,7 @@ export function registerMultilingualVerificationTests() {
 
   // Execute 3 consecutive complete test cycles
   for (let cycle = 1; cycle <= 3; cycle++) {
-    describe(`Multi-Language UI Reactive Cycle ${cycle}/3 - All 8 Languages Across All Screens`, () => {
+    describe(`Multi-Language UI Reactive Cycle ${cycle}/3 - All 7 Languages Across All Screens`, () => {
       TARGET_LOCALES.forEach(locale => {
         it(`[Cycle ${cycle}] converts entire mobile app UI cleanly to "${locale}"`, () => {
           mockFirestore.resetToDefault();
