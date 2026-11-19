@@ -70,7 +70,7 @@ export function createNativeMobileAppView({
   })();
   let activeTab = TAB_ALIASES[initialTab] || TAB_ALIASES[savedTab] || savedTab || initialTab || 'dashboard';
   let currentPlotId = selectedPlotId || "plot-1";
-  const activePlots = (plots && plots.length > 0) ? plots : Object.values(INITIAL_FARM_DATA.plots || {});
+  let activePlots = (plots && plots.length > 0) ? plots : Object.values(INITIAL_FARM_DATA.plots || {});
 
   // Compute pending synergy recommendations count for bottom badge
   const pendingSynergyCount = (actionRecommendations || []).filter(r => r?.status === 'PENDING').length;

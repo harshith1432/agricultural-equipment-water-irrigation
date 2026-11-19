@@ -158,6 +158,17 @@ export class MockElement {
     return child;
   }
 
+  contains(node) {
+    if (!node) return false;
+    if (this === node) return true;
+    let curr = node.parentNode;
+    while (curr) {
+      if (curr === this) return true;
+      curr = curr.parentNode;
+    }
+    return this.children.includes(node);
+  }
+
   remove() {
     if (this.parentNode) {
       this.parentNode.removeChild(this);

@@ -319,7 +319,12 @@ class AgriSpectraApp {
       this.viewMode = 'mobile';
 
       // If mobile app is already mounted, update live data reactively without tearing down the DOM or scrolling
-      if (this.currentMobileApp && this.appEl.contains(this.currentMobileApp)) {
+      const isMounted = this.currentMobileApp && (
+        typeof this.appEl.contains === 'function' 
+          ? this.appEl.contains(this.currentMobileApp) 
+          : (this.currentMobileApp.parentNode === this.appEl || this.appEl.children?.includes(this.currentMobileApp))
+      );
+      if (isMounted) {
         if (typeof this.currentMobileApp.updateData === 'function') {
           this.currentMobileApp.updateData({
             plots: this.plots,
