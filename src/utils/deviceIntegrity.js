@@ -63,9 +63,10 @@ export function checkDebuggerPresence(thresholdMs = 100) {
     const perf = typeof performance !== 'undefined' ? performance : Date;
     const t0 = perf.now();
 
-    // Invoking Function constructor prevents static compiler dead-code elimination
-    const probe = new Function('debugger;');
-    probe();
+    // Standard debugger statement triggers execution pause if DevTools breakpoint or inspector is attached
+    /* eslint-disable no-debugger */
+    debugger;
+    /* eslint-enable no-debugger */
 
     const t1 = perf.now();
     return (t1 - t0) > thresholdMs;
