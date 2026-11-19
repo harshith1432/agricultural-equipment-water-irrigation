@@ -202,4 +202,44 @@ describe('Database Schema Assurance & Auto-Provisioning Engine', () => {
     assert.equal(res.body.success, true);
     assert.equal(res.body.data.measurements.nitrogen, 135);
   });
+
+  it('9. Ingests 76-band specimen spectral scan via POST /api/spectral/scans and populates spectral_scans table', async () => {
+    const raw76 = Array.from({ length: 76 }, (_, i) => Number((0.05 + 0.6 * Math.sin((i / 75) * Math.PI)).toFixed(4)));
+    const res = await makeRequest('POST', '/api/spectral/scans', {
+      id: `scan-${Date.now()}-test`,
+      plantNumber: "PLANT-042",
+      portNumber: "PORT-08",
+      plantName: "Roma Tomato",
+      plotId: "plot-1",
+      plotNumber: 1,
+      crop: "tomato",
+      calibrationRef: {
+        darkCurrent: 0.012,
+        whiteReference: 0.985,
+        calibratedAt: new Date().toISOString()
+      },
+      rawReflectance: raw76,
+      indices: {
+        ndvi: 0.78,
+        ndre: 0.35,
+        wbi: 0.92,
+        cire: 2.15,
+        vitality: 88,
+        lwi: 0.94
+      },
+      nitrogenPrescriptionKg: 0.0,
+      irrigationNeedHours: 36,
+      diseaseRisk: "HEALTHY_OPTIMAL",
+      hardwareLink: "BLE_NUS"
+    });
+
+    assert.equal(res.status, 201);
+    assert.equal(res.body.success, true);
+    assert.equal(res.body.data.plantNumber, "PLANT-042");
+    assert.equal(res.body.data.portNumber, "PORT-08");
+    assert.equal(res.body.data.rawReflectance.length, 76);
+    assert.equal(res.body.data.indices.ndvi, 0.78);
+    assert.equal(res.body.data.hardwareLink, "BLE_NUS");
+    assert.ok(res.body.data.timestamp);
+  });
 });

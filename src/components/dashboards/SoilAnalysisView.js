@@ -99,6 +99,9 @@ export function createSoilAnalysisView({
 
   function render() {
     try {
+      const scrollParent = container.closest('main') || container.parentElement;
+      const prevScroll = scrollParent ? scrollParent.scrollTop : 0;
+
       const p = currentReading?.parameters || (currentReading?.raw ? {
         temperatureC: currentReading.raw.temperature_c ?? 12.5,
         moistureVwc: currentReading.raw.moisture_vwc ?? 42.2,
@@ -458,6 +461,17 @@ export function createSoilAnalysisView({
       `;
 
       attachEvents();
+
+      if (scrollParent && prevScroll > 0) {
+        scrollParent.scrollTop = prevScroll;
+        if (typeof requestAnimationFrame === 'function') {
+          requestAnimationFrame(() => {
+            if (scrollParent.scrollTop !== prevScroll) {
+              scrollParent.scrollTop = prevScroll;
+            }
+          });
+        }
+      }
     } catch (renderError) {
       console.error("[SoilAnalysisView] Render error safely handled:", renderError);
       container.innerHTML = `

@@ -149,6 +149,19 @@ export class MockElement {
     return child;
   }
 
+  replaceChildren(...nodes) {
+    while (this.children.length > 0) {
+      this.removeChild(this.children[0]);
+    }
+    for (const node of nodes) {
+      if (typeof node === 'string') {
+        this.appendChild(new SimpleTextNode(node));
+      } else if (node) {
+        this.appendChild(node);
+      }
+    }
+  }
+
   removeChild(child) {
     const idx = this.children.indexOf(child);
     if (idx !== -1) {
@@ -508,6 +521,13 @@ export function setupHeadlessDOM() {
   }
   if (!globalThis.prompt) {
     globalThis.prompt = () => '';
+  }
+
+  if (!globalThis.requestAnimationFrame) {
+    globalThis.requestAnimationFrame = (callback) => setTimeout(callback, 0);
+  }
+  if (!globalThis.cancelAnimationFrame) {
+    globalThis.cancelAnimationFrame = (id) => clearTimeout(id);
   }
 
   if (!globalThis.localStorage) {

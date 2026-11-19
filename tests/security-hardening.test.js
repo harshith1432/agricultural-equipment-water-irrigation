@@ -227,6 +227,26 @@ export function registerSecurityHardeningTests() {
       expect(sanitizeText('Vineyard <script src="evil.js"')).toBe('Vineyard');
       expect(sanitizeText('<script>/* incomplete code')).toBe('');
     });
+
+    it('sanitizes specimen identification form metadata inputs (plantNumber, portNumber, plantName) against XSS', () => {
+      const taintedSpecimen = {
+        plantNumber: "<script>stealKeys()</script>PLANT-042",
+        portNumber: "<img src=x onerror=alert('xss')>PORT-08",
+        plantName: "<svg/onload=evil()>Roma Tomato",
+        coordinates: "<a href='javascript:exploit()'>ROW-B4</a>"
+      };
+
+      const cleaned = sanitizeObject(taintedSpecimen);
+      expect(cleaned.plantNumber).toBe('PLANT-042');
+      expect(cleaned.portNumber).toBe('PORT-08');
+      expect(cleaned.plantName).toBe('Roma Tomato');
+      expect(cleaned.coordinates).toBe('ROW-B4');
+
+      // Verify HTML attribute escaping for form rendering
+      expect(escapeHtml(taintedSpecimen.plantNumber).includes('<script>')).toBe(false);
+      expect(escapeHtml(taintedSpecimen.portNumber)).toContain('&lt;img');
+      expect(escapeHtml(taintedSpecimen.plantName)).toContain('&lt;svg');
+    });
   });
 
   // =========================================================================

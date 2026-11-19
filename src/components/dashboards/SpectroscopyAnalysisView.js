@@ -18,6 +18,8 @@ import {
   spectrometerUSBAdapter, 
   CONNECTION_MODES 
 } from '../../hardware/spectrometerUSBAdapter.js';
+import { leafClipDevice } from '../../hardware/webBluetoothLeafClip.js';
+import { createCalibrationModal } from '../CalibrationWizard.js';
 
 export function createSpectroscopyAnalysisView({
   plot = null,
@@ -94,6 +96,9 @@ export function createSpectroscopyAnalysisView({
 
   function render() {
     try {
+      const scrollParent = container.closest('main') || container.parentElement;
+      const prevScroll = scrollParent ? scrollParent.scrollTop : 0;
+
       const isConnected = spectrometerUSBAdapter.isConnected || true;
     const isCalibrated = spectrometerUSBAdapter.calibration.isCalibrated;
     const che = currentScan?.chemometrics || {
@@ -172,23 +177,34 @@ export function createSpectroscopyAnalysisView({
             <p class="text-[11px] text-slate-500">${t('spectro_subtitle')}</p>
           </div>
 
-          <div class="flex items-center gap-1.5">
+          <div class="flex items-center gap-1.5 flex-wrap">
             <!-- Calibration Wizard Trigger -->
             <button 
               type="button" 
               id="btn-open-calibration"
-              class="px-2.5 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center gap-1 transition"
+              class="px-2.5 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center gap-1 transition min-h-[44px]"
               title="Calibrate White & Dark Baseline"
             >
               ${icon('shieldCheck', 'w-3.5 h-3.5 text-blue-600')}
               <span>${t('calibrate_btn', 'Calibrate')}</span>
             </button>
 
-            <!-- Scan Button -->
+            <!-- Guided Leaf Acquisition Wizard Button -->
+            <button 
+              type="button" 
+              id="btn-guided-scan"
+              class="px-2.5 py-1.5 rounded-full bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 text-[#0E5431] dark:text-emerald-300 text-xs font-semibold flex items-center gap-1 border border-emerald-500/20 transition min-h-[44px]"
+              title="Guided 5-Step Leaf Acquisition Wizard"
+            >
+              ${icon('leaf', 'w-3.5 h-3.5 text-emerald-600')}
+              <span>${t('guided_scan_btn', 'Guided Scan')}</span>
+            </button>
+
+            <!-- Quick Scan Button -->
             <button 
               type="button" 
               id="btn-acquire-scan"
-              class="px-3 py-1.5 rounded-full bg-[#0E5431] hover:bg-[#083820] text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition"
+              class="px-3 py-1.5 rounded-full bg-[#0E5431] hover:bg-[#083820] text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition min-h-[44px]"
             >
               ${icon('refresh', 'w-3.5 h-3.5')}
               <span>${t('spectro_acquire')}</span>
@@ -504,7 +520,7 @@ export function createSpectroscopyAnalysisView({
       </div>
     `;
 
-    attachEvents();
+    attachEvents(scrollParent, prevScroll);
     setTimeout(() => updateCanvas(), 50);
     } catch (err) {
       console.error("[SpectroscopyAnalysisView] Render error safely handled:", err);
@@ -597,7 +613,7 @@ export function createSpectroscopyAnalysisView({
     }
   }
 
-  function attachEvents() {
+  function attachEvents(scrollParent, prevScroll) {
     // 3-Dots Spectro Settings Modal Controls
     const settingsModal = container.querySelector('#spectro-settings-modal');
     container.querySelector('#btn-spectro-settings')?.addEventListener('click', () => {
@@ -647,7 +663,17 @@ export function createSpectroscopyAnalysisView({
       if (typeof onOpenCalibration === 'function') {
         onOpenCalibration('FULL');
       } else {
-        openCalibrationModal();
+        openCalibrationModal('DARK_CURRENT');
+      }
+    });
+
+    // Guided 5-Step Leaf Acquisition Wizard
+    container.querySelector('#btn-guided-scan')?.addEventListener('click', () => {
+      const isCalibrated = spectrometerUSBAdapter.calibration.isCalibrated || leafClipDevice.calibration.isCalibrated;
+      if (typeof onOpenCalibration === 'function') {
+        onOpenCalibration(isCalibrated ? 'METADATA' : 'FULL');
+      } else {
+        openCalibrationModal(isCalibrated ? 'METADATA' : 'DARK_CURRENT');
       }
     });
 
@@ -661,80 +687,43 @@ export function createSpectroscopyAnalysisView({
         }
       });
     });
+
+    if (scrollParent && prevScroll > 0) {
+      scrollParent.scrollTop = prevScroll;
+      if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(() => {
+          if (scrollParent.scrollTop !== prevScroll) {
+            scrollParent.scrollTop = prevScroll;
+          }
+        });
+      }
+    }
   }
 
-  function openCalibrationModal() {
-    const modal = container.querySelector('#calibration-modal-container');
-    if (!modal) return;
+  function openCalibrationModal(initialStep = 'DARK_CURRENT') {
+    // Dismiss any existing open modal
+    const existing = document.querySelector('.calibration-modal-overlay');
+    if (existing) existing.remove();
 
-    modal.innerHTML = `
-      <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 max-w-sm w-full shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
-        <div class="flex items-center justify-between border-b pb-2">
-          <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-            ${icon('shieldCheck', 'w-4 h-4 text-blue-600')}
-            <span>Dual-Point PTFE Calibration</span>
-          </h3>
-          <button type="button" id="close-cal-modal" class="text-slate-400 hover:text-slate-600">
-            ${icon('x', 'w-4 h-4')}
-          </button>
-        </div>
-
-        <p class="text-xs text-slate-500">
-          Calibrates baseline electronic thermal noise and 99% diffuse PTFE white reflectance target.
-        </p>
-
-        <div class="space-y-2.5">
-          <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-            <div class="flex items-center justify-between mb-1.5">
-              <span class="text-xs font-bold text-slate-800 dark:text-white">${t('dark_reference_title', '1. Dark Current Reference (0%)')}</span>
-              <span class="text-[10px] text-slate-400">Light Shield Closed</span>
-            </div>
-            <button type="button" id="step-dark-cal" class="w-full py-2 rounded-xl bg-slate-800 text-white text-xs font-bold hover:bg-slate-700 transition">
-              ${t('capture_dark', 'Capture Dark Reference')}
-            </button>
-          </div>
-
-          <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-            <div class="flex items-center justify-between mb-1.5">
-              <span class="text-xs font-bold text-slate-800 dark:text-white">${t('white_reference_title', '2. White Reference (99% PTFE)')}</span>
-              <span class="text-[10px] text-slate-400">Target Disc Placed</span>
-            </div>
-            <button type="button" id="step-white-cal" class="w-full py-2 rounded-xl bg-[#0E5431] text-white text-xs font-bold hover:bg-[#083820] transition">
-              ${t('capture_white', 'Capture White Disc')}
-            </button>
-          </div>
-        </div>
-
-        <div id="cal-status-text" class="text-center text-xs font-mono text-emerald-600 font-bold hidden">
-          ${t('ptfe_cal_complete', 'PTFE Calibration Complete!')}
-        </div>
-      </div>
-    `;
-
-    modal.classList.remove('hidden');
-
-    modal.querySelector('#close-cal-modal')?.addEventListener('click', () => {
-      modal.classList.add('hidden');
-    });
-
-    modal.querySelector('#step-dark-cal')?.addEventListener('click', async (e) => {
-      e.target.textContent = "Capturing Dark...";
-      await spectrometerUSBAdapter.calibrateDark();
-      e.target.textContent = "Dark Calibrated OK";
-      e.target.classList.add('bg-emerald-700');
-    });
-
-    modal.querySelector('#step-white-cal')?.addEventListener('click', async (e) => {
-      e.target.textContent = "Capturing White Disc...";
-      await spectrometerUSBAdapter.calibrateWhite();
-      e.target.textContent = "White Calibrated OK";
-      const statusText = modal.querySelector('#cal-status-text');
-      statusText?.classList.remove('hidden');
-      setTimeout(() => {
-        modal.classList.add('hidden');
+    const modal = createCalibrationModal({
+      initialStep,
+      plot,
+      onClose: () => {
+        if (modal.parentNode) modal.parentNode.removeChild(modal);
+      },
+      onComplete: (result) => {
+        if (result?.scan) {
+          currentScan = result.scan;
+        } else if (spectrometerUSBAdapter.lastScan) {
+          currentScan = spectrometerUSBAdapter.lastScan;
+        }
+        if (modal.parentNode) modal.parentNode.removeChild(modal);
         render();
-      }, 1000);
+      }
     });
+
+    modal.classList.add('calibration-modal-overlay');
+    document.body.appendChild(modal);
   }
 
   onLocaleChange(() => render());

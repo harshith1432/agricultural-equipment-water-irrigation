@@ -130,7 +130,7 @@ export function createPlotCanvas6Zone(plots = [], selectedPlotId = "plot-1", onS
 
               <!-- Multi-Depth Sensor Mini Readout -->
               <div class="mt-3 pt-2 border-t border-slate-200/80 dark:border-slate-750/80 grid grid-cols-3 gap-1 text-[10px] font-mono text-center relative z-10">
-                ${(plot.soilSensors || []).map(s => `
+                ${(Array.isArray(plot.soilSensors) ? plot.soilSensors : []).map(s => `
                   <div class="bg-white dark:bg-slate-800 rounded-lg p-1 border border-slate-200 dark:border-slate-700/60 shadow-2xs">
                     <span class="text-slate-500 dark:text-slate-400 block text-[9px] font-medium">${s.depthCm}cm</span>
                     <span class="font-bold text-slate-800 dark:text-slate-100">${s.vwc}%</span>

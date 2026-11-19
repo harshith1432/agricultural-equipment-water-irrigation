@@ -765,6 +765,10 @@ export function registerUICompleteOptionsAuditTests() {
       let completed = false;
       let closed = false;
 
+      leafClipDevice.calibration.darkCurrentCompleted = false;
+      leafClipDevice.calibration.whiteDiscCompleted = false;
+      leafClipDevice.calibration.isCalibrated = false;
+
       // Mock calibration step timing for fast test execution
       const origRunCalib = leafClipDevice.runCalibrationStep.bind(leafClipDevice);
       leafClipDevice.runCalibrationStep = async (phase, onProgress) => {
@@ -793,13 +797,15 @@ export function registerUICompleteOptionsAuditTests() {
       const runBtn = calModal.querySelector('#calib-run-btn');
       expect(Boolean(runBtn)).toBe(true);
       expect(runBtn.textContent).toContain('Dark Current');
-      await runBtn.click();
+      runBtn.click();
+      await new Promise(r => setTimeout(r, 10));
 
       // Step 2: Run 99% White Disc Test
       const step2Btn = calModal.querySelector('#calib-run-btn');
       expect(Boolean(step2Btn)).toBe(true);
       expect(step2Btn.textContent).toContain('White Disc');
-      await step2Btn.click();
+      step2Btn.click();
+      await new Promise(r => setTimeout(r, 10));
 
       // Step 3: Header close and cancel buttons
       const calibCloseBtn = calModal.querySelector('#calib-close-btn');

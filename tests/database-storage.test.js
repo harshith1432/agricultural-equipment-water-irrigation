@@ -594,4 +594,183 @@ export function registerDatabaseStorageTests() {
       await authService.signOut();
     });
   });
+
+  describe('Database & Storage Architecture - Spectral Scans Specimen Metadata & Atomic Sync Pipeline', () => {
+    it('persists a spectral scan with full 15-attribute specimen metadata and 76 reflectance bands atomically to localStorage first', async () => {
+      mockFirestore.resetToDefault();
+      firestoreService.setActiveUser({
+        uid: "user-carlos-1",
+        email: "carlos@valleyfarms.com",
+        displayName: "Carlos Mendoza",
+        role: "Farm Owner",
+        farmId: "farm-carlos-valley-1"
+      });
+
+      let latestScans = [];
+      const unsubscribe = firestoreService.subscribeSpectralScans((scans) => {
+        latestScans = scans;
+      });
+
+      const specimenScan = {
+        id: "scan-20261119-042",
+        plantNumber: "PLANT-042",
+        portNumber: "PORT-08",
+        plantName: "Roma Tomato",
+        plotId: "plot-1",
+        plotNumber: 1,
+        crop: "tomato",
+        calibrationRef: {
+          darkCurrent: 0.012,
+          whiteReference: 0.985,
+          calibratedAt: "2026-11-19T14:30:00.000Z"
+        },
+        rawReflectance: Array.from({ length: 76 }, (_, i) => Number((0.05 + 0.6 * Math.sin((i / 75) * Math.PI)).toFixed(4))),
+        indices: {
+          ndvi: 0.78,
+          ndre: 0.35,
+          wbi: 0.92,
+          cire: 2.15,
+          vitality: 88,
+          lwi: 0.94
+        },
+        nitrogenPrescriptionKg: 0.0,
+        irrigationNeedHours: 36,
+        diseaseRisk: "HEALTHY_OPTIMAL",
+        hardwareLink: "BLE_NUS",
+        timestamp: "2026-11-19T14:30:00.000Z"
+      };
+
+      const savedId = await firestoreService.saveSpectralScan(specimenScan);
+      expect(savedId).toBe("scan-20261119-042");
+
+      // Verify immediate local storage persistence under agrispectra_offline_db
+      const storedRaw = localStorage.getItem(PRIMARY_STORAGE_KEY);
+      expect(storedRaw).toBeDefined();
+      const parsed = JSON.parse(storedRaw);
+      expect(Array.isArray(parsed.spectralScans)).toBe(true);
+
+      const foundScan = parsed.spectralScans.find(s => s.id === "scan-20261119-042");
+      expect(foundScan).toBeDefined();
+      expect(foundScan.plantNumber).toBe("PLANT-042");
+      expect(foundScan.portNumber).toBe("PORT-08");
+      expect(foundScan.plantName).toBe("Roma Tomato");
+      expect(foundScan.plotId).toBe("plot-1");
+      expect(foundScan.plotNumber).toBe(1);
+      expect(foundScan.crop).toBe("tomato");
+      expect(foundScan.calibrationRef.darkCurrent).toBe(0.012);
+      expect(foundScan.calibrationRef.whiteReference).toBe(0.985);
+      expect(foundScan.rawReflectance.length).toBe(76);
+      expect(foundScan.indices.ndvi).toBe(0.78);
+      expect(foundScan.indices.ndre).toBe(0.35);
+      expect(foundScan.indices.wbi).toBe(0.92);
+      expect(foundScan.indices.cire).toBe(2.15);
+      expect(foundScan.indices.vitality).toBe(88);
+      expect(foundScan.indices.lwi).toBe(0.94);
+      expect(foundScan.nitrogenPrescriptionKg).toBe(0.0);
+      expect(foundScan.irrigationNeedHours).toBe(36);
+      expect(foundScan.diseaseRisk).toBe("HEALTHY_OPTIMAL");
+      expect(foundScan.hardwareLink).toBe("BLE_NUS");
+      expect(foundScan.timestamp).toBe("2026-11-19T14:30:00.000Z");
+
+      // Verify real-time subscriber triggered
+      expect(latestScans.some(s => s.id === "scan-20261119-042")).toBe(true);
+
+      unsubscribe();
+    });
+
+    it('executes indexed queries in mockFirestore across plantNumber, plotId, and timestamp', async () => {
+      mockFirestore.resetToDefault();
+      firestoreService.setActiveUser({
+        uid: "user-carlos-1",
+        farmId: "farm-carlos-valley-1"
+      });
+
+      // Insert scans for various plants & plots
+      await firestoreService.saveSpectralScan({
+        id: "scan-plant-100",
+        plantNumber: "PLANT-100",
+        portNumber: "PORT-01",
+        plantName: "Bell Pepper A",
+        plotId: "plot-3",
+        crop: "bell_pepper",
+        timestamp: "2026-11-19T10:00:00.000Z"
+      });
+
+      await firestoreService.saveSpectralScan({
+        id: "scan-plant-101",
+        plantNumber: "PLANT-101",
+        portNumber: "PORT-02",
+        plantName: "Bell Pepper B",
+        plotId: "plot-3",
+        crop: "bell_pepper",
+        timestamp: "2026-11-19T11:00:00.000Z"
+      });
+
+      await firestoreService.saveSpectralScan({
+        id: "scan-plant-102",
+        plantNumber: "PLANT-100",
+        portNumber: "PORT-01",
+        plantName: "Bell Pepper A",
+        plotId: "plot-3",
+        crop: "bell_pepper",
+        timestamp: "2026-11-19T12:00:00.000Z"
+      });
+
+      // 1. Query by plantNumber (indexed)
+      const plant100Scans = mockFirestore.getSpectralScansByPlant("PLANT-100");
+      expect(plant100Scans.length).toBe(2);
+      expect(plant100Scans[0].id).toBe("scan-plant-102"); // Newer timestamp first
+      expect(plant100Scans[1].id).toBe("scan-plant-100");
+
+      // 2. Query by plotId (indexed)
+      const plot3Scans = mockFirestore.getSpectralScansByPlot("plot-3");
+      expect(plot3Scans.length).toBeGreaterThanOrEqual(3);
+
+      // 3. Query by timestamp range
+      const timeFiltered = mockFirestore.getSpectralScans({
+        plotId: "plot-3",
+        startDate: "2026-11-19T10:30:00.000Z",
+        endDate: "2026-11-19T12:30:00.000Z"
+      });
+      expect(timeFiltered.length).toBe(2);
+      expect(timeFiltered.map(s => s.id)).toEqual(["scan-plant-102", "scan-plant-101"]);
+    });
+
+    it('guarantees complete backward compatibility with legacy leafScans and automated test callers', async () => {
+      mockFirestore.resetToDefault();
+      firestoreService.setActiveUser({
+        uid: "user-carlos-1",
+        farmId: "farm-carlos-valley-1"
+      });
+
+      let legacyScans = [];
+      const unsub = firestoreService.subscribeLeafScans((scans) => {
+        legacyScans = scans;
+      });
+
+      // Save via legacy saveLeafScan API
+      const legacyScanId = await firestoreService.saveLeafScan({
+        plotId: "plot-2",
+        crop: "Pinot Noir",
+        vitalityScore: 78.5,
+        leafWaterIndex: 1.15,
+        nitrogenPrescriptionKg: 4.5,
+        diseaseRisk: "None"
+      });
+
+      expect(legacyScanId).toBeDefined();
+
+      // Verify that legacy subscriber was notified
+      expect(legacyScans.some(s => s.id === legacyScanId)).toBe(true);
+
+      // Verify that modern spectralScans collection ALSO received the normalized specimen record
+      const modernScan = mockFirestore.getSpectralScanById(legacyScanId);
+      expect(modernScan).toBeDefined();
+      expect(modernScan.rawReflectance.length).toBe(76);
+      expect(modernScan.indices.vitality).toBe(78.5);
+      expect(modernScan.indices.lwi).toBe(1.15);
+
+      unsub();
+    });
+  });
 }

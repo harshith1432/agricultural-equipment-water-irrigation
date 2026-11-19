@@ -93,7 +93,7 @@ export function createNativeMobileAppView({
       activeTab = TAB_ALIASES[targetView] || targetView;
       try { localStorage.setItem('agrispectra_mobile_tab', activeTab); } catch (e) {}
       if (typeof onTabChange === 'function') onTabChange(activeTab);
-      renderActiveScreen({ resetScroll: true });
+      renderActiveScreen({ resetScroll: false });
     },
     onThemeChange,
     currentTheme,
@@ -106,7 +106,9 @@ export function createNativeMobileAppView({
 
   // 3. Main scrollable body container
   const scrollBody = document.createElement('main');
-  scrollBody.className = "relative z-10 flex-1 w-full max-w-lg mx-auto px-3.5 pt-3 pb-36 overflow-y-auto overflow-x-hidden no-scrollbar scroll-smooth";
+  scrollBody.className = "relative z-10 flex-1 w-full max-w-lg mx-auto px-3.5 pt-3 pb-36 overflow-y-auto overflow-x-hidden no-scrollbar";
+  scrollBody.style.overscrollBehaviorY = 'contain';
+  scrollBody.style.webkitOverflowScrolling = 'touch';
   container.appendChild(scrollBody);
 
   // 4. Create Floating Bottom Navigation Bar (6 Tabs)
@@ -120,10 +122,15 @@ export function createNativeMobileAppView({
       activeTab = TAB_ALIASES[targetTab] || targetTab;
       try { localStorage.setItem('agrispectra_mobile_tab', activeTab); } catch (e) {}
       if (typeof onTabChange === 'function') onTabChange(activeTab);
-      renderActiveScreen({ resetScroll: true });
+      renderActiveScreen({ resetScroll: false });
     }
   });
   container.appendChild(bottomNav.element);
+
+  // Per-tab Screen Cache & persistent scroll position dictionary
+  const screenCache = {};
+  const tabScrollPositions = {};
+  let currentActiveTabKey = null;
 
   function getSelectedPlot() {
     return activePlots.find(p => p.id === currentPlotId) || activePlots[0];
@@ -160,170 +167,159 @@ export function createNativeMobileAppView({
       </div>
     `;
     card.querySelector('#btn-fallback-retry')?.addEventListener('click', () => {
-      renderActiveScreen();
+      delete screenCache[activeTab];
+      renderActiveScreen({ resetScroll: false });
     });
     card.querySelector('#btn-fallback-home')?.addEventListener('click', () => {
       activeTab = 'overview';
-      renderActiveScreen();
+      renderActiveScreen({ resetScroll: true });
     });
     return card;
   }
 
-  function renderScreenSafely(createScreenFn, tabName) {
-    try {
-      const screen = createScreenFn();
-      if (screen && screen.nodeType) {
-        scrollBody.appendChild(screen);
-      }
-    } catch (err) {
-      console.error(`[NativeApp] Error rendering screen for tab "${tabName}":`, err);
-      const fallback = createScreenFallback(tabName, err);
-      scrollBody.appendChild(fallback);
+  function createScreenForTab(tabKey) {
+    const plot = getSelectedPlot();
+
+    switch (tabKey) {
+      case 'dashboard':
+      case 'overview':
+        return createFieldOverviewDashboard({
+          plots: activePlots,
+          selectedPlotId: currentPlotId,
+          onSelectPlot: (plotId) => {
+            currentPlotId = plotId;
+            if (onSelectPlot) onSelectPlot(plotId);
+            delete screenCache['dashboard'];
+            delete screenCache['overview'];
+            renderActiveScreen({ resetScroll: false });
+          },
+          onNavigateTab: (targetTab) => {
+            activeTab = TAB_ALIASES[targetTab] || targetTab;
+            try { localStorage.setItem('agrispectra_mobile_tab', activeTab); } catch (e) {}
+            if (typeof onTabChange === 'function') onTabChange(activeTab);
+            renderActiveScreen({ resetScroll: true });
+          },
+          onActuateValve,
+          onOpenCropZoneManager,
+          actionRecommendations,
+          telemetryMetrics,
+          onSynergyAction
+        });
+
+      case 'irrigation':
+        return createIrrigationManagementView({
+          plots: activePlots,
+          onActuateValve,
+          onEmergencyStop
+        });
+
+      case 'spectroscopy':
+        return createSpectroscopyAnalysisView({
+          plot,
+          latestScanAnalysis,
+          onAcquireScan,
+          onOpenCalibration
+        });
+
+      case 'synergy':
+      case 'ai':
+        return createAIIntelligenceView({
+          plots: activePlots,
+          latestScanAnalysis,
+          actionRecommendations,
+          onActuateValve,
+          onSynergyAction
+        });
+
+      case 'usage':
+        return createUsageAnalyticsView({
+          plots: activePlots,
+          telemetryMetrics,
+          scanHistory: []
+        });
+
+      case 'settings':
+        return createSettingsView({
+          currentUser,
+          onThemeChange,
+          currentTheme,
+          onSignOut,
+          onOpenAuthModal,
+          onReplayOnboarding,
+          onOpenSimModal,
+          onOpenCalibration
+        });
+
+      case 'soil':
+        return createSoilAnalysisView({ plot });
+
+      case 'weather':
+      case 'environment':
+        return createEnvironmentMonitorView();
+
+      default:
+        return createFieldOverviewDashboard({
+          plots: activePlots,
+          selectedPlotId: currentPlotId,
+          onSelectPlot,
+          onNavigateTab: (tab) => {
+            activeTab = TAB_ALIASES[tab] || tab;
+            renderActiveScreen({ resetScroll: true });
+          },
+          onActuateValve,
+          actionRecommendations,
+          telemetryMetrics,
+          onSynergyAction
+        });
     }
   }
 
   function renderActiveScreen({ resetScroll = false } = {}) {
-    const prevScroll = scrollBody.scrollTop;
-    scrollBody.innerHTML = '';
-    bottomNav.setActiveTab(activeTab);
+    const normalizedTab = TAB_ALIASES[activeTab] || activeTab || 'dashboard';
 
-    const plot = getSelectedPlot();
+    // Save previous tab's scroll position before leaving it
+    if (currentActiveTabKey && currentActiveTabKey !== normalizedTab) {
+      tabScrollPositions[currentActiveTabKey] = scrollBody.scrollTop;
+    }
 
-    switch (activeTab) {
-      case 'dashboard':
-      case 'overview': {
-        renderScreenSafely(() => {
-          return createFieldOverviewDashboard({
-            plots: activePlots,
-            selectedPlotId: currentPlotId,
-            onSelectPlot: (plotId) => {
-              currentPlotId = plotId;
-              if (onSelectPlot) onSelectPlot(plotId);
-              renderActiveScreen({ resetScroll: false });
-            },
-            onNavigateTab: (targetTab) => {
-              activeTab = TAB_ALIASES[targetTab] || targetTab;
-              try { localStorage.setItem('agrispectra_mobile_tab', activeTab); } catch (e) {}
-              if (typeof onTabChange === 'function') onTabChange(activeTab);
-              renderActiveScreen({ resetScroll: true });
-            },
-            onActuateValve,
-            onOpenCropZoneManager,
-            actionRecommendations,
-            telemetryMetrics,
-            onSynergyAction
-          });
-        }, 'overview');
-        break;
-      }
+    bottomNav.setActiveTab(normalizedTab);
 
-      case 'irrigation': {
-        renderScreenSafely(() => {
-          return createIrrigationManagementView({
-            plots: activePlots,
-            onActuateValve,
-            onEmergencyStop
-          });
-        }, 'irrigation');
-        break;
-      }
-
-      case 'spectroscopy': {
-        renderScreenSafely(() => {
-          return createSpectroscopyAnalysisView({
-            plot,
-            latestScanAnalysis,
-            onAcquireScan,
-            onOpenCalibration
-          });
-        }, 'spectroscopy');
-        break;
-      }
-
-      case 'synergy':
-      case 'ai': {
-        renderScreenSafely(() => {
-          return createAIIntelligenceView({
-            plots: activePlots,
-            latestScanAnalysis,
-            actionRecommendations,
-            onActuateValve,
-            onSynergyAction
-          });
-        }, 'ai');
-        break;
-      }
-
-      case 'usage': {
-        renderScreenSafely(() => {
-          return createUsageAnalyticsView({
-            plots: activePlots,
-            telemetryMetrics,
-            scanHistory: []
-          });
-        }, 'usage');
-        break;
-      }
-
-      case 'settings': {
-        renderScreenSafely(() => {
-          return createSettingsView({
-            currentUser,
-            onThemeChange,
-            currentTheme,
-            onSignOut,
-            onOpenAuthModal,
-            onReplayOnboarding,
-            onOpenSimModal,
-            onOpenCalibration
-          });
-        }, 'settings');
-        break;
-      }
-
-      case 'soil': {
-        renderScreenSafely(() => {
-          return createSoilAnalysisView({ plot });
-        }, 'soil');
-        break;
-      }
-
-      case 'weather':
-      case 'environment': {
-        renderScreenSafely(() => {
-          return createEnvironmentMonitorView();
-        }, 'weather');
-        break;
-      }
-
-      default: {
-        renderScreenSafely(() => {
-          return createFieldOverviewDashboard({
-            plots: activePlots,
-            selectedPlotId: currentPlotId,
-            onSelectPlot,
-            onNavigateTab: (tab) => {
-              activeTab = TAB_ALIASES[tab] || tab;
-              renderActiveScreen();
-            },
-            onActuateValve,
-            actionRecommendations,
-            telemetryMetrics,
-            onSynergyAction
-          });
-        }, 'overview');
+    let screen = screenCache[normalizedTab];
+    if (!screen) {
+      try {
+        screen = createScreenForTab(normalizedTab);
+        screenCache[normalizedTab] = screen;
+      } catch (err) {
+        console.error(`[NativeApp] Error rendering screen for tab "${normalizedTab}":`, err);
+        screen = createScreenFallback(normalizedTab, err);
       }
     }
 
-    // Preserve scroll position on data updates, only reset to top when user explicitly switches tabs
+    // Atomic replacement: replaces screen without destroying container or resetting height to 0
+    if (typeof scrollBody.replaceChildren === 'function') {
+      scrollBody.replaceChildren(screen);
+    } else {
+      scrollBody.innerHTML = '';
+      scrollBody.appendChild(screen);
+    }
+    currentActiveTabKey = normalizedTab;
+
     if (resetScroll) {
       scrollBody.scrollTop = 0;
+      tabScrollPositions[normalizedTab] = 0;
     } else {
-      scrollBody.scrollTop = prevScroll;
+      const targetScroll = tabScrollPositions[normalizedTab] || 0;
+      scrollBody.scrollTop = targetScroll;
+      const raf = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : (cb) => setTimeout(cb, 0);
+      raf(() => {
+        if (scrollBody.scrollTop !== targetScroll) {
+          scrollBody.scrollTop = targetScroll;
+        }
+      });
     }
   }
 
-  // Exposed update method for data subscriptions without destroying UI
+  // Exposed update method for data subscriptions without destroying UI or resetting scroll
   container.updateData = function(newData = {}) {
     if (newData.plots && Array.isArray(newData.plots)) {
       activePlots = newData.plots;
@@ -337,15 +333,34 @@ export function createNativeMobileAppView({
     if (newData.telemetryMetrics) {
       telemetryMetrics = newData.telemetryMetrics;
     }
-    if (newData.selectedPlotId) {
+    if (newData.selectedPlotId && newData.selectedPlotId !== currentPlotId) {
       currentPlotId = newData.selectedPlotId;
+      delete screenCache['dashboard'];
+      delete screenCache['overview'];
+      delete screenCache['soil'];
+      delete screenCache['spectroscopy'];
+      renderActiveScreen({ resetScroll: false });
+      return;
     }
-    renderActiveScreen({ resetScroll: false });
+
+    // Dynamic in-place metric updates on the active screen without DOM teardown or scroll bounce
+    const activeScreen = screenCache[currentActiveTabKey];
+    if (activeScreen && typeof activeScreen.updateTelemetry === 'function') {
+      activeScreen.updateTelemetry(telemetryMetrics);
+    }
   };
 
   // Subscribe to reactive locale changes to update active screen instantly
   onLocaleChange(() => {
+    const savedScroll = scrollBody.scrollTop;
+    Object.keys(screenCache).forEach(k => delete screenCache[k]);
     renderActiveScreen({ resetScroll: false });
+    scrollBody.scrollTop = savedScroll;
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(() => {
+        scrollBody.scrollTop = savedScroll;
+      });
+    }
   });
 
   // Initial render

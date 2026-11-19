@@ -23,6 +23,11 @@ if (!globalThis.localStorage) {
   };
 }
 
+if (!globalThis.requestAnimationFrame) {
+  globalThis.requestAnimationFrame = (callback) => setTimeout(callback, 0);
+  globalThis.cancelAnimationFrame = (id) => clearTimeout(id);
+}
+
 import { runner } from './framework.js';
 import { registerChemometricsTests } from './chemometrics.test.js';
 import { registerSolenoidValveTests } from './solenoid-valves.test.js';
@@ -38,6 +43,10 @@ import { registerMultilingualVerificationTests } from './multilingual-verificati
 import { registerSecurityHardeningTests } from './security-hardening.test.js';
 import { registerAuthLifecycleIsolationTests } from './auth-lifecycle-isolation.test.js';
 import { registerLocationServiceTests } from './location-service.test.js';
+import { registerScrollRetentionTests } from './scroll-retention.test.js';
+import { registerBleNusSpectrometerTests } from './ble-nus-spectrometer.test.js';
+import { registerSpectroscopyGuidedFlowTests } from './spectroscopy-guided-flow.test.js';
+import { registerCalibrationWizardTests } from './calibration-wizard.test.js';
 
 async function main() {
   console.log('\x1b[35mStarting AgriSpectra Flow & Field Automated Test Suite...\x1b[0m');
@@ -49,6 +58,7 @@ async function main() {
   registerClosedLoopTests();
   registerAuthEnterpriseTests();
   registerHardwareAdapterTests();
+  registerBleNusSpectrometerTests();
   registerMobileLifecycleTests();
   registerDatabaseStorageTests();
   registerCropZoneManagerTests();
@@ -57,6 +67,9 @@ async function main() {
   registerSecurityHardeningTests();
   registerAuthLifecycleIsolationTests();
   registerLocationServiceTests();
+  registerScrollRetentionTests();
+  registerSpectroscopyGuidedFlowTests();
+  registerCalibrationWizardTests();
 
   // Execute runner
   const success = await runner.run();

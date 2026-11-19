@@ -10,6 +10,7 @@
 
 import { Router } from 'express';
 import { centralStorage } from '../services/centralStorage.js';
+import { schemaManager } from '../services/schemaManager.js';
 
 const router = Router();
 
@@ -18,11 +19,11 @@ const router = Router();
 // ===========================================================================
 
 /**
- * POST /api/spectroscopy/scans
- * Ingest raw spectral intensities, integration time, calibration reference, and chemometrics
- * Supports USB_TYPE_C, BLUETOOTH_BLE, and WIFI_CLOUD
+ * POST /api/spectroscopy/scans and /api/spectral/scans
+ * Ingest raw spectral intensities, integration time, calibration reference, specimen metadata, and chemometrics
+ * Supports USB_SERIAL, BLE_NUS, and SIMULATED
  */
-router.post('/spectroscopy/scans', (req, res) => {
+router.post(['/spectroscopy/scans', '/spectral/scans'], async (req, res) => {
   try {
     const payload = req.body;
     if (!payload || Object.keys(payload).length === 0) {
@@ -32,12 +33,12 @@ router.post('/spectroscopy/scans', (req, res) => {
       });
     }
 
-    const record = centralStorage.addSpectroScan(payload);
+    const savedRecord = await schemaManager.saveSpectralScan(payload);
 
     res.status(201).json({
       success: true,
-      message: `Spectroscopy scan ingested (${record.source} via ${record.connectionMode}).`,
-      data: record
+      message: `Spectroscopy scan ingested (${savedRecord.plantNumber || savedRecord.id} via ${savedRecord.hardwareLink || 'SYSTEM'}).`,
+      data: savedRecord
     });
   } catch (error) {
     res.status(400).json({ success: false, error: error.message });
@@ -75,10 +76,10 @@ router.get('/spectroscopy/latest', (req, res) => {
 });
 
 /**
- * GET /api/spectroscopy/scans
+ * GET /api/spectroscopy/scans and /api/spectral/scans
  * List spectroscopy scans with filtering
  */
-router.get('/spectroscopy/scans', (req, res) => {
+router.get(['/spectroscopy/scans', '/spectral/scans'], (req, res) => {
   try {
     const { farmId, plotId, deviceId, source, limit } = req.query;
     const scans = centralStorage.getSpectroScans({ farmId, plotId, deviceId, source });

@@ -93,6 +93,9 @@ export function createUsageAnalyticsView({
   }
 
   function render() {
+    const scrollParent = container.closest('main') || container.parentElement;
+    const prevScroll = scrollParent ? scrollParent.scrollTop : 0;
+
     const zoneData = getZoneUsageData();
     const totalWaterLiters = zoneData.reduce((acc, z) => acc + z.deliveredLiters, 0);
     const totalCycles = zoneData.reduce((acc, z) => acc + z.cycles, 0);
@@ -271,6 +274,17 @@ export function createUsageAnalyticsView({
         </div>
       </div>
     `;
+
+    if (scrollParent && prevScroll > 0) {
+      scrollParent.scrollTop = prevScroll;
+      if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(() => {
+          if (scrollParent.scrollTop !== prevScroll) {
+            scrollParent.scrollTop = prevScroll;
+          }
+        });
+      }
+    }
 
     attachEvents();
   }

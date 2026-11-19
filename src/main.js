@@ -785,6 +785,7 @@ class AgriSpectraApp {
 
   openCalibrationModal(type = 'FULL') {
     const modal = createCalibrationModal({
+      initialStep: type === 'METADATA' ? 'METADATA' : 'DARK_CURRENT',
       onClose: () => modal.remove(),
       onComplete: () => {
         modal.remove();

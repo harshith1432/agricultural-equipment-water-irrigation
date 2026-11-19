@@ -103,7 +103,7 @@ export const describe = runner.describe.bind(runner);
 export const it = runner.it.bind(runner);
 
 export function expect(actual) {
-  return {
+  const matchers = {
     toBeDefined() {
       if (actual === undefined) {
         throw new Error(`Expected defined value, got undefined`);
@@ -200,4 +200,36 @@ export function expect(actual) {
       }
     }
   };
+
+  matchers.not = {
+    toBe(expected) {
+      if (actual === expected) {
+        throw new Error(`Expected ${JSON.stringify(actual)} NOT to be ${JSON.stringify(expected)}`);
+      }
+    },
+    toEqual(expected) {
+      if (JSON.stringify(actual) === JSON.stringify(expected)) {
+        throw new Error(`Expected deep inequality, but values match`);
+      }
+    },
+    toContain(item) {
+      if (Array.isArray(actual) || typeof actual === 'string') {
+        if (actual.includes(item)) {
+          throw new Error(`Expected ${JSON.stringify(actual)} NOT to contain ${JSON.stringify(item)}`);
+        }
+      }
+    },
+    toBeNull() {
+      if (actual === null) {
+        throw new Error(`Expected NOT null`);
+      }
+    },
+    toBeUndefined() {
+      if (actual === undefined) {
+        throw new Error(`Expected NOT undefined`);
+      }
+    }
+  };
+
+  return matchers;
 }

@@ -9,6 +9,39 @@ export const LEGACY_STORAGE_KEY = "AGRISPECTRA_FIRESTORE_DATA_V2";
 const STORAGE_KEY = PRIMARY_STORAGE_KEY;
 export const USER_PREFS_STORAGE_KEY = "agrispectra_user_prefs";
 
+/**
+ * Generates an authoritative 76-band reflectance array (350nm to 1100nm in 10nm increments)
+ * bounded strictly within [0.0 ... 1.0]. Models standard plant chlorophyll reflectance peak
+ * at ~550nm, red absorption pit at ~680nm, sharp red-edge jump (680-750nm), NIR plateau,
+ * and 970nm water absorption band dip.
+ */
+export function generate76BandReflectance(ndvi = 0.78, vitality = 88) {
+  const bands = [];
+  for (let i = 0; i < 76; i++) {
+    const nm = 350 + i * 10;
+    let r;
+    if (nm < 500) {
+      r = 0.04 + (nm - 350) * 0.0002;
+    } else if (nm < 560) {
+      r = 0.07 + ((nm - 500) / 60) * 0.08 * (vitality / 100);
+    } else if (nm < 680) {
+      r = 0.15 - ((nm - 560) / 120) * 0.11;
+    } else if (nm < 750) {
+      const progress = (nm - 680) / 70;
+      r = 0.04 + progress * (0.45 + (ndvi * 0.3));
+    } else if (nm < 930) {
+      r = 0.50 + (ndvi * 0.25) - ((nm - 750) / 180) * 0.05;
+    } else if (nm < 1000) {
+      const dip = 1.0 - Math.exp(-Math.pow((nm - 970) / 25, 2)) * 0.18;
+      r = (0.50 + ndvi * 0.20) * dip;
+    } else {
+      r = 0.42 + (ndvi * 0.15);
+    }
+    bands.push(Number(Math.max(0.01, Math.min(0.99, r)).toFixed(4)));
+  }
+  return bands;
+}
+
 export const PRESEEDED_CROPS = {
   "crop-potato": {
     id: "crop-potato",
@@ -471,6 +504,64 @@ export const SEED_CARLOS_FARM = {
       notes: "High chlorophyll density, robust turgor pressure across south canopy."
     }
   ],
+  spectralScans: [
+    {
+      id: "scan-20261119-042",
+      plantNumber: "PLANT-042",
+      portNumber: "PORT-08",
+      plantName: "Roma Tomato",
+      plotId: "plot-1",
+      plotNumber: 1,
+      crop: "tomato",
+      calibrationRef: {
+        darkCurrent: 0.012,
+        whiteReference: 0.985,
+        calibratedAt: new Date(Date.now() - 52 * 60000).toISOString()
+      },
+      rawReflectance: generate76BandReflectance(0.78, 89),
+      indices: {
+        ndvi: 0.78,
+        ndre: 0.35,
+        wbi: 0.92,
+        cire: 2.15,
+        vitality: 89,
+        lwi: 0.94
+      },
+      nitrogenPrescriptionKg: 0.0,
+      irrigationNeedHours: 36,
+      diseaseRisk: "HEALTHY_OPTIMAL",
+      hardwareLink: "BLE_NUS",
+      timestamp: new Date(Date.now() - 52 * 60000).toISOString()
+    },
+    {
+      id: "scan-20261119-041",
+      plantNumber: "PLANT-018",
+      portNumber: "PORT-02",
+      plantName: "Heirloom Tomatoes",
+      plotId: "plot-2",
+      plotNumber: 2,
+      crop: "tomato",
+      calibrationRef: {
+        darkCurrent: 0.015,
+        whiteReference: 0.980,
+        calibratedAt: new Date(Date.now() - 18 * 60000).toISOString()
+      },
+      rawReflectance: generate76BandReflectance(0.52, 54),
+      indices: {
+        ndvi: 0.52,
+        ndre: 0.22,
+        wbi: 0.81,
+        cire: 1.35,
+        vitality: 54,
+        lwi: 0.62
+      },
+      nitrogenPrescriptionKg: 14.5,
+      irrigationNeedHours: 4,
+      diseaseRisk: "Early Powdery Mildew",
+      hardwareLink: "USB_SERIAL",
+      timestamp: new Date(Date.now() - 18 * 60000).toISOString()
+    }
+  ],
   irrigationLogs: [
     {
       id: "log-irr-101",
@@ -666,6 +757,36 @@ export const SEED_ELENA_FARM = {
       notes: "Exceptional vigor in transgenic drought-resistant sugarcane clone R-44."
     }
   ],
+  spectralScans: [
+    {
+      id: "scan-20261119-099",
+      plantNumber: "PLANT-099",
+      portNumber: "PORT-01",
+      plantName: "Transgenic Sugarcane Clone R-44",
+      plotId: "plot-elena-1",
+      plotNumber: 1,
+      crop: "sugarcane",
+      calibrationRef: {
+        darkCurrent: 0.010,
+        whiteReference: 0.990,
+        calibratedAt: new Date(Date.now() - 30 * 60000).toISOString()
+      },
+      rawReflectance: generate76BandReflectance(0.85, 95),
+      indices: {
+        ndvi: 0.85,
+        ndre: 0.38,
+        wbi: 0.95,
+        cire: 2.30,
+        vitality: 95,
+        lwi: 0.98
+      },
+      nitrogenPrescriptionKg: 0.0,
+      irrigationNeedHours: 48,
+      diseaseRisk: "HEALTHY_OPTIMAL",
+      hardwareLink: "BLE_NUS",
+      timestamp: new Date(Date.now() - 30 * 60000).toISOString()
+    }
+  ],
   irrigationLogs: [
     {
       id: "log-elena-101",
@@ -775,6 +896,7 @@ export const SEED_MATEO_FARM = {
     }
   },
   leafScans: [],
+  spectralScans: [],
   irrigationLogs: [],
   actionRecommendations: [],
   crops: {
@@ -882,6 +1004,7 @@ export const SEED_GUEST_FARM = {
     }
   },
   leafScans: [],
+  spectralScans: [],
   irrigationLogs: [],
   actionRecommendations: [],
   crops: JSON.parse(JSON.stringify(PRESEEDED_CROPS))
@@ -953,6 +1076,7 @@ class ReactiveMockFirestore {
         }
       },
       leafScans: [],
+      spectralScans: [],
       irrigationLogs: [],
       actionRecommendations: [],
       crops: JSON.parse(JSON.stringify(PRESEEDED_CROPS))
@@ -967,6 +1091,7 @@ class ReactiveMockFirestore {
         plots: {},
         crops: {},
         leafScans: [],
+        spectralScans: [],
         irrigationLogs: [],
         actionRecommendations: []
       };
@@ -983,6 +1108,7 @@ class ReactiveMockFirestore {
           }
           if (!parsed.plots) parsed.plots = {};
           if (!parsed.leafScans) parsed.leafScans = [];
+          if (!parsed.spectralScans) parsed.spectralScans = this.getSeedDataForFarm(normId).spectralScans || [];
           if (!parsed.irrigationLogs) parsed.irrigationLogs = [];
           if (!parsed.actionRecommendations) parsed.actionRecommendations = [];
           return parsed;
@@ -996,6 +1122,8 @@ class ReactiveMockFirestore {
             if (!parsed.crops || Object.keys(parsed.crops).length === 0) {
               parsed.crops = JSON.parse(JSON.stringify(PRESEEDED_CROPS));
             }
+            if (!parsed.leafScans) parsed.leafScans = [];
+            if (!parsed.spectralScans) parsed.spectralScans = this.getSeedDataForFarm(normId).spectralScans || [];
             return parsed;
           }
         }
@@ -1036,6 +1164,7 @@ class ReactiveMockFirestore {
         plots: {},
         crops: {},
         leafScans: [],
+        spectralScans: [],
         irrigationLogs: [],
         actionRecommendations: []
       };
@@ -1103,6 +1232,7 @@ class ReactiveMockFirestore {
     this.notify('crops');
     this.notify('cropCatalog');
     this.notify('leafScans');
+    this.notify('spectralScans');
     this.notify('irrigationLogs');
     this.notify('actionRecommendations');
     this.notify('farm');
@@ -1146,6 +1276,7 @@ class ReactiveMockFirestore {
       if (channel === 'plots') return [];
       if (channel === 'crops' || channel === 'cropCatalog') return [];
       if (channel === 'leafScans') return [];
+      if (channel === 'spectralScans') return [];
       if (channel === 'irrigationLogs') return [];
       if (channel === 'actionRecommendations') return [];
       if (channel === 'farm') return null;
@@ -1161,6 +1292,9 @@ class ReactiveMockFirestore {
     }
     if (channel === 'leafScans') {
       return [...(farmData.leafScans || [])].reverse();
+    }
+    if (channel === 'spectralScans') {
+      return this.getSpectralScans({}, farmId);
     }
     if (channel === 'irrigationLogs') {
       return [...(farmData.irrigationLogs || [])].reverse();
@@ -1366,22 +1500,242 @@ class ReactiveMockFirestore {
     return { success: true, id: cropId };
   }
 
-  addLeafScan(scan, farmId = this.currentFarmId) {
-    const farm = this.getFarmData(farmId);
-    const id = "scan-" + Date.now();
+  // =========================================================================
+  // SPECTRAL SCANS SPECIMEN REPOSITORY & MULTI-DIMENSIONAL INDEXING ENGINE
+  // Indexes scans by: plantNumber, plotId, and timestamp
+  // =========================================================================
+
+  _buildSpectralIndices(farmId) {
+    const normId = this.normalizeFarmId(farmId);
+    const farm = this.getFarmData(normId);
+    const scans = farm.spectralScans || [];
+
+    const byPlantNumber = new Map();
+    const byPlotId = new Map();
+
+    for (const scan of scans) {
+      if (scan.plantNumber) {
+        const pk = String(scan.plantNumber).toUpperCase().trim();
+        if (!byPlantNumber.has(pk)) byPlantNumber.set(pk, []);
+        byPlantNumber.get(pk).push(scan);
+      }
+      if (scan.plotId) {
+        const plk = String(scan.plotId).trim();
+        if (!byPlotId.has(plk)) byPlotId.set(plk, []);
+        byPlotId.get(plk).push(scan);
+      }
+    }
+
+    const sortByTsDesc = (a, b) => new Date(b.timestamp || b.scannedAt || 0).getTime() - new Date(a.timestamp || a.scannedAt || 0).getTime();
+
+    for (const list of byPlantNumber.values()) {
+      list.sort(sortByTsDesc);
+    }
+    for (const list of byPlotId.values()) {
+      list.sort(sortByTsDesc);
+    }
+
+    const byTimestamp = [...scans].sort(sortByTsDesc);
+
+    const indexObj = { byPlantNumber, byPlotId, byTimestamp, builtAt: Date.now() };
+    if (!this._spectralIndices) this._spectralIndices = new Map();
+    this._spectralIndices.set(normId, indexObj);
+    return indexObj;
+  }
+
+  _getSpectralIndices(farmId) {
+    const normId = this.normalizeFarmId(farmId);
+    if (!this._spectralIndices || !this._spectralIndices.has(normId)) {
+      return this._buildSpectralIndices(normId);
+    }
+    return this._spectralIndices.get(normId);
+  }
+
+  /**
+   * Query spectral scans with high-efficiency indexing by plantNumber, plotId, and timestamp
+   */
+  getSpectralScans(filter = {}, farmId = this.currentFarmId) {
+    const normId = this.normalizeFarmId(farmId);
+    const indices = this._getSpectralIndices(normId);
+
+    let results = [];
+    if (filter.plantNumber) {
+      const pk = String(filter.plantNumber).toUpperCase().trim();
+      results = [...(indices.byPlantNumber.get(pk) || [])];
+    } else if (filter.plotId) {
+      const plk = String(filter.plotId).trim();
+      results = [...(indices.byPlotId.get(plk) || [])];
+    } else {
+      results = [...indices.byTimestamp];
+    }
+
+    if (filter.plotId && filter.plantNumber) {
+      results = results.filter(s => s.plotId === filter.plotId);
+    }
+    if (filter.crop) {
+      const c = filter.crop.toLowerCase();
+      results = results.filter(s => (s.crop || '').toLowerCase().includes(c));
+    }
+    if (filter.diseaseRisk) {
+      results = results.filter(s => s.diseaseRisk === filter.diseaseRisk);
+    }
+    if (filter.startDate || filter.startTimestamp) {
+      const start = new Date(filter.startDate || filter.startTimestamp).getTime();
+      results = results.filter(s => new Date(s.timestamp || s.scannedAt || 0).getTime() >= start);
+    }
+    if (filter.endDate || filter.endTimestamp) {
+      const end = new Date(filter.endDate || filter.endTimestamp).getTime();
+      results = results.filter(s => new Date(s.timestamp || s.scannedAt || 0).getTime() <= end);
+    }
+
+    if (filter.limit && Number(filter.limit) > 0) {
+      results = results.slice(0, Number(filter.limit));
+    }
+
+    return results;
+  }
+
+  getSpectralScanById(id, farmId = this.currentFarmId) {
+    const normId = this.normalizeFarmId(farmId);
+    const farm = this.getFarmData(normId);
+    return (farm.spectralScans || []).find(s => s.id === id) || null;
+  }
+
+  getSpectralScansByPlant(plantNumber, farmId = this.currentFarmId) {
+    return this.getSpectralScans({ plantNumber }, farmId);
+  }
+
+  getSpectralScansByPlot(plotId, farmId = this.currentFarmId) {
+    return this.getSpectralScans({ plotId }, farmId);
+  }
+
+  /**
+   * Ingest and persist a spectral scan according to the authoritative device schema
+   */
+  addSpectralScan(scan, farmId = this.currentFarmId) {
+    const normId = this.normalizeFarmId(farmId);
+    const farm = this.getFarmData(normId);
+
+    const timestamp = scan.timestamp || scan.scannedAt || new Date().toISOString();
+    const id = scan.id || `scan-${timestamp.slice(0, 10).replace(/-/g, '')}-${String(Math.floor(Math.random() * 900) + 100)}`;
+    const plotId = scan.plotId || "plot-1";
+    const plotNumber = Number(scan.plotNumber || (plotId.match(/\d+/) ? parseInt(plotId.match(/\d+/)[0], 10) : 1));
+    const plantNumber = String(scan.plantNumber || `PLANT-${String(plotNumber).padStart(3, '0')}`);
+    const portNumber = String(scan.portNumber || `PORT-0${plotNumber}`);
+    const plantName = String(scan.plantName || scan.crop || "Specimen Plant");
+    const crop = String(scan.crop || "crop");
+
+    const calibrationRef = scan.calibrationRef || {
+      darkCurrent: Number(scan.calibrationRef?.darkCurrent ?? 0.015),
+      whiteReference: Number(scan.calibrationRef?.whiteReference ?? 0.985),
+      calibratedAt: scan.calibrationRef?.calibratedAt || timestamp
+    };
+
+    const indices = {
+      ndvi: Number(scan.indices?.ndvi ?? scan.ndvi ?? 0.75),
+      ndre: Number(scan.indices?.ndre ?? scan.ndre ?? 0.32),
+      wbi: Number(scan.indices?.wbi ?? scan.wbi ?? 0.92),
+      cire: Number(scan.indices?.cire ?? scan.cire ?? 2.10),
+      vitality: Number(scan.indices?.vitality ?? scan.vitalityScore ?? scan.vitality ?? 85),
+      lwi: Number(scan.indices?.lwi ?? scan.indices?.leafWaterIndex ?? scan.leafWaterIndex ?? 0.92)
+    };
+
+    const rawReflectance = Array.isArray(scan.rawReflectance) && scan.rawReflectance.length === 76
+      ? scan.rawReflectance.map(v => Number(Number(v).toFixed(4)))
+      : (Array.isArray(scan.rawReflectance) && scan.rawReflectance.length > 0
+          ? scan.rawReflectance.map(v => Number(Number(v).toFixed(4)))
+          : (Array.isArray(scan.rawSpectrumPreview) && scan.rawSpectrumPreview.length === 76
+              ? scan.rawSpectrumPreview.map(v => Number(Number(v).toFixed(4)))
+              : generate76BandReflectance(indices.ndvi, indices.vitality)));
+
+    const nitrogenPrescriptionKg = Number(scan.nitrogenPrescriptionKg ?? 0);
+    const irrigationNeedHours = Number(scan.irrigationNeedHours ?? (indices.lwi < 0.82 ? 4 : (indices.lwi < 0.89 ? 18 : 36)));
+    const diseaseRisk = typeof scan.diseaseRisk === 'string' ? scan.diseaseRisk : (scan.diseaseRisk?.pathogen || "HEALTHY_OPTIMAL");
+    const hardwareLink = ["BLE_NUS", "USB_SERIAL", "SIMULATED"].includes(scan.hardwareLink) ? scan.hardwareLink : (scan.sourceMode || "SIMULATED");
+
     const doc = {
       id,
-      ...scan,
-      scannedAt: new Date().toISOString()
+      plantNumber,
+      portNumber,
+      plantName,
+      plotId,
+      plotNumber,
+      crop,
+      calibrationRef,
+      rawReflectance,
+      indices,
+      nitrogenPrescriptionKg,
+      irrigationNeedHours,
+      diseaseRisk,
+      hardwareLink,
+      timestamp,
+      // Backward compatibility fields for legacy views and tests
+      scannedAt: timestamp,
+      vitalityScore: indices.vitality,
+      leafWaterIndex: indices.lwi,
+      rawSpectrumPreview: rawReflectance.slice(0, 30),
+      gpsLocation: scan.gpsLocation || { latitude: 36.7783, longitude: -119.4179 }
     };
+
+    if (!farm.spectralScans) farm.spectralScans = [];
+    const existingIdx = farm.spectralScans.findIndex(s => s.id === id);
+    if (existingIdx >= 0) {
+      farm.spectralScans[existingIdx] = doc;
+    } else {
+      farm.spectralScans.push(doc);
+    }
+
+    // Mirror to legacy leafScans for seamless backward compatibility
     if (!farm.leafScans) farm.leafScans = [];
-    farm.leafScans.push(doc);
-    this.saveData(farmId);
-    if (this.normalizeFarmId(farmId) === this.normalizeFarmId(this.currentFarmId)) {
+    const leafIdx = farm.leafScans.findIndex(l => l.id === id);
+    if (leafIdx >= 0) {
+      farm.leafScans[leafIdx] = doc;
+    } else {
+      farm.leafScans.push(doc);
+    }
+
+    if (this._spectralIndices) {
+      this._spectralIndices.delete(normId);
+    }
+
+    this.saveData(normId);
+
+    if (normId === this.normalizeFarmId(this.currentFarmId)) {
+      this.notify('spectralScans');
       this.notify('leafScans');
     }
-    this.evaluateClosedLoop(doc, farmId);
+
+    this.evaluateClosedLoop(doc, normId);
     return id;
+  }
+
+  deleteSpectralScan(id, farmId = this.currentFarmId) {
+    const normId = this.normalizeFarmId(farmId);
+    const farm = this.getFarmData(normId);
+    if (!farm.spectralScans) return { success: false, error: 'No spectral scans found.' };
+    const initialLen = farm.spectralScans.length;
+    farm.spectralScans = farm.spectralScans.filter(s => s.id !== id);
+    if (farm.leafScans) {
+      farm.leafScans = farm.leafScans.filter(l => l.id !== id);
+    }
+    if (farm.spectralScans.length === initialLen) {
+      return { success: false, error: `Scan ${id} not found.` };
+    }
+
+    if (this._spectralIndices) {
+      this._spectralIndices.delete(normId);
+    }
+
+    this.saveData(normId);
+    if (normId === this.normalizeFarmId(this.currentFarmId)) {
+      this.notify('spectralScans');
+      this.notify('leafScans');
+    }
+    return { success: true, id };
+  }
+
+  addLeafScan(scan, farmId = this.currentFarmId) {
+    return this.addSpectralScan(scan, farmId);
   }
 
   addIrrigationLog(log, farmId = this.currentFarmId) {
@@ -1612,6 +1966,9 @@ class ReactiveMockFirestore {
       } catch (e) {}
       this.currentFarmId = 'farm-carlos-valley-1';
       this.saveData('farm-carlos-valley-1');
+    }
+    if (this._spectralIndices) {
+      this._spectralIndices.clear();
     }
     this.notifyAll();
   }

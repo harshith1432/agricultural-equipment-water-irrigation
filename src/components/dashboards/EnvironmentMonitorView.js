@@ -71,6 +71,9 @@ export function createEnvironmentMonitorView() {
 
   function render() {
     try {
+      const scrollParent = container.closest('main') || container.parentElement;
+      const prevScroll = scrollParent ? scrollParent.scrollTop : 0;
+
       const temp = currentReading?.temperatureC ?? 24.2;
       const rh = currentReading?.relativeHumidityPercent ?? 48.5;
       const vpd = currentReading?.vpdKPa ?? calculateVaporPressureDeficit(temp, rh);
@@ -367,7 +370,7 @@ export function createEnvironmentMonitorView() {
       </div>
     `;
 
-    attachEvents();
+    attachEvents(scrollParent, prevScroll);
     } catch (err) {
       console.error("[EnvironmentMonitorView] Render error safely handled:", err);
       container.innerHTML = `
@@ -386,7 +389,7 @@ export function createEnvironmentMonitorView() {
     }
   }
 
-  function attachEvents() {
+  function attachEvents(scrollParent, prevScroll) {
     // Mode Switcher Buttons
     container.querySelectorAll('.mode-switch-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -435,6 +438,17 @@ export function createEnvironmentMonitorView() {
         : { highTempC: heat, lowTempC: frost, highRhPercent: rh };
       render();
     });
+
+    if (scrollParent && prevScroll > 0) {
+      scrollParent.scrollTop = prevScroll;
+      if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(() => {
+          if (scrollParent.scrollTop !== prevScroll) {
+            scrollParent.scrollTop = prevScroll;
+          }
+        });
+      }
+    }
   }
 
   // Subscribe to live location and weather updates

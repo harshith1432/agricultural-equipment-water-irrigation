@@ -89,6 +89,9 @@ export function createIrrigationManagementView({
 
   function render() {
     try {
+      const scrollParent = container.closest('main') || container.parentElement;
+      const prevScroll = scrollParent ? scrollParent.scrollTop : 0;
+
       const valves = irrigationControllerAdapter.getAllValves ? irrigationControllerAdapter.getAllValves() : [];
       const telemetry = irrigationControllerAdapter.getTelemetry ? irrigationControllerAdapter.getTelemetry() : { totalActiveFlowRateLph: 0, totalLitersDeliveredAllTime: 0, totalLitersToday: 0, mainlinePressureBar: 2.1 };
       const activeValvesCount = valves.filter(v => v.state === VALVE_STATES.OPEN).length;
@@ -121,34 +124,34 @@ export function createIrrigationManagementView({
 
         <!-- Flow Meter Stats Grid -->
         <div class="grid grid-cols-3 gap-1.5 sm:gap-2 mt-4 pt-3 border-t border-emerald-700/40">
-          <div class="bg-white/10 rounded-2xl p-2 sm:p-2.5 flex flex-col min-w-0 overflow-hidden">
+          <div class="bg-white/10 rounded-2xl p-2 sm:p-2.5 flex flex-col justify-between min-w-0">
             <span class="text-[9px] sm:text-[10px] text-emerald-200/90 font-semibold leading-tight min-h-[26px] flex items-center break-words whitespace-normal">${t('flow_rate_live', 'Live Flow')}</span>
-            <div class="flex flex-col mt-1 min-w-0">
+            <div class="flex flex-col my-1 min-w-0">
               <span class="text-base sm:text-lg font-black text-white font-mono leading-none">${currentFlowLpm}</span>
-              <span class="text-[9px] text-emerald-300 font-bold leading-tight mt-0.5 truncate">${t('unit_lpm', 'L/min')}</span>
+              <span class="text-[8.5px] sm:text-[9px] text-emerald-300 font-bold leading-tight mt-0.5 break-words whitespace-normal">${t('unit_lpm', 'L/min')}</span>
             </div>
-            <div class="flex items-center gap-1 mt-1.5 text-[8.5px] text-emerald-300/90 leading-tight">
+            <div class="flex items-center gap-1 mt-1 text-[8px] sm:text-[8.5px] text-emerald-300/90 leading-tight">
               <span class="w-1.5 h-1.5 rounded-full shrink-0 ${activeValvesCount > 0 ? 'bg-emerald-400 animate-ping' : 'bg-slate-400'}"></span>
-              <span class="font-medium truncate">${activeValvesCount} ${t('valves_active', 'Active')}</span>
+              <span class="font-medium break-words whitespace-normal leading-none">${activeValvesCount} ${t('valves_active', 'Active')}</span>
             </div>
           </div>
 
-          <div class="bg-white/10 rounded-2xl p-2 sm:p-2.5 flex flex-col min-w-0 overflow-hidden">
+          <div class="bg-white/10 rounded-2xl p-2 sm:p-2.5 flex flex-col justify-between min-w-0">
             <span class="text-[9px] sm:text-[10px] text-emerald-200/90 font-semibold leading-tight min-h-[26px] flex items-center break-words whitespace-normal">${t('flow_session', 'Session Volume')}</span>
-            <div class="flex flex-col mt-1 min-w-0">
+            <div class="flex flex-col my-1 min-w-0">
               <span class="text-base sm:text-lg font-black text-white font-mono leading-none">${telemetry.totalLitersDeliveredAllTime.toFixed(0)}</span>
-              <span class="text-[9px] text-emerald-300 font-bold leading-tight mt-0.5 truncate">${t('liters', 'L')}</span>
+              <span class="text-[8.5px] sm:text-[9px] text-emerald-300 font-bold leading-tight mt-0.5 break-words whitespace-normal">${t('liters', 'L')}</span>
             </div>
-            <span class="text-[8.5px] text-emerald-300/90 mt-1.5 truncate font-mono">${t('latching_12v', '±12V Latch')}</span>
+            <span class="text-[8px] sm:text-[8.5px] text-emerald-300/90 mt-1 break-words whitespace-normal leading-none font-mono">${t('latching_12v', '±12V Latch')}</span>
           </div>
 
-          <div class="bg-white/10 rounded-2xl p-2 sm:p-2.5 flex flex-col min-w-0 overflow-hidden">
+          <div class="bg-white/10 rounded-2xl p-2 sm:p-2.5 flex flex-col justify-between min-w-0">
             <span class="text-[9px] sm:text-[10px] text-emerald-200/90 font-semibold leading-tight min-h-[26px] flex items-center break-words whitespace-normal">${t('flow_today', 'Daily Total')}</span>
-            <div class="flex flex-col mt-1 min-w-0">
+            <div class="flex flex-col my-1 min-w-0">
               <span class="text-base sm:text-lg font-black text-white font-mono leading-none">${telemetry.totalLitersToday.toFixed(0)}</span>
-              <span class="text-[9px] text-emerald-300 font-bold leading-tight mt-0.5 truncate">${t('liters', 'L')}</span>
+              <span class="text-[8.5px] sm:text-[9px] text-emerald-300 font-bold leading-tight mt-0.5 break-words whitespace-normal">${t('liters', 'L')}</span>
             </div>
-            <span class="text-[8.5px] text-emerald-300/90 mt-1.5 truncate font-mono">${telemetry.mainlinePressureBar.toFixed(2)} ${t('bar_line', 'Bar Line')}</span>
+            <span class="text-[8px] sm:text-[8.5px] text-emerald-300/90 mt-1 break-words whitespace-normal leading-none font-mono">${telemetry.mainlinePressureBar.toFixed(2)} ${t('bar_line', 'Bar Line')}</span>
           </div>
         </div>
       </div>
@@ -398,7 +401,7 @@ export function createIrrigationManagementView({
       <div id="add-schedule-modal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"></div>
     `;
 
-    attachEvents();
+    attachEvents(scrollParent, prevScroll);
     } catch (err) {
       console.error("[IrrigationManagementView] Safe render fallback:", err);
       container.innerHTML = `
@@ -499,7 +502,7 @@ export function createIrrigationManagementView({
     `).join('');
   }
 
-  function attachEvents() {
+  function attachEvents(scrollParent, prevScroll) {
     // Dismiss pipe burst safety alert
     container.querySelector('#dismiss-safety-alert-btn')?.addEventListener('click', () => {
       safetyAlertMessage = null;
@@ -639,6 +642,17 @@ export function createIrrigationManagementView({
     container.querySelector('#btn-add-schedule')?.addEventListener('click', () => {
       openAddScheduleModal();
     });
+
+    if (scrollParent && prevScroll > 0) {
+      scrollParent.scrollTop = prevScroll;
+      if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(() => {
+          if (scrollParent.scrollTop !== prevScroll) {
+            scrollParent.scrollTop = prevScroll;
+          }
+        });
+      }
+    }
   }
 
   function openAddValveModal() {

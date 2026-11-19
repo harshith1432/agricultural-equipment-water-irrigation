@@ -110,8 +110,15 @@ export class BackendSyncService {
    * Sync newly acquired Leaf Spectroscopy Scan to Enterprise Backend
    */
   async syncLeafScan(scanData) {
+    return this.syncSpectralScan(scanData);
+  }
+
+  /**
+   * Sync newly acquired Spectral Scan to Enterprise Backend
+   */
+  async syncSpectralScan(scanData) {
     try {
-      const res = await fetch(`${this.backendUrl}/api/leaf-scans`, {
+      const res = await fetch(`${this.backendUrl}/api/spectral/scans`, {
         method: 'POST',
         headers: this._getAuthHeaders(),
         body: JSON.stringify(scanData),
@@ -121,7 +128,7 @@ export class BackendSyncService {
         return await res.json();
       }
     } catch (e) {
-      console.warn("[BackendSyncService] Leaf scan sync offline fallback:", e.message);
+      console.warn("[BackendSyncService] Spectral scan sync offline fallback:", e.message);
     }
     return { received: false, localFallback: true };
   }

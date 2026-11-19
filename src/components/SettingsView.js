@@ -99,6 +99,9 @@ export function createSettingsView({
   }
 
   function render() {
+    const scrollParent = container.closest('main') || container.parentElement;
+    const prevScroll = scrollParent ? scrollParent.scrollTop : 0;
+
     const user = currentUser || authService.getCurrentUser() || {
       displayName: "Grower",
       email: "grower@agrispectra.io",
@@ -695,6 +698,17 @@ export function createSettingsView({
     `;
 
     attachEvents();
+
+    if (scrollParent && prevScroll > 0) {
+      scrollParent.scrollTop = prevScroll;
+      if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(() => {
+          if (scrollParent.scrollTop !== prevScroll) {
+            scrollParent.scrollTop = prevScroll;
+          }
+        });
+      }
+    }
   }
 
   function attachEvents() {

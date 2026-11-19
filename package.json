@@ -19,6 +19,7 @@
     "monitor:security": "node scripts/security-monitor.js"
   },
   "dependencies": {
+    "@capacitor-community/bluetooth-le": "^8.4.0",
     "@capacitor-firebase/authentication": "^8.6.0",
     "@capacitor/android": "^8.6.2",
     "@capacitor/cli": "^8.6.2",

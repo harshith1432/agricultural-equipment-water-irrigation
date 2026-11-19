@@ -66,6 +66,43 @@ export function registerMultilingualVerificationTests() {
         });
       });
     });
+
+    it('verifies guided calibration sequence and specimen metadata keys across all 8 languages', () => {
+      const calibrationKeys = [
+        'step_dark_calibration_title',
+        'step_dark_calibration_desc',
+        'step_white_calibration_title',
+        'step_white_calibration_desc',
+        'step_metadata_title',
+        'step_metadata_desc',
+        'label_plant_number',
+        'label_port_number',
+        'label_plant_name',
+        'placeholder_plant_number',
+        'placeholder_port_number',
+        'placeholder_plant_name',
+        'step_leaf_scan_title',
+        'step_leaf_scan_desc',
+        'btn_capture_dark',
+        'btn_capture_white',
+        'btn_start_leaf_scan',
+        'calibration_required_badge',
+        'calibration_ready_badge'
+      ];
+
+      TARGET_LOCALES.forEach(locale => {
+        const dict = DICTIONARY[locale];
+        expect(dict).toBeDefined();
+        calibrationKeys.forEach(key => {
+          const val = dict[key];
+          if (!val) {
+            throw new Error(`Missing calibration key "${key}" in locale "${locale}"`);
+          }
+          expect(typeof val).toBe('string');
+          expect(val.trim().length).toBeGreaterThan(0);
+        });
+      });
+    });
   });
 
   // Execute 3 consecutive complete test cycles

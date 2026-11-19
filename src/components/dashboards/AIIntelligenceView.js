@@ -41,6 +41,9 @@ export function createAIIntelligenceView({
 
   function render() {
     try {
+      const scrollParent = container.closest('main') || container.parentElement;
+      const prevScroll = scrollParent ? scrollParent.scrollTop : 0;
+
       const recs = getActiveRecommendations();
       const pendingRecs = recs.filter(r => r?.status === 'PENDING' && !dismissedActions.has(r.id));
 
@@ -289,7 +292,7 @@ export function createAIIntelligenceView({
       synHost.appendChild(synergyCard);
     }
 
-    attachEvents();
+    attachEvents(scrollParent, prevScroll);
     } catch (err) {
       console.error("[AIIntelligenceView] Safe render fallback:", err);
       container.innerHTML = `
@@ -308,7 +311,7 @@ export function createAIIntelligenceView({
     }
   }
 
-  function attachEvents() {
+  function attachEvents(scrollParent, prevScroll) {
     container.querySelectorAll('.rec-exec-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
         const id = btn.getAttribute('data-rec-id');
@@ -335,6 +338,17 @@ export function createAIIntelligenceView({
         }
       });
     });
+
+    if (scrollParent && prevScroll > 0) {
+      scrollParent.scrollTop = prevScroll;
+      if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(() => {
+          if (scrollParent.scrollTop !== prevScroll) {
+            scrollParent.scrollTop = prevScroll;
+          }
+        });
+      }
+    }
   }
 
   onLocaleChange(() => render());

@@ -45,6 +45,9 @@ export function createFieldOverviewDashboard({
 
   function render() {
     try {
+      const scrollParent = container.closest('main') || container.parentElement;
+      const prevScroll = scrollParent ? scrollParent.scrollTop : 0;
+
       const valves = irrigationControllerAdapter.getAllValves ? irrigationControllerAdapter.getAllValves() : [];
       const openValvesCount = valves.filter(v => v.state === VALVE_STATES.OPEN).length;
       const pressure = telemetryMetrics.mainlinePressureBar || 2.42;
@@ -203,7 +206,7 @@ export function createFieldOverviewDashboard({
                 <span class="w-2 h-2 rounded-full ${pressure > 3.0 ? 'bg-rose-500 animate-ping' : 'bg-emerald-500'}"></span>
               </div>
               <div class="flex items-baseline gap-1 mt-1">
-                <span class="text-2xl font-black font-mono text-slate-900 dark:text-white">${pressure}</span>
+                <span id="dash-kpi-pressure" class="text-2xl font-black font-mono text-slate-900 dark:text-white">${pressure}</span>
                 <span class="text-xs font-mono text-slate-500">Bar</span>
               </div>
               <span class="text-[10px] text-slate-400 font-mono block">${t('piezo_resistive', 'Piezo-Resistive')}</span>
@@ -231,7 +234,7 @@ export function createFieldOverviewDashboard({
                 <span class="text-[10px] text-blue-600 font-mono font-bold">${activeFlow} L/hr</span>
               </div>
               <div class="flex items-baseline gap-1 mt-1">
-                <span class="text-2xl font-black font-mono text-blue-600 dark:text-blue-400">${consumedLiters.toLocaleString()}</span>
+                <span id="dash-kpi-volume" class="text-2xl font-black font-mono text-blue-600 dark:text-blue-400">${consumedLiters.toLocaleString()}</span>
                 <span class="text-xs font-mono text-slate-500">${t('liters', 'Liters')}</span>
               </div>
               <span class="text-[10px] text-slate-400 font-mono block">${t('gates_cumulative', '6 Gates Cumulative')}</span>
@@ -442,6 +445,15 @@ export function createFieldOverviewDashboard({
     }
 
     attachEvents();
+
+    if (scrollParent && prevScroll > 0) {
+      scrollParent.scrollTop = prevScroll;
+      requestAnimationFrame(() => {
+        if (scrollParent.scrollTop !== prevScroll) {
+          scrollParent.scrollTop = prevScroll;
+        }
+      });
+    }
     } catch (err) {
       console.error("[FieldOverviewDashboard] Safe render fallback:", err);
       container.innerHTML = `
@@ -549,6 +561,18 @@ export function createFieldOverviewDashboard({
       });
     });
   }
+
+  // Non-destructive in-place dynamic metric update without wiping innerHTML
+  container.updateTelemetry = function(metrics = {}) {
+    if (metrics.mainlinePressureBar !== undefined) {
+      const pEl = container.querySelector('#dash-kpi-pressure');
+      if (pEl) pEl.textContent = metrics.mainlinePressureBar;
+    }
+    if (metrics.consumedLitersToday !== undefined) {
+      const vEl = container.querySelector('#dash-kpi-volume');
+      if (vEl) vEl.textContent = Number(metrics.consumedLitersToday).toLocaleString();
+    }
+  };
 
   // Subscribe to live location and weather updates
   const unsubLocation = locationService.on('locationUpdated', () => render());

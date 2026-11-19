@@ -253,7 +253,11 @@ class SchemaManager {
       const auditStatus = await this.ensureAuditLogsCollection(db);
       tableStatuses.push({ table: 'audit_logs', ...auditStatus });
 
-      // 7. Load database state into in-memory stores for zero-latency queries
+      // 7. Check Root Collection: 'spectral_scans'
+      const spectralStatus = await this.ensureSpectralScansCollection(db);
+      tableStatuses.push({ table: 'spectral_scans', ...spectralStatus });
+
+      // 8. Load database state into in-memory stores for zero-latency queries
       await this.syncDatabaseStateToMemory(db);
 
       this.isInitialized = true;
@@ -355,6 +359,40 @@ class SchemaManager {
           canopyWaterIndex: 0.81,
           stressDetected: false,
           healthStatus: 'OPTIMAL',
+          timestamp: new Date().toISOString()
+        }, { merge: true });
+      }
+
+      // Check subcollection: spectralScans
+      const specCol = farmRef.collection('spectralScans');
+      const specSnap = await specCol.limit(1).get();
+      if (specSnap.empty) {
+        await specCol.doc('scan-20261119-042').set({
+          id: 'scan-20261119-042',
+          plantNumber: 'PLANT-042',
+          portNumber: 'PORT-08',
+          plantName: 'Roma Tomato',
+          plotId: 'plot-1',
+          plotNumber: 1,
+          crop: 'tomato',
+          calibrationRef: {
+            darkCurrent: 0.012,
+            whiteReference: 0.985,
+            calibratedAt: new Date().toISOString()
+          },
+          rawReflectance: Array.from({ length: 76 }, (_, i) => Number((0.05 + 0.6 * Math.sin((i / 75) * Math.PI)).toFixed(4))),
+          indices: {
+            ndvi: 0.78,
+            ndre: 0.35,
+            wbi: 0.92,
+            cire: 2.15,
+            vitality: 88,
+            lwi: 0.94
+          },
+          nitrogenPrescriptionKg: 0.0,
+          irrigationNeedHours: 36,
+          diseaseRisk: 'HEALTHY_OPTIMAL',
+          hardwareLink: 'BLE_NUS',
           timestamp: new Date().toISOString()
         }, { merge: true });
       }
@@ -512,6 +550,52 @@ class SchemaManager {
     }
 
     this.verifiedTables.add('audit_logs');
+    return { exists, status: 'ready' };
+  }
+
+  /**
+   * 7. Ensure 'spectral_scans' collection
+   */
+  async ensureSpectralScansCollection(db) {
+    const col = db.collection('spectral_scans');
+    const snap = await col.limit(1).get();
+    const exists = !snap.empty;
+
+    if (!exists) {
+      console.log("[SchemaManager] ⚡ Collection 'spectral_scans' not found. Creating table with baseline 76-band specimen scan...");
+      await col.doc('scan-20261119-042').set({
+        id: "scan-20261119-042",
+        plantNumber: "PLANT-042",
+        portNumber: "PORT-08",
+        plantName: "Roma Tomato",
+        plotId: "plot-1",
+        plotNumber: 1,
+        crop: "tomato",
+        calibrationRef: {
+          darkCurrent: 0.012,
+          whiteReference: 0.985,
+          calibratedAt: new Date().toISOString()
+        },
+        rawReflectance: Array.from({ length: 76 }, (_, i) => Number((0.05 + 0.6 * Math.sin((i / 75) * Math.PI)).toFixed(4))),
+        indices: {
+          ndvi: 0.78,
+          ndre: 0.35,
+          wbi: 0.92,
+          cire: 2.15,
+          vitality: 88,
+          lwi: 0.94
+        },
+        nitrogenPrescriptionKg: 0.0,
+        irrigationNeedHours: 36,
+        diseaseRisk: "HEALTHY_OPTIMAL",
+        hardwareLink: "BLE_NUS",
+        timestamp: new Date().toISOString()
+      }, { merge: true });
+    } else {
+      console.log("[SchemaManager] ✓ Collection 'spectral_scans' exists and active.");
+    }
+
+    this.verifiedTables.add('spectral_scans');
     return { exists, status: 'ready' };
   }
 
@@ -775,6 +859,100 @@ class SchemaManager {
     };
     await this.saveUserData('audit_logs', docId, log, { merge: true });
     return log;
+  }
+
+  /**
+   * Ingest and persist spectral scan (VIS-NIR 350nm-1100nm, 76 bands, specimen metadata)
+   * Auto-creates 'spectral_scans' table if not existing, fills data, and updates farm subcollection
+   */
+  async saveSpectralScan(scanData) {
+    const timestamp = scanData.timestamp || scanData.scannedAt || new Date().toISOString();
+    const id = scanData.id || `scan-${timestamp.slice(0, 10).replace(/-/g, '')}-${String(Math.floor(Math.random() * 900) + 100)}`;
+    const plotId = scanData.plotId || "plot-1";
+    const plotNumber = Number(scanData.plotNumber || (plotId.match(/\d+/) ? parseInt(plotId.match(/\d+/)[0], 10) : 1));
+    const plantNumber = String(scanData.plantNumber || `PLANT-${String(plotNumber).padStart(3, '0')}`);
+    const portNumber = String(scanData.portNumber || `PORT-0${plotNumber}`);
+    const plantName = String(scanData.plantName || scanData.crop || "Specimen Plant");
+    const farmId = scanData.farmId || "farm-valley-1";
+    const crop = String(scanData.crop || "tomato");
+
+    const calibrationRef = scanData.calibrationRef || {
+      darkCurrent: Number(scanData.calibrationRef?.darkCurrent ?? 0.015),
+      whiteReference: Number(scanData.calibrationRef?.whiteReference ?? 0.985),
+      calibratedAt: scanData.calibrationRef?.calibratedAt || timestamp
+    };
+
+    const indices = {
+      ndvi: Number(scanData.indices?.ndvi ?? scanData.ndvi ?? 0.75),
+      ndre: Number(scanData.indices?.ndre ?? scanData.ndre ?? 0.32),
+      wbi: Number(scanData.indices?.wbi ?? scanData.wbi ?? 0.92),
+      cire: Number(scanData.indices?.cire ?? scanData.cire ?? 2.10),
+      vitality: Number(scanData.indices?.vitality ?? scanData.vitalityScore ?? scanData.vitality ?? 85),
+      lwi: Number(scanData.indices?.lwi ?? scanData.indices?.leafWaterIndex ?? scanData.leafWaterIndex ?? 0.92)
+    };
+
+    const rawReflectance = Array.isArray(scanData.rawReflectance) && scanData.rawReflectance.length === 76
+      ? scanData.rawReflectance.map(v => Number(Number(v).toFixed(4)))
+      : (Array.isArray(scanData.rawReflectance) && scanData.rawReflectance.length > 0
+          ? scanData.rawReflectance.map(v => Number(Number(v).toFixed(4)))
+          : Array.from({ length: 76 }, (_, i) => Number((0.05 + 0.6 * Math.sin((i / 75) * Math.PI)).toFixed(4))));
+
+    const nitrogenPrescriptionKg = Number(scanData.nitrogenPrescriptionKg ?? 0);
+    const irrigationNeedHours = Number(scanData.irrigationNeedHours ?? (indices.lwi < 0.82 ? 4 : (indices.lwi < 0.89 ? 18 : 36)));
+    const diseaseRisk = typeof scanData.diseaseRisk === 'string' ? scanData.diseaseRisk : (scanData.diseaseRisk?.pathogen || "HEALTHY_OPTIMAL");
+    const hardwareLink = ["BLE_NUS", "USB_SERIAL", "SIMULATED"].includes(scanData.hardwareLink) ? scanData.hardwareLink : (scanData.sourceMode || "SIMULATED");
+
+    const record = {
+      id,
+      plantNumber,
+      portNumber,
+      plantName,
+      plotId,
+      plotNumber,
+      crop,
+      calibrationRef,
+      rawReflectance,
+      indices,
+      nitrogenPrescriptionKg,
+      irrigationNeedHours,
+      diseaseRisk,
+      hardwareLink,
+      timestamp
+    };
+
+    // Auto-create/save to root spectral_scans table
+    await this.saveUserData('spectral_scans', id, record, { merge: true });
+
+    // Auto-create/save to farm subcollection
+    await this.saveUserData(`farms/${farmId}/spectralScans`, id, record, { merge: true });
+
+    // Update centralStorage in-memory model
+    try {
+      centralStorage.addSpectroScan({
+        id,
+        farmId,
+        plotId,
+        crop,
+        timestamp,
+        connectionMode: hardwareLink,
+        source: hardwareLink,
+        rawIntensities: rawReflectance,
+        chemometrics: {
+          ndvi: indices.ndvi,
+          ndre: indices.ndre,
+          leafWaterIndex: indices.lwi,
+          cire: indices.cire,
+          vitalityScore: indices.vitality,
+          nitrogenPrescriptionKg,
+          irrigationCountdownHours: irrigationNeedHours,
+          diseaseRisk: { pathogen: diseaseRisk }
+        }
+      });
+    } catch (e) {
+      // Non-fatal
+    }
+
+    return record;
   }
 }
 

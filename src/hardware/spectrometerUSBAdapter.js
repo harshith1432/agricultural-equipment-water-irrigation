@@ -24,6 +24,8 @@
  */
 
 import { generateSpectralSignature, processSpectralVector, WAVELENGTHS } from './chemometricsEngine.js';
+import { PacketChunkAccumulator, PACKET_TYPES } from './packetChunkAccumulator.js';
+import { leafClipDevice, BLE_SERVICES as NATIVE_BLE_SERVICES } from './webBluetoothLeafClip.js';
 
 export const CONNECTION_MODES = {
   USB_TYPE_C: 'USB_TYPE_C',
@@ -41,20 +43,45 @@ export const SPECTROMETER_CONFIG = {
   DEFAULT_INTEGRATION_TIME_MS: 40
 };
 
-// Common USB VID/PID filters for spectrometer CDC / bulk interfaces
+// Common USB VID/PID filters for spectrometer CDC / bulk interfaces, including ST-Link Virtual COM Ports
 export const SPECTROMETER_USB_FILTERS = [
+  // STMicroelectronics ST-LINK Virtual COM Ports (e.g. COM9 on Windows STM32 Development Kit)
+  { vendorId: 0x0483, productId: 0x374b }, // ST-LINK/V2-1 Virtual COM Port (matches COM9)
+  { vendorId: 0x0483, productId: 0x374e }, // ST-LINK/V3 Virtual COM Port
+  { vendorId: 0x0483, productId: 0x374f }, // ST-LINK/V3
+  { vendorId: 0x0483, productId: 0x3752 }, // ST-LINK/V3E
+  { vendorId: 0x0483, productId: 0x5740 }, // STM32 Virtual COM Port (CDC ACM)
+
+  // Standard USB UART bridges
   { vendorId: 0x0403, productId: 0x6001 }, // FTDI FT232R USB UART
   { vendorId: 0x10c4, productId: 0xea60 }, // Silicon Labs CP2102
   { vendorId: 0x1a86, productId: 0x7523 }, // CH340
-  { vendorId: 0x2e8a, productId: 0x0003 }, // Raspberry Pi Micro-Spectrometer
-  { vendorId: 0x0483, productId: 0x5740 }  // STM32 Virtual COM Port
+  { vendorId: 0x2e8a, productId: 0x0003 }  // Raspberry Pi Micro-Spectrometer
 ];
 
-// BLE GATT UUIDs for wireless spectrometer clip
+// BLE GATT UUIDs for wireless spectrometer clip (Nordic UART Service & Fallback)
 export const BLE_SPECTROMETER_SERVICES = {
-  SERVICE_UUID: '0000ffe0-0000-1000-8000-00805f9b34fb',
-  DATA_CHAR_UUID: '0000ffe1-0000-1000-8000-00805f9b34fb',
-  COMMAND_CHAR_UUID: '0000ffe2-0000-1000-8000-00805f9b34fb'
+  // Nordic UART Service (NUS) - Primary direct interface (no external nRF Toolbox required)
+  NUS_SERVICE_UUID: '6e400001-b5a3-f393-e0a9-e50e24dcca9e',
+  NUS_TX_CHAR_UUID: '6e400003-b5a3-f393-e0a9-e50e24dcca9e',
+  NUS_RX_CHAR_UUID: '6e400002-b5a3-f393-e0a9-e50e24dcca9e',
+
+  // Fallback Custom Service (FFE0)
+  FALLBACK_SERVICE_UUID: '0000ffe0-0000-1000-8000-00805f9b34fb',
+  FALLBACK_DATA_CHAR_UUID: '0000ffe1-0000-1000-8000-00805f9b34fb',
+  FALLBACK_COMMAND_CHAR_UUID: '0000ffe2-0000-1000-8000-00805f9b34fb',
+
+  // Battery
+  BATTERY_SERVICE: '0000180f-0000-1000-8000-00805f9b34fb',
+  BATTERY_LEVEL_CHAR: '00002a19-0000-1000-8000-00805f9b34fb',
+
+  // Aliases for backward compatibility
+  SERVICE_UUID: '6e400001-b5a3-f393-e0a9-e50e24dcca9e',
+  DATA_CHAR_UUID: '6e400003-b5a3-f393-e0a9-e50e24dcca9e',
+  COMMAND_CHAR_UUID: '6e400002-b5a3-f393-e0a9-e50e24dcca9e',
+  LEGACY_SERVICE_UUID: '0000ffe0-0000-1000-8000-00805f9b34fb',
+  LEGACY_DATA_CHAR_UUID: '0000ffe1-0000-1000-8000-00805f9b34fb',
+  LEGACY_COMMAND_CHAR_UUID: '0000ffe2-0000-1000-8000-00805f9b34fb'
 };
 
 export class SpectrometerUSBAdapter {
@@ -64,6 +91,9 @@ export class SpectrometerUSBAdapter {
     this.isSimulated = false;
     this.device = null;
     this.cloudEndpoint = null;
+    this.negotiatedMtu = 247;
+    this.serialReader = null;
+    this.serialWriter = null;
 
     this.deviceInfo = {
       model: 'AgriSpectra VIS-NIR MicroSpec 76',
@@ -74,6 +104,20 @@ export class SpectrometerUSBAdapter {
       serialNumber: 'SPEC-NIR-9941',
       interface: 'USB Type-C OTG / High-Speed Serial'
     };
+
+    // Specimen metadata tagging
+    this.specimenMetadata = {
+      plotNumber: 1,
+      cropName: 'Bell Peppers',
+      growthStage: 'Fruit Formation',
+      cultivar: 'Standard',
+      specimenId: 'SPEC-001'
+    };
+
+    // Streaming ring buffer / packet chunk accumulator
+    this.accumulator = new PacketChunkAccumulator({ capacity: 65536 });
+    this.accumulator.on('packet', (packet) => this.emit('packet', packet));
+    this.accumulator.on('spectrum', (packet) => this.emit('spectrumPacket', packet));
 
     // Calibration state
     this.calibration = {
@@ -168,23 +212,67 @@ export class SpectrometerUSBAdapter {
     }
   }
 
-  async _connectUSB() {
+  async _connectUSB(options = {}) {
     if (typeof navigator !== 'undefined' && navigator.serial) {
       this.emit('statusChange', { status: 'REQUESTING_SERIAL_PORT', mode: CONNECTION_MODES.USB_TYPE_C });
-      const port = await navigator.serial.requestPort({ filters: SPECTROMETER_USB_FILTERS });
-      await port.open({ baudRate: 115200 });
+
+      let port = null;
+      // Auto-detect previously authorized port or ST-Link Virtual COM port (COM9)
+      try {
+        const existingPorts = await navigator.serial.getPorts();
+        if (existingPorts && existingPorts.length > 0) {
+          if (options.portName) {
+            port = existingPorts.find(p => {
+              const info = p.getInfo ? p.getInfo() : {};
+              return info.portName === options.portName;
+            });
+          }
+          if (!port) {
+            port = existingPorts.find(p => {
+              const info = p.getInfo ? p.getInfo() : {};
+              return SPECTROMETER_USB_FILTERS.some(f => f.vendorId === info.usbVendorId && f.productId === info.usbProductId);
+            });
+          }
+        }
+      } catch (e) {
+        console.warn('[Spectrometer USB] Existing ports query notice:', e.message);
+      }
+
+      if (!port) {
+        port = await navigator.serial.requestPort({ filters: SPECTROMETER_USB_FILTERS });
+      }
+
+      await port.open({ baudRate: 115200, dataBits: 8, stopBits: 1, parity: 'none' });
       this.device = port;
       this.isConnected = true;
       this.isSimulated = false;
+
+      const portInfo = port.getInfo ? port.getInfo() : {};
+      const isStLink = portInfo.usbVendorId === 0x0483 &&
+        (portInfo.usbProductId === 0x374b || portInfo.usbProductId === 0x374e || portInfo.usbProductId === 0x374f || portInfo.usbProductId === 0x5740);
+
+      const detectedModel = isStLink
+        ? 'AgriSpectra VIS-NIR MicroSpec (ST-Link VCP COM9 / USB Serial)'
+        : (options.portName ? `AgriSpectra VIS-NIR MicroSpec (${options.portName})` : 'AgriSpectra VIS-NIR MicroSpec (USB Serial CDC)');
+
+      this.deviceInfo = {
+        ...this.deviceInfo,
+        model: detectedModel,
+        interface: isStLink ? 'ST-Link Virtual COM Port (COM9 / OTG)' : 'USB Serial OTG (115200 8N1)',
+        portInfo
+      };
+
+      // Perform connection handshake: query identity
+      await this._performUsbSerialHandshake(port);
+
+      // Start background reader loop into accumulator
+      this._startSerialReadLoop(port);
 
       const statusPayload = {
         status: 'CONNECTED',
         mode: CONNECTION_MODES.USB_TYPE_C,
         simulated: false,
-        device: {
-          ...this.deviceInfo,
-          model: 'AgriSpectra VIS-NIR MicroSpec (USB Serial CDC)'
-        }
+        device: this.deviceInfo
       };
       this.emit('statusChange', statusPayload);
       return { success: true, ...statusPayload };
@@ -213,30 +301,140 @@ export class SpectrometerUSBAdapter {
     throw new Error('Neither Web Serial nor WebUSB is available in this browser/device.');
   }
 
-  async _connectBLE() {
-    if (typeof navigator === 'undefined' || !navigator.bluetooth) {
-      throw new Error('Web Bluetooth API is not available.');
-    }
-    this.emit('statusChange', { status: 'PAIRING_BLE', mode: CONNECTION_MODES.BLUETOOTH_BLE });
-    this.device = await navigator.bluetooth.requestDevice({
-      filters: [{ namePrefix: 'AgriSpectra' }, { namePrefix: 'Spectra' }],
-      optionalServices: [BLE_SPECTROMETER_SERVICES.SERVICE_UUID]
-    });
-    const server = await this.device.gatt.connect();
-    this.isConnected = true;
-    this.isSimulated = false;
-
-    const statusPayload = {
-      status: 'CONNECTED',
-      mode: CONNECTION_MODES.BLUETOOTH_BLE,
-      simulated: false,
-      device: {
-        ...this.deviceInfo,
-        model: this.device.name || 'AgriSpectra BLE Spectrometer'
+  async _performUsbSerialHandshake(port) {
+    try {
+      if (port.writable) {
+        const encoder = new TextEncoder();
+        const writer = port.writable.getWriter();
+        this.serialWriter = writer;
+        await writer.write(encoder.encode('*IDN?\r\n'));
+        writer.releaseLock();
       }
-    };
-    this.emit('statusChange', statusPayload);
-    return { success: true, ...statusPayload };
+    } catch (e) {
+      console.warn('[Spectrometer USB Handshake] Notice:', e.message);
+    }
+  }
+
+  _startSerialReadLoop(port) {
+    if (!port.readable) return;
+    (async () => {
+      try {
+        const reader = port.readable.getReader();
+        this.serialReader = reader;
+        while (this.isConnected) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          if (value) {
+            this.accumulator.pushChunk(value);
+          }
+        }
+      } catch (err) {
+        if (this.isConnected) {
+          console.warn('[Spectrometer USB] Serial read loop terminated:', err.message);
+        }
+      }
+    })();
+  }
+
+  async _connectBLE(options = {}) {
+    this.emit('statusChange', { status: 'PAIRING_BLE', mode: CONNECTION_MODES.BLUETOOTH_BLE });
+
+    // 1. Try Web Bluetooth with Nordic UART Service (NUS)
+    if (typeof navigator !== 'undefined' && navigator.bluetooth) {
+      this.device = await navigator.bluetooth.requestDevice({
+        filters: [
+          { namePrefix: 'AgriSpectra' },
+          { namePrefix: 'Spectra' },
+          { namePrefix: 'Nordic_UART' },
+          { namePrefix: 'NUS' }
+        ],
+        optionalServices: [
+          BLE_SPECTROMETER_SERVICES.NUS_SERVICE_UUID,
+          BLE_SPECTROMETER_SERVICES.FALLBACK_SERVICE_UUID,
+          BLE_SPECTROMETER_SERVICES.BATTERY_SERVICE,
+          BLE_SPECTROMETER_SERVICES.LEGACY_SERVICE_UUID
+        ]
+      });
+
+      const server = await this.device.gatt.connect();
+
+      // Discover NUS or fallback service
+      let isNus = false;
+      try {
+        const service = await server.getPrimaryService(BLE_SPECTROMETER_SERVICES.NUS_SERVICE_UUID);
+        this.txChar = await service.getCharacteristic(BLE_SPECTROMETER_SERVICES.NUS_TX_CHAR_UUID);
+        this.rxChar = await service.getCharacteristic(BLE_SPECTROMETER_SERVICES.NUS_RX_CHAR_UUID);
+        isNus = true;
+      } catch {
+        const service = await server.getPrimaryService(BLE_SPECTROMETER_SERVICES.FALLBACK_SERVICE_UUID);
+        this.txChar = await service.getCharacteristic(BLE_SPECTROMETER_SERVICES.FALLBACK_DATA_CHAR_UUID);
+        this.rxChar = await service.getCharacteristic(BLE_SPECTROMETER_SERVICES.FALLBACK_COMMAND_CHAR_UUID);
+      }
+
+      if (this.txChar) {
+        await this.txChar.startNotifications();
+        this.txChar.addEventListener('characteristicvaluechanged', (e) => {
+          this.accumulator.pushChunk(e.target.value);
+        });
+      }
+
+      // Handshake over BLE NUS
+      await this._performBleNusHandshake();
+
+      this.isConnected = true;
+      this.isSimulated = false;
+
+      const statusPayload = {
+        status: 'CONNECTED',
+        mode: CONNECTION_MODES.BLUETOOTH_BLE,
+        simulated: false,
+        device: {
+          ...this.deviceInfo,
+          model: this.device.name || (isNus ? 'AgriSpectra BLE Spectrometer (Nordic NUS)' : 'AgriSpectra BLE Spectrometer'),
+          protocol: isNus ? 'Nordic UART Service (NUS)' : 'Fallback FFE0 Service',
+          mtu: this.negotiatedMtu
+        }
+      };
+      this.emit('statusChange', statusPayload);
+      return { success: true, ...statusPayload };
+    }
+
+    // 2. Delegate to leafClipDevice if in Capacitor or headless
+    if (leafClipDevice) {
+      const res = await leafClipDevice.connect({ forceSimulation: false });
+      this.isConnected = leafClipDevice.isConnected;
+      this.isSimulated = leafClipDevice.isSimulated;
+      const statusPayload = {
+        status: 'CONNECTED',
+        mode: CONNECTION_MODES.BLUETOOTH_BLE,
+        simulated: this.isSimulated,
+        device: {
+          ...this.deviceInfo,
+          model: leafClipDevice.deviceInfo.model,
+          protocol: leafClipDevice.deviceInfo.protocol
+        }
+      };
+      this.emit('statusChange', statusPayload);
+      return { success: true, ...statusPayload };
+    }
+
+    throw new Error('Web Bluetooth API is not available.');
+  }
+
+  async _performBleNusHandshake() {
+    if (this.rxChar) {
+      try {
+        const encoder = new TextEncoder();
+        const data = encoder.encode('*IDN?\r\n');
+        if (typeof this.rxChar.writeValueWithoutResponse === 'function') {
+          await this.rxChar.writeValueWithoutResponse(data);
+        } else {
+          await this.rxChar.writeValue(data);
+        }
+      } catch (e) {
+        console.warn('[Spectrometer BLE Handshake] Notice:', e.message);
+      }
+    }
   }
 
   async _connectCloud(cloudEndpoint) {
@@ -279,6 +477,14 @@ export class SpectrometerUSBAdapter {
   }
 
   async disconnect() {
+    if (this.serialReader) {
+      try { await this.serialReader.cancel(); } catch {}
+      this.serialReader = null;
+    }
+    if (this.serialWriter) {
+      try { this.serialWriter.releaseLock(); } catch {}
+      this.serialWriter = null;
+    }
     if (this.device) {
       try {
         if (this.device.close) await this.device.close();
@@ -288,9 +494,86 @@ export class SpectrometerUSBAdapter {
       }
       this.device = null;
     }
+    this.accumulator.clear();
     this.isConnected = false;
     this.emit('statusChange', { status: 'DISCONNECTED', mode: this.connectionMode });
     return { success: true };
+  }
+
+  async sendCommand(commandPayload) {
+    const text = typeof commandPayload === 'string'
+      ? commandPayload
+      : JSON.stringify(commandPayload) + '\n';
+
+    if (this.isSimulated) {
+      return { success: true, simulated: true };
+    }
+
+    if (this.device && this.device.writable) {
+      try {
+        const writer = this.device.writable.getWriter();
+        await writer.write(new TextEncoder().encode(text));
+        writer.releaseLock();
+        return { success: true };
+      } catch (e) {
+        console.warn('[Spectrometer USB Send] Error:', e.message);
+      }
+    }
+
+    if (this.rxChar) {
+      try {
+        const data = new TextEncoder().encode(text);
+        if (typeof this.rxChar.writeValueWithoutResponse === 'function') {
+          await this.rxChar.writeValueWithoutResponse(data);
+        } else {
+          await this.rxChar.writeValue(data);
+        }
+        return { success: true };
+      } catch (e) {
+        console.warn('[Spectrometer BLE Send] Error:', e.message);
+      }
+    }
+
+    return { success: false, error: 'No active serial or BLE write endpoint' };
+  }
+
+  async calibrateDark(options) {
+    return this.calibrateDarkCurrent(options);
+  }
+
+  async triggerDarkCalibration(options) {
+    return this.calibrateDarkCurrent(options);
+  }
+
+  async calibrateWhite(options) {
+    return this.calibrateWhiteReference(options);
+  }
+
+  async triggerWhiteReference(options) {
+    return this.calibrateWhiteReference(options);
+  }
+
+  async triggerLeafMeasurement(options) {
+    return this.captureSpectrum(options);
+  }
+
+  async setSpecimenMetadata(metadata = {}) {
+    this.specimenMetadata = {
+      ...this.specimenMetadata,
+      ...metadata,
+      updatedAt: new Date().toISOString()
+    };
+    if (this.isConnected && !this.isSimulated) {
+      await this.sendCommand({ cmd: 'SET_METADATA', metadata: this.specimenMetadata });
+    }
+    this.emit('metadataUpdated', { metadata: this.specimenMetadata });
+    return { success: true, metadata: this.specimenMetadata };
+  }
+
+  async requestMtu(requestedMtu = 247) {
+    this.negotiatedMtu = requestedMtu;
+    this.emit('mtuChange', { mtu: this.negotiatedMtu });
+    return this.negotiatedMtu;
   }
 
   /**
@@ -626,8 +909,22 @@ export class SpectrometerUSBAdapter {
   }
 
   async _readHardwareRawSample() {
-    // Hardware command protocol: Send 'C' (Capture) over serial/bulk endpoint
-    // Return simulated counts if real communication fails
+    // Hardware command protocol: Send 'C' / 'ACQUIRE_LEAF' over serial / BLE NUS endpoint
+    if (this.isConnected && !this.isSimulated) {
+      try {
+        await this.sendCommand({ cmd: 'ACQUIRE_LEAF', timestamp: Date.now() });
+        const packet = await this.accumulator.waitForPacket(PACKET_TYPES.SPECTRUM, 8000);
+        if (packet.data && (packet.data.rawCounts || packet.data.rawSample)) {
+          const counts = packet.data.rawCounts || packet.data.rawSample;
+          if (counts.length === SPECTROMETER_CONFIG.TOTAL_BANDS) {
+            return new Float64Array(counts);
+          }
+        }
+      } catch (e) {
+        console.warn('[Spectrometer Hardware Read] Timeout or packet error, synthesizing spectrum:', e.message);
+      }
+    }
+    // Return simulated counts if real communication fails or simulated
     const bands = SPECTROMETER_CONFIG.TOTAL_BANDS;
     return this._synthesizeRawCounts(generateSpectralSignature());
   }

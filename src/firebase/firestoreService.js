@@ -603,11 +603,55 @@ export class FirestoreDataService {
   }
 
   // =========================================================================
-  // 4. Leaf Spectroscopy Scans: farms/{farmId}/leafScans/{scanId}
+  // 4. Spectral Scans: farms/{farmId}/spectralScans/{scanId} & leafScans
   // =========================================================================
 
   /**
-   * Subscribe to Leaf Spectroscopy Scans
+   * Subscribe to Spectral Scans
+   * Supports subscribeSpectralScans(callback) or subscribeSpectralScans(callback, farmId) or subscribeSpectralScans(farmId, callback)
+   */
+  subscribeSpectralScans(arg1, arg2) {
+    let callback, farmId;
+    if (typeof arg1 === 'function') {
+      callback = arg1;
+      farmId = arg2 || this.currentFarmId;
+    } else {
+      farmId = arg1 || this.currentFarmId;
+      callback = arg2;
+    }
+
+    if (!farmId) {
+      if (typeof callback === 'function') callback([]);
+      return () => {};
+    }
+
+    if (this.useLive) {
+      try {
+        const scansRef = collection(this.db, "farms", farmId, "spectralScans");
+        const q = query(scansRef, orderBy("timestamp", "desc"), limit(100));
+        return onSnapshot(q, (snapshot) => {
+          if (snapshot.empty) {
+            callback(mockFirestore.getChannelSnapshot('spectralScans', farmId));
+            return;
+          }
+          const scans = [];
+          snapshot.forEach((doc) => {
+            scans.push({ id: doc.id, ...doc.data() });
+          });
+          callback(scans);
+        }, (err) => {
+          console.warn("[FirestoreService] Error reading spectral scans from Cloud Firestore:", err.message);
+          mockFirestore.subscribe('spectralScans', callback);
+        });
+      } catch (err) {
+        console.warn("[FirestoreService] Spectral scans subscription init error:", err.message);
+      }
+    }
+    return mockFirestore.subscribe('spectralScans', callback);
+  }
+
+  /**
+   * Subscribe to Leaf Spectroscopy Scans (Backward Compatibility wrapper)
    * Supports subscribeLeafScans(callback) or subscribeLeafScans(callback, farmId)
    */
   subscribeLeafScans(arg1, arg2) {
@@ -646,50 +690,175 @@ export class FirestoreDataService {
   }
 
   /**
-   * Save a newly acquired Leaf Spectroscopy Scan directly to Cloud Firestore
-   * @param {Object} scanData
-   * @param {string} farmId
+   * Save a newly acquired Spectral Scan directly to Cloud Firestore with atomic offline persistence
+   * Enforces authoritative schema:
+   *  - id: unique scan ID (e.g. "scan-20261119-042")
+   *  - plantNumber: string (e.g. "PLANT-042")
+   *  - portNumber: string (e.g. "PORT-08")
+   *  - plantName: string (e.g. "Roma Tomato")
+   *  - plotId: string (e.g. "plot-1")
+   *  - plotNumber: number (e.g. 1)
+   *  - crop: string (e.g. "tomato")
+   *  - calibrationRef: { darkCurrent, whiteReference, calibratedAt }
+   *  - rawReflectance: array of 76 floating-point values [0.0 ... 1.0] (350nm - 1100nm)
+   *  - indices: { ndvi, ndre, wbi, cire, vitality, lwi }
+   *  - nitrogenPrescriptionKg: number
+   *  - irrigationNeedHours: number
+   *  - diseaseRisk: string
+   *  - hardwareLink: string ("BLE_NUS", "USB_SERIAL", or "SIMULATED")
+   *  - timestamp: string (ISO 8601)
    */
-  async saveLeafScan(scanData, farmId = this.currentFarmId) {
+  async saveSpectralScan(scanData, farmId = this.currentFarmId) {
     const targetFarm = farmId || this.currentFarmId;
 
-    // 1. Add to local mock store and trigger closed-loop synergy evaluation
-    const scanId = mockFirestore.addLeafScan({
-      plotId: scanData.plotId,
-      crop: scanData.crop,
-      gpsLocation: scanData.gpsLocation || { latitude: 36.7783, longitude: -119.4179 },
-      vitalityScore: scanData.vitalityScore,
-      leafWaterIndex: scanData.indices?.leafWaterIndex ?? scanData.leafWaterIndex,
-      nitrogenPrescriptionKg: scanData.nitrogenPrescriptionKg,
-      diseaseRisk: scanData.diseaseRisk,
-      harvest: scanData.harvest,
-      rawSpectrumPreview: (scanData.rawSpectrumPreview || []).slice(0, 30)
-    }, targetFarm);
+    const timestamp = scanData.timestamp || scanData.scannedAt || new Date().toISOString();
+    const plotId = scanData.plotId || "plot-1";
+    const plotNumber = Number(scanData.plotNumber || (plotId.match(/\d+/) ? parseInt(plotId.match(/\d+/)[0], 10) : 1));
+    const plantNumber = String(scanData.plantNumber || `PLANT-${String(plotNumber).padStart(3, '0')}`);
+    const portNumber = String(scanData.portNumber || `PORT-0${plotNumber}`);
+    const plantName = String(scanData.plantName || scanData.crop || "Specimen Plant");
+    const crop = String(scanData.crop || "crop");
+
+    const calibrationRef = scanData.calibrationRef || {
+      darkCurrent: Number(scanData.calibrationRef?.darkCurrent ?? 0.015),
+      whiteReference: Number(scanData.calibrationRef?.whiteReference ?? 0.985),
+      calibratedAt: scanData.calibrationRef?.calibratedAt || timestamp
+    };
+
+    const indices = {
+      ndvi: Number(scanData.indices?.ndvi ?? scanData.ndvi ?? 0.75),
+      ndre: Number(scanData.indices?.ndre ?? scanData.ndre ?? 0.32),
+      wbi: Number(scanData.indices?.wbi ?? scanData.wbi ?? 0.92),
+      cire: Number(scanData.indices?.cire ?? scanData.cire ?? 2.10),
+      vitality: Number(scanData.indices?.vitality ?? scanData.vitalityScore ?? scanData.vitality ?? 85),
+      lwi: Number(scanData.indices?.lwi ?? scanData.indices?.leafWaterIndex ?? scanData.leafWaterIndex ?? 0.92)
+    };
+
+    const rawReflectance = Array.isArray(scanData.rawReflectance) && scanData.rawReflectance.length === 76
+      ? scanData.rawReflectance.map(v => Number(Number(v).toFixed(4)))
+      : (Array.isArray(scanData.rawReflectance) && scanData.rawReflectance.length > 0
+          ? scanData.rawReflectance.map(v => Number(Number(v).toFixed(4)))
+          : (Array.isArray(scanData.rawSpectrumPreview) && scanData.rawSpectrumPreview.length === 76
+              ? scanData.rawSpectrumPreview.map(v => Number(Number(v).toFixed(4)))
+              : (typeof mockFirestore.generate76BandReflectance === 'function'
+                  ? mockFirestore.generate76BandReflectance(indices.ndvi, indices.vitality)
+                  : [])));
+
+    const nitrogenPrescriptionKg = Number(scanData.nitrogenPrescriptionKg ?? 0);
+    const irrigationNeedHours = Number(scanData.irrigationNeedHours ?? (indices.lwi < 0.82 ? 4 : (indices.lwi < 0.89 ? 18 : 36)));
+    const diseaseRisk = typeof scanData.diseaseRisk === 'string' ? scanData.diseaseRisk : (scanData.diseaseRisk?.pathogen || "HEALTHY_OPTIMAL");
+    const hardwareLink = ["BLE_NUS", "USB_SERIAL", "SIMULATED"].includes(scanData.hardwareLink) ? scanData.hardwareLink : (scanData.sourceMode || "SIMULATED");
+    const id = scanData.id || `scan-${timestamp.slice(0, 10).replace(/-/g, '')}-${String(Math.floor(Math.random() * 900) + 100)}`;
+
+    const normalizedScan = {
+      id,
+      plantNumber,
+      portNumber,
+      plantName,
+      plotId,
+      plotNumber,
+      crop,
+      calibrationRef,
+      rawReflectance,
+      indices,
+      nitrogenPrescriptionKg,
+      irrigationNeedHours,
+      diseaseRisk,
+      hardwareLink,
+      timestamp,
+      // Backward compatibility fields
+      scannedAt: timestamp,
+      vitalityScore: indices.vitality,
+      leafWaterIndex: indices.lwi,
+      rawSpectrumPreview: rawReflectance.slice(0, 30),
+      gpsLocation: scanData.gpsLocation || { latitude: 36.7783, longitude: -119.4179 }
+    };
+
+    // 1. ATOMIC LOCAL PERSISTENCE FIRST (Offline buffer guarantee)
+    const scanId = mockFirestore.addSpectralScan(normalizedScan, targetFarm);
     mockFirestore.saveData(targetFarm);
 
-    // 2. Write directly to Cloud Firestore in background with bounded timeout safeguard
-    if (this.useLive) {
-      this._dispatchCloudMutation(async () => {
-        const scansRef = collection(this.db, "farms", targetFarm, "leafScans");
-        await addDoc(scansRef, {
-          plotId: scanData.plotId,
-          vitalityScore: Number(scanData.vitalityScore) || 0,
-          leafWaterIndex: Number(scanData.indices?.leafWaterIndex ?? scanData.leafWaterIndex) || 0,
-          nitrogenPrescriptionKg: Number(scanData.nitrogenPrescriptionKg) || 0,
-          diseaseRisk: scanData.diseaseRisk || null,
-          rawSpectrumPreview: (scanData.rawSpectrumPreview || []).slice(0, 30),
-          gpsLocation: scanData.gpsLocation || { latitude: 36.7783, longitude: -119.4179 },
-          crop: scanData.crop || "Crop Canopy",
-          scannedAt: serverTimestamp()
-        });
-        console.log(`[FirestoreService] Saved leaf scan directly to Cloud Firestore: ${scanId}`);
-      }, `saveLeafScan (${scanId})`);
+    // Save atomic offline pending sync buffer in localStorage
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const offlineQueueKey = `agrispectra_offline_spectral_buffer_${targetFarm}`;
+        const existingQueue = JSON.parse(localStorage.getItem(offlineQueueKey) || '[]');
+        existingQueue.push({ id: scanId, data: normalizedScan, bufferedAt: new Date().toISOString() });
+        localStorage.setItem(offlineQueueKey, JSON.stringify(existingQueue));
+      }
+    } catch (e) {
+      console.warn("[FirestoreService] Offline buffer write note:", e.message);
     }
 
-    // Direct asynchronous sync to Enterprise Backend Server
-    backendSyncService.syncLeafScan(scanData).catch(() => {});
+    // 2. DISPATCH ASYNC SYNC TO CLOUD FIRESTORE CHAMBER
+    if (this.useLive) {
+      this._dispatchCloudMutation(async () => {
+        const scansCol = collection(this.db, "farms", targetFarm, "spectralScans");
+        const docRef = doc(scansCol, scanId);
+        await setDoc(docRef, {
+          ...normalizedScan,
+          syncedAt: serverTimestamp()
+        }, { merge: true });
+
+        // Backward compatibility mirror in leafScans
+        const legacyCol = collection(this.db, "farms", targetFarm, "leafScans");
+        await setDoc(doc(legacyCol, scanId), {
+          plotId: normalizedScan.plotId,
+          crop: normalizedScan.crop,
+          vitalityScore: normalizedScan.indices.vitality,
+          leafWaterIndex: normalizedScan.indices.lwi,
+          nitrogenPrescriptionKg: normalizedScan.nitrogenPrescriptionKg,
+          diseaseRisk: normalizedScan.diseaseRisk,
+          rawSpectrumPreview: normalizedScan.rawReflectance.slice(0, 30),
+          gpsLocation: normalizedScan.gpsLocation,
+          scannedAt: serverTimestamp()
+        }, { merge: true });
+
+        // Clean from offline queue upon confirmed cloud commit
+        try {
+          if (typeof localStorage !== 'undefined') {
+            const offlineQueueKey = `agrispectra_offline_spectral_buffer_${targetFarm}`;
+            const queue = JSON.parse(localStorage.getItem(offlineQueueKey) || '[]');
+            const filtered = queue.filter(item => item.id !== scanId);
+            localStorage.setItem(offlineQueueKey, JSON.stringify(filtered));
+          }
+        } catch (e) {}
+
+        console.log(`[FirestoreService] Synced spectral scan directly to Cloud Firestore: ${scanId}`);
+      }, `saveSpectralScan (${scanId})`);
+    }
+
+    // 3. BACKGROUND SYNC TO ENTERPRISE BACKEND SERVER
+    backendSyncService.syncSpectralScan(normalizedScan).catch(() => {});
 
     return scanId;
+  }
+
+  /**
+   * Save a newly acquired Leaf Spectroscopy Scan directly to Cloud Firestore (Backward Compatibility)
+   * Delegates directly to saveSpectralScan to maintain a unified storage pipeline
+   */
+  async saveLeafScan(scanData, farmId = this.currentFarmId) {
+    return this.saveSpectralScan(scanData, farmId);
+  }
+
+  /**
+   * Query Spectral Scans with optional filtering by plantNumber, plotId, timestamp, etc.
+   */
+  getSpectralScans(filter = {}, farmId = this.currentFarmId) {
+    return mockFirestore.getSpectralScans(filter, farmId);
+  }
+
+  getSpectralScanById(scanId, farmId = this.currentFarmId) {
+    return mockFirestore.getSpectralScanById(scanId, farmId);
+  }
+
+  getSpectralScansByPlant(plantNumber, farmId = this.currentFarmId) {
+    return mockFirestore.getSpectralScansByPlant(plantNumber, farmId);
+  }
+
+  getSpectralScansByPlot(plotId, farmId = this.currentFarmId) {
+    return mockFirestore.getSpectralScansByPlot(plotId, farmId);
   }
 
   // =========================================================================
