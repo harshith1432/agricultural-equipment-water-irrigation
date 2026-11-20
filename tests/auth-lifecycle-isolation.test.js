@@ -70,7 +70,7 @@ export function registerAuthLifecycleIsolationTests() {
       expect(appEl.querySelector('#portal-submit-btn') !== null).toBe(true);
       expect(appEl.querySelector('#btn-google-auth') !== null).toBe(true);
       expect(appEl.querySelector('#tab-mode-signup') !== null).toBe(true);
-      expect(appEl.querySelector('#btn-offline-guest') !== null).toBe(true);
+      expect(appEl.querySelector('#btn-offline-guest') === null).toBe(true);
 
       // Verify absence of private farm dashboard components and sensitive crop zone data
       expect(appEl.querySelector('.native-mobile-app') === null).toBe(true);

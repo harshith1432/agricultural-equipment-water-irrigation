@@ -190,38 +190,6 @@ export function createAuthScreen({ onAuthSuccess, onThemeChange, currentTheme = 
                 <span>${t('continue_with_google', 'Continue with Google')}</span>
               </button>
 
-              <!-- Offline Field Guest Access Button -->
-              <button 
-                type="button" 
-                id="btn-offline-guest" 
-                class="w-full min-h-[46px] px-4 py-2.5 rounded-2xl bg-amber-50/80 hover:bg-amber-100 dark:bg-amber-950/30 dark:hover:bg-amber-950/50 text-amber-950 dark:text-amber-200 font-semibold text-xs border border-amber-300/80 dark:border-amber-700/60 shadow-sm flex items-center justify-between transition-all duration-200 cursor-pointer active:scale-[0.98]"
-              >
-                <div class="flex items-center gap-2.5 text-left">
-                  <span class="w-7 h-7 rounded-lg bg-amber-200/80 dark:bg-amber-900/60 flex items-center justify-center text-amber-900 dark:text-amber-300 shrink-0">
-                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <line x1="1" y1="1" x2="23" y2="23"/>
-                      <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/>
-                      <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/>
-                      <path d="M10.71 5.05A16 16 0 0 1 22.58 9"/>
-                      <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/>
-                      <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
-                      <line x1="12" y1="20" x2="12.01" y2="20"/>
-                    </svg>
-                  </span>
-                  <div>
-                    <div class="font-bold text-amber-950 dark:text-amber-200 text-xs">
-                      ${t('continue_offline_guest', 'Continue as Offline Field Guest')}
-                    </div>
-                    <div class="text-[10px] text-amber-800 dark:text-amber-300/80">
-                      ${t('offline_guest_sub', 'Zero cellular reception • Direct BLE & Local Cache')}
-                    </div>
-                  </div>
-                </div>
-                <span class="text-[10px] font-mono font-bold bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-200 px-2 py-0.5 rounded-md">
-                  0ms Boot
-                </span>
-              </button>
-
               <!-- Organic Divider -->
               <div class="relative flex items-center justify-center my-3">
                 <div class="border-t border-[#E5DDCF] dark:border-emerald-950 w-full"></div>
@@ -595,29 +563,10 @@ export function createAuthScreen({ onAuthSuccess, onThemeChange, currentTheme = 
         render();
         setTimeout(() => {
           if (onAuthSuccess) onAuthSuccess(user);
-        }, 500);
+        }, 30);
       } catch (err) {
         isSubmitting = false;
         bannerState = { type: 'error', message: err.message || "Google authentication was cancelled or interrupted." };
-        render();
-      }
-    });
-
-    // Continue as Offline Field Guest
-    container.querySelector('#btn-offline-guest')?.addEventListener('click', async () => {
-      try {
-        isSubmitting = true;
-        bannerState = null;
-        render();
-        const user = authService.signInAsGuest();
-        bannerState = { type: 'success', message: "Continuing in Offline Field Guest Mode..." };
-        render();
-        setTimeout(() => {
-          if (onAuthSuccess) onAuthSuccess(user);
-        }, 350);
-      } catch (err) {
-        isSubmitting = false;
-        bannerState = { type: 'error', message: err.message || "Failed to start offline session." };
         render();
       }
     });
@@ -681,7 +630,7 @@ export function createAuthScreen({ onAuthSuccess, onThemeChange, currentTheme = 
           render();
           setTimeout(() => {
             if (onAuthSuccess) onAuthSuccess(user);
-          }, 50);
+          }, 30);
           return;
         }
 
@@ -696,7 +645,7 @@ export function createAuthScreen({ onAuthSuccess, onThemeChange, currentTheme = 
         render();
         setTimeout(() => {
           if (onAuthSuccess) onAuthSuccess(user);
-        }, 50);
+        }, 30);
 
       } catch (err) {
         isSubmitting = false;

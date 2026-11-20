@@ -500,7 +500,7 @@ export function parseHtmlInto(html, rootElement) {
 
 function parseAttributes(attrString, element) {
   if (!attrString) return;
-  const attrRegex = /([a-zA-Z0-9_:-]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g;
+  const attrRegex = /([-a-zA-Z0-9_:]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g;
   let match;
   while ((match = attrRegex.exec(attrString)) !== null) {
     const key = match[1];
