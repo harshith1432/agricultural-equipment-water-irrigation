@@ -144,21 +144,8 @@ export function createSettingsView({
             </div>
           </div>
 
-          <!-- Switch Role / Account & Cloud Sync Actions -->
+          <!-- Switch Role / Account Action -->
           <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-            <button 
-              type="button" 
-              id="sync-to-cloud-btn"
-              class="min-h-[38px] px-3.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/40 text-xs font-bold text-emerald-100 transition cursor-pointer flex items-center gap-1.5 active:scale-95 shadow-sm"
-              title="Synchronize user profile & farm parcel to Cloud Database"
-            >
-              <svg class="w-3.5 h-3.5 text-emerald-300 animate-spin hidden" id="sync-spinner" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              <span id="sync-icon">${icon('refresh', 'w-3.5 h-3.5 text-emerald-300')}</span>
-              <span id="sync-btn-text">Sync to Cloud Database</span>
-            </button>
             <button 
               type="button" 
               id="settings-open-auth-btn"
@@ -172,14 +159,6 @@ export function createSettingsView({
         <!-- Email on its own line: full width, clean, truncate -->
         <div class="pt-1.5 border-t border-emerald-700/30">
           <p class="text-xs text-emerald-200/90 font-mono truncate">${user.email || 'offline.guest@agrispectra.local'}</p>
-        </div>
-
-        <div class="pt-2 border-t border-emerald-700/40 flex items-center justify-between text-xs text-emerald-200 flex-wrap gap-2">
-          <span class="flex items-center gap-1.5">
-            <span class="w-2.5 h-2.5 rounded-full ${user.isOffline ? 'bg-amber-400' : 'bg-emerald-400 animate-pulse shadow-sm shadow-emerald-400/50'}"></span>
-            <span class="font-medium">${user.isOffline ? t('net_offline_cached') : 'Cloud Firestore Live'}</span>
-          </span>
-          <span class="font-mono text-emerald-300 text-xs">${user.farmName || t('dash_parcel_title')}${user.farmName?.includes('Acre') ? '' : ' (1 Acre)'}</span>
         </div>
       </div>
 
@@ -800,35 +779,6 @@ export function createSettingsView({
         } catch (e) {}
 
         bannerMessage = "Profile updated and synchronized with Cloud Database.";
-        render();
-      }
-    });
-
-    // Sync to Cloud Database Button
-    container.querySelector('#sync-to-cloud-btn')?.addEventListener('click', async () => {
-      const spinner = container.querySelector('#sync-spinner');
-      const iconEl = container.querySelector('#sync-icon');
-      const textEl = container.querySelector('#sync-btn-text');
-
-      if (spinner && iconEl) {
-        spinner.classList.remove('hidden');
-        iconEl.classList.add('hidden');
-      }
-      if (textEl) textEl.textContent = "Syncing...";
-
-      try {
-        const targetUser = currentUser || authService.getCurrentUser() || user;
-        const profile = await authService.syncUserProfile(targetUser);
-        if (profile) {
-          await authService.syncProfileToBackend(profile);
-          if (targetUser?.uid) {
-            await firestoreService.saveUserProfile(profile);
-          }
-        }
-        bannerMessage = "Cloud Database Synced: User profile and farm parcel successfully stored in Cloud Firestore and Backend Database.";
-      } catch (err) {
-        bannerMessage = `Cloud Sync: ${err.message || 'Dispatched sync to Cloud Database.'}`;
-      } finally {
         render();
       }
     });
