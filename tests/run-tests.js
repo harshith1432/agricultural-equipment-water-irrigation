@@ -60,6 +60,7 @@ import { registerSpectralSyncUITests } from './spectral-sync-ui.test.js';
 import { registerSDCardStorageTests } from './sd-card-storage.test.js';
 import { registerSDCardSecurityTests } from './sd-card-security.test.js';
 import { registerSdCardExplorerTests } from './sd-card-explorer.test.js';
+import { registerUserInteractionTransmissionTests } from './user-interaction-transmission.test.js';
 
 async function main() {
   console.log('\x1b[35mStarting AgriSpectra Flow & Field Automated Test Suite...\x1b[0m');
@@ -91,6 +92,7 @@ async function main() {
   registerSDCardStorageTests();
   registerSDCardSecurityTests();
   registerSdCardExplorerTests();
+  registerUserInteractionTransmissionTests();
 
   // Execute runner
   const success = await runner.run();

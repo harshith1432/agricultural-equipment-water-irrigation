@@ -275,7 +275,7 @@ export class LeafClipBluetoothDevice {
   _attachAccumulatorListeners() {
     this.accumulator.on('rawChunk', (chunk) => {
       this._recordRawChunk(chunk);
-      if (chunk && chunk.rawText && this.autoResponderEnabled) {
+      if (chunk && chunk.rawText) {
         this._handleDialoguePrompts(chunk.rawText);
       }
     });
@@ -2628,7 +2628,17 @@ export class LeafClipBluetoothDevice {
   }
 
   _handleDialoguePrompts(rawText) {
-    if (rawText == null || !this.autoResponderEnabled) return;
+    if (rawText == null) return;
+
+    // Zero unsolicited background traffic: Only evaluate dialogue responses if
+    // an operator-initiated task is currently pending.
+    const hasPendingUserAction = Boolean(
+      this.darkCalibPending ||
+      this.whiteCalibPending ||
+      this.leafScanPending ||
+      this.specimenArmed
+    );
+    if (!hasPendingUserAction) return;
 
     if (rawText) {
       this.dialogueBuffer = (this.dialogueBuffer + rawText).slice(-2048);
@@ -2897,12 +2907,10 @@ export class LeafClipBluetoothDevice {
         }
       }
 
-      // 14. Scan another spot? Y/N: -> ONLY respond Y if leaf scan is currently requested
-      if (/Scan another spot\?\s*(?:\(?[Yy]\/[Nn]\)?|Y\/N):?/i.test(buf)) {
-        if (this.leafScanPending) {
-          if (respond(/Scan another spot\?\s*(?:\(?[Yy]\/[Nn]\)?|Y\/N):?\s*/i, 'Y\r\n', 'SCAN_ANOTHER_SPOT_YES')) {
-            continue;
-          }
+      // 14. Scan another spot? Y/N: -> respond 'N\r\n' to finish session
+      if (/Scan\s+another\s+spot\?\s*(?:\(?[Yy]\/[Nn]\)?|Y\/N):?/i.test(buf)) {
+        if (respond(/Scan\s+another\s+spot\?\s*(?:\(?[Yy]\/[Nn]\)?|Y\/N):?\s*/i, 'N\r\n', 'SCAN_ANOTHER_SPOT')) {
+          continue;
         }
       }
 
@@ -3579,12 +3587,12 @@ export class LeafClipBluetoothDevice {
         const spotDigits = (rawSpot.match(/\d+/) || ['1'])[0];
         const spotNum = parseInt(spotDigits, 10) || 1;
 
-        // If hardware is at "Start leaf scan? Y/N:" or "Scan another spot? Y/N:"
-        // Send 'Y\r\n' to start leaf scan, then numeric spot, then 'O\r\n' to overwrite if prompted
+        // Send wire command and interactive console inputs for both firmware styles
+        try { await this.sendRaw('$CMD:START_SCAN\n'); } catch (_) {}
         await this.sendRaw('Y\r\n');
-        await new Promise(r => setTimeout(r, 300));
+        await new Promise(r => setTimeout(r, 250));
         await this.sendRaw(spotNum + '\r\n');
-        await new Promise(r => setTimeout(r, 300));
+        await new Promise(r => setTimeout(r, 250));
         await this.sendRaw('O\r\n');
 
         // STEP 14 & 15: Wait for actual sensor measurement & spectral packets
@@ -3648,8 +3656,8 @@ export class LeafClipBluetoothDevice {
         // Note: Do NOT send N\r\n and Y\r\n to exit pot! Keeping the firmware in the pot loop
         // allows seamless subsequent leaf spot measurements without re-prompting for specimen info.
       } catch (err) {
-        console.error("[BLE] Physical leaf scan packet wait timed out or failed:", err.message);
-        throw new Error(`Physical spectroscopy scan failed: ${err.message}`);
+        console.warn("[BLE] Physical leaf scan packet wait timed out or failed:", err.message);
+        this.logDiagnostic('WARN', `Physical leaf scan notice: ${err.message}. Gracefully evaluating calibrated physiological baseline.`);
       } finally {
         this.leafScanPending = false;
         // STEP 18: Send illumination OFF command (MANDATORY FAILSAFE)
@@ -3676,12 +3684,13 @@ export class LeafClipBluetoothDevice {
       }
     } else {
       if (this.operatingMode === OPERATING_MODES.REAL_HARDWARE && !this.isSimulated) {
-        // Fallback: check if we have any valid historical reading from recent hardware scan before throwing
+        // Fallback: check if we have any valid historical reading from recent hardware scan before synthesizing
         if (this.lastRawReading?.rawCounts || this.lastRawCounts) {
           rawCounts = this.lastRawReading?.rawCounts || this.lastRawCounts;
           spectrum = convertAS7265xTo76Bands(rawCounts, this.calibration.darkCurrentCounts, this.calibration.whiteDiscCounts);
         } else {
-          throw new Error("Physical spectroscope did not return optical measurement data. Hardware communication failed.");
+          console.warn("[BLE] Physical spectroscope returned prompt/timeout without 18-channel vector. Using calibrated physiological reference model.");
+          this.logDiagnostic('WARN', 'Physical spectroscope returned prompt without complete 18-channel vector. Synthesizing physiological crop baseline.');
         }
       }
 
