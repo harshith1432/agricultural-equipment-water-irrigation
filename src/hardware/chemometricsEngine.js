@@ -7,6 +7,83 @@
 // Wavelength sample points (every 10nm from 350 to 1100)
 export const WAVELENGTHS = Array.from({ length: 76 }, (_, i) => 350 + i * 10);
 
+// AS7265x Triad 18-channel sensor configuration and wavelength mapping
+export const AS7265X_CHANNELS = [
+  { name: 'R_610nm', wl: 610, index: 0 },
+  { name: 'S_680nm', wl: 680, index: 1 },
+  { name: 'T_730nm', wl: 730, index: 2 },
+  { name: 'U_760nm', wl: 760, index: 3 },
+  { name: 'V_810nm', wl: 810, index: 4 },
+  { name: 'W_860nm', wl: 860, index: 5 },
+  { name: 'G_560nm', wl: 560, index: 6 },
+  { name: 'H_585nm', wl: 585, index: 7 },
+  { name: 'I_645nm', wl: 645, index: 8 },
+  { name: 'J_705nm', wl: 705, index: 9 },
+  { name: 'K_900nm', wl: 900, index: 10 },
+  { name: 'L_940nm', wl: 940, index: 11 },
+  { name: 'A_410nm', wl: 410, index: 12 },
+  { name: 'B_435nm', wl: 435, index: 13 },
+  { name: 'C_460nm', wl: 460, index: 14 },
+  { name: 'D_485nm', wl: 485, index: 15 },
+  { name: 'E_510nm', wl: 510, index: 16 },
+  { name: 'F_535nm', wl: 535, index: 17 }
+];
+
+/**
+ * Convert 18-channel AS7265x raw counts to calibrated 76-band reflectance spectrum (350–1100 nm)
+ * R(λ) = (I_sample - I_dark) / (I_white - I_dark)
+ */
+export function convertAS7265xTo76Bands(sampleCounts, darkCounts = null, whiteCounts = null) {
+  if (!Array.isArray(sampleCounts) || sampleCounts.length < 18) {
+    return null;
+  }
+
+  // Calculate 18-channel reflectance
+  const points = AS7265X_CHANNELS.map(ch => {
+    const s = Number(sampleCounts[ch.index]) || 0;
+    const d = darkCounts ? (Number(darkCounts[ch.index]) || 0) : 0;
+    const w = whiteCounts ? (Number(whiteCounts[ch.index]) || 0) : 0;
+
+    let ref;
+    const denom = w - d;
+    if (denom > 10) {
+      ref = (s - d) / denom;
+    } else {
+      // Fallback if white calibration is not saturated or unavailable
+      const scale = s > 100 ? 65535 : (s > 1.0 ? 100 : 1.0);
+      ref = Math.max(0.01, Math.min(1.0, s / scale));
+    }
+    return {
+      wl: ch.wl,
+      reflectance: Math.max(0.01, Math.min(1.0, ref))
+    };
+  });
+
+  // Sort ascending by wavelength: 410 to 940 nm
+  points.sort((a, b) => a.wl - b.wl);
+
+  // Linear interpolation across full 76 bands [350 to 1100 nm]
+  return WAVELENGTHS.map(targetWl => {
+    if (targetWl <= points[0].wl) {
+      return Number(points[0].reflectance.toFixed(4));
+    }
+    if (targetWl >= points[points.length - 1].wl) {
+      return Number(points[points.length - 1].reflectance.toFixed(4));
+    }
+
+    for (let i = 0; i < points.length - 1; i++) {
+      const p1 = points[i];
+      const p2 = points[i + 1];
+      if (targetWl >= p1.wl && targetWl <= p2.wl) {
+        const factor = (targetWl - p1.wl) / (p2.wl - p1.wl);
+        const interp = p1.reflectance + factor * (p2.reflectance - p1.reflectance);
+        return Number(interp.toFixed(4));
+      }
+    }
+    return 0.15;
+  });
+}
+
 /**
  * Generate synthetic spectral reflectance vector (0.0 to 1.0)
  * based on physiological state
@@ -69,9 +146,15 @@ export function generateSpectralSignature({
  * Calculate Agronomic Vegetation & Stress Indices from Spectral Vector
  */
 export function processSpectralVector(spectrum, cropName = "Bell Peppers", growthStage = "Fruit Formation") {
+  let effectiveSpectrum = spectrum;
+  if (Array.isArray(spectrum) && spectrum.length === 18) {
+    const converted = convertAS7265xTo76Bands(spectrum);
+    if (converted) effectiveSpectrum = converted;
+  }
+
   const getR = (targetWl) => {
     const idx = WAVELENGTHS.findIndex((w) => w >= targetWl);
-    return idx !== -1 ? spectrum[idx] : 0.2;
+    return idx !== -1 ? effectiveSpectrum[idx] : 0.2;
   };
 
   const R450 = getR(450);

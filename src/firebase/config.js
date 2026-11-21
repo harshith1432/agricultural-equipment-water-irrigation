@@ -7,7 +7,7 @@ import {
   getFirestore, 
   initializeFirestore, 
   persistentLocalCache, 
-  persistentMultipleTabManager 
+  persistentSingleTabManager 
 } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
@@ -40,7 +40,7 @@ try {
     try {
       db = initializeFirestore(app, {
         localCache: persistentLocalCache({
-          tabManager: persistentMultipleTabManager()
+          tabManager: persistentSingleTabManager()
         })
       });
     } catch (e) {

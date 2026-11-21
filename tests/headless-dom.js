@@ -57,6 +57,14 @@ export class MockElement {
   }
 
   get value() {
+    if (this.tagName === 'SELECT') {
+      if (this._value !== undefined) return this._value;
+      const opts = this.options;
+      const selOpt = opts.find(o => o.selected || o.hasAttribute('selected'));
+      if (selOpt) return selOpt.value;
+      if (opts.length > 0) return opts[0].value;
+      return '';
+    }
     return this._value || this.getAttribute('value') || '';
   }
 
@@ -286,6 +294,8 @@ export class MockElement {
           save: () => {},
           restore: () => {},
           measureText: (text) => ({ width: (String(text).length || 1) * 8 }),
+          fillText: () => {},
+          strokeText: () => {},
           strokeStyle: '#000000',
           fillStyle: '#000000',
           lineWidth: 1
@@ -319,10 +329,18 @@ export class MockElement {
       }
     }
     collect(this);
-    if (parts.length > 0) {
-      return parts.join(' ').replace(/\s+/g, ' ').trim();
+    function decodeEntities(str) {
+      return str
+        .replace(/&gt;/g, '>')
+        .replace(/&lt;/g, '<')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&amp;/g, '&');
     }
-    return this._innerHTML.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    if (parts.length > 0) {
+      return decodeEntities(parts.join(' ').replace(/\s+/g, ' ').trim());
+    }
+    return decodeEntities(this._innerHTML.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim());
   }
 
   set textContent(txt) {

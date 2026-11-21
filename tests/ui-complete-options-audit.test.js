@@ -89,6 +89,7 @@ function assertNoCorruptText(element, contextName = 'View') {
 }
 
 export function registerUICompleteOptionsAuditTests() {
+  setLocale('en');
 
   // =========================================================================
   // SUITE 1: ALL 7 TABS COMPLETE OPTION AUDIT

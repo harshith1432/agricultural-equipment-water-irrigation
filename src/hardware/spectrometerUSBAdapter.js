@@ -126,11 +126,15 @@ export class SpectrometerUSBAdapter {
       plantNumber: 'PLANT-042',
       plantName: 'Roma Tomato',
       potNumber: 'POT-01',
-      portNumber: 'PORT-08'
+      portNumber: 'PORT-08',
+      leafSpot: 1,
+      zone: 'Zone 1',
+      timestamp: new Date().toISOString()
     };
 
     // Dialogue State Machine & Auto-Responder
-    this.autoResponderEnabled = true;
+    // STRICT USER INTERACTION RULE: Auto-responder disabled. Transmissions only occur on explicit user button click.
+    this.autoResponderEnabled = false;
     this.dialogueBuffer = '';
     this.darkCalibPending = false;
     this.whiteCalibPending = false;
@@ -140,7 +144,7 @@ export class SpectrometerUSBAdapter {
     // Streaming ring buffer / packet chunk accumulator
     this.accumulator = new PacketChunkAccumulator({ capacity: 65536 });
     this.accumulator.on('rawChunk', (chunk) => {
-      if (chunk && chunk.rawText) {
+      if (chunk && chunk.rawText && this.autoResponderEnabled) {
         this._handleDialoguePrompts(chunk.rawText);
       }
     });
@@ -148,9 +152,6 @@ export class SpectrometerUSBAdapter {
       this.emit('packet', packet);
       if (packet.type === PACKET_TYPES.DEVICE_PROMPT) {
         this.emit('devicePrompt', packet.data);
-        if (packet.rawText) {
-          this._handleDialoguePrompts(packet.rawText);
-        }
       }
     });
     this.accumulator.on('spectrum', (packet) => this.emit('spectrumPacket', packet));
@@ -693,100 +694,203 @@ export class SpectrometerUSBAdapter {
     if (!rawText || !this.autoResponderEnabled) return;
 
     this.dialogueBuffer = (this.dialogueBuffer + rawText).slice(-2048);
-    const buf = this.dialogueBuffer;
 
-    const respond = (pattern, responseText, promptName) => {
-      const match = buf.match(pattern);
-      if (match) {
-        const cutIdx = match.index + match[0].length;
-        this.dialogueBuffer = this.dialogueBuffer.slice(cutIdx);
-        console.log(`[Spectrometer Dialogue State Machine] Prompt: ${promptName} -> Auto-responding:`, JSON.stringify(responseText));
-        this.sendRaw(responseText);
-        this.emit('dialoguePrompt', { prompt: promptName, response: responseText, rawText });
-        return true;
+    let iterations = 0;
+    while (iterations < 10) {
+      iterations++;
+      const buf = this.dialogueBuffer;
+
+      const respond = (pattern, responseText, promptName) => {
+        const match = buf.match(pattern);
+        if (match) {
+          const cutIdx = match.index + match[0].length;
+          this.dialogueBuffer = this.dialogueBuffer.slice(cutIdx);
+          console.log(`[Spectrometer Dialogue State Machine] Prompt: ${promptName} -> Auto-responding:`, JSON.stringify(responseText));
+          this.sendRaw(responseText);
+          this.emit('dialoguePrompt', { prompt: promptName, response: responseText, rawText });
+          return true;
+        }
+        return false;
+      };
+
+      // 1. Enter Plant Number:
+      if (respond(/Enter Plant Number:\s*/i, (this.specimenMetadata.plantNumber || 'PLANT-042').trim() + '\r\n', 'ENTER_PLANT_NUMBER')) continue;
+
+      // 2. Enter Plant Name:
+      if (respond(/Enter Plant Name:\s*/i, (this.specimenMetadata.plantName || this.specimenMetadata.cropVariety || this.specimenMetadata.cropName || 'Roma Tomato').trim() + '\r\n', 'ENTER_PLANT_NAME')) continue;
+
+      // 3. Enter Pot Number:
+      if (respond(/Enter Pot Number:\s*/i, (this.specimenMetadata.potNumber || this.specimenMetadata.portNumber || 'POT-01').trim() + '\r\n', 'ENTER_POT_NUMBER')) continue;
+
+      // 4. Duplicate plant in memory: R=rename and re-enter, N=cancel:
+      if (/(?:already\s+saved[\s\S]*?R=rename|R=rename\s+and\s+re-enter.*:\s*|already\s+saved.*R=rename.*:\s*)/i.test(buf)) {
+        if (respond(/(?:already\s+saved[\s\S]*?R=rename.*:\s*|R=rename\s+and\s+re-enter.*:\s*|already\s+saved.*R=rename.*:\s*)/i, 'R\r\n', 'ALREADY_SAVED_RENAME')) {
+          const baseName = (this.specimenMetadata?.plantNumber || 'PLANT').replace(/-\d+$/, '');
+          const uniqueNum = `${baseName}-${Math.floor(Date.now() % 10000)}`;
+          this.specimenMetadata.plantNumber = uniqueNum;
+          console.log(`[USB] Duplicate plant detected. Auto-renaming plantNumber to: ${uniqueNum}`);
+          setTimeout(() => this.sendRaw(`${uniqueNum}\r\n`), 250);
+          continue;
+        }
       }
-      return false;
-    };
 
-    // 1. Enter Plant Number:
-    if (respond(/Enter Plant Number:\s*/i, (this.specimenMetadata.plantNumber || 'PLANT-042').trim() + '\r\n', 'ENTER_PLANT_NUMBER')) return;
+      // 5. Correct? Y/N:
+      if (respond(/Correct\?\s*(?:\(?[Yy]\/[Nn]\)?|Y\/N):\s*/i, 'Y\r\n', 'CONFIRM_METADATA')) continue;
 
-    // 2. Enter Plant Name:
-    if (respond(/Enter Plant Name:\s*/i, (this.specimenMetadata.plantName || this.specimenMetadata.cropVariety || this.specimenMetadata.cropName || 'Roma Tomato').trim() + '\r\n', 'ENTER_PLANT_NAME')) return;
-
-    // 3. Enter Pot Number:
-    if (respond(/Enter Pot Number:\s*/i, (this.specimenMetadata.potNumber || this.specimenMetadata.portNumber || 'POT-01').trim() + '\r\n', 'ENTER_POT_NUMBER')) return;
-
-    // 4. Correct? Y/N:
-    if (respond(/Correct\?\s*Y\/N:\s*/i, 'Y\r\n', 'CONFIRM_METADATA')) return;
-
-    // 5. Save DARK? Y/N:
-    if (respond(/Save DARK\?\s*Y\/N:\s*/i, 'Y\r\n', 'SAVE_DARK')) {
-      this.darkCalibPending = false;
-      return;
-    }
-
-    // 6. Save WHITE? Y/N:
-    if (respond(/Save WHITE\?\s*Y\/N:\s*/i, 'Y\r\n', 'SAVE_WHITE')) {
-      this.whiteCalibPending = false;
-      return;
-    }
-
-    // 7. Ready for DARK measurement?
-    if (/Ready for DARK measurement\?/i.test(buf) || /DARK:.*Ready\?\s*Y\/N/i.test(buf) || /Calibrate DARK.*Y\/N/i.test(buf)) {
-      if (respond(/(?:Ready for DARK measurement\?\s*Y\/N:|DARK:.*Ready\?\s*Y\/N:|Calibrate DARK.*Y\/N:?)/i, 'Y\r\n', 'DARK_READY')) {
-        return;
+      // 6. Save Confirmation (Y=save R=redo C=cancel:) -> ONLY respond if a phase is actually pending
+      if (/(?:Y=save\s+R=redo\s+C=cancel:\s*|Y=save.*:\s*)/i.test(buf)) {
+        if (this.darkCalibPending) {
+          if (respond(/(?:Y=save\s+R=redo\s+C=cancel:\s*|Y=save.*:\s*)/i, 'Y\r\n', 'SAVE_CONFIRMATION_DARK')) {
+            this.darkCalibPending = false;
+            this.calibration.darkCurrentCompleted = true;
+            this.calibration.darkCurrentTimestamp = new Date().toISOString();
+            this.emit('calibrationProgress', { phase: 'DARK_CURRENT', progress: 100, message: "Dark Current Reference Locked & Saved." });
+            continue;
+          }
+        } else if (this.whiteCalibPending) {
+          if (respond(/(?:Y=save\s+R=redo\s+C=cancel:\s*|Y=save.*:\s*)/i, 'Y\r\n', 'SAVE_CONFIRMATION_WHITE')) {
+            this.whiteCalibPending = false;
+            this.calibration.whiteDiscCompleted = true;
+            this.calibration.whiteDiscTimestamp = new Date().toISOString();
+            this.calibration.isCalibrated = true;
+            this.emit('calibrationProgress', { phase: 'WHITE_REFERENCE', progress: 100, message: "White Reference Standard Locked & Saved." });
+            this.emit('hardwareReadyForScan', { ready: true, calibrated: true, metadata: this.specimenMetadata });
+            continue;
+          }
+        } else if (this.leafScanPending) {
+          if (respond(/(?:Y=save\s+R=redo\s+C=cancel:\s*|Y=save.*:\s*)/i, 'Y\r\n', 'SAVE_CONFIRMATION_LEAF')) {
+            this.leafScanPending = false;
+            this.emit('scanState', { status: 'COMPLETED', message: "Leaf Spectrum Locked & Saved." });
+            continue;
+          }
+        }
       }
-    }
 
-    // 8. Ready for WHITE measurement? (TURNS ON WHITE LIGHT!)
-    if (/Ready for WHITE measurement\?/i.test(buf) || /WHITE:.*Ready\?\s*Y\/N/i.test(buf) || /Calibrate WHITE.*Y\/N/i.test(buf)) {
-      if (respond(/(?:Ready for WHITE measurement\?\s*Y\/N:|WHITE:.*Ready\?\s*Y\/N:|Calibrate WHITE.*Y\/N:?)/i, 'Y\r\n', 'WHITE_READY')) {
-        return;
+      // 7. Ready for DARK measurement? / Calibrate DARK... Y/N -> ONLY if darkCalibPending
+      if (this.darkCalibPending && /(?:Ready for DARK measurement\?|DARK:.*Ready\?\s*Y\/N|Calibrate DARK.*Y\/N)/i.test(buf)) {
+        if (respond(/(?:Ready for DARK measurement\?\s*(?:\(?[Yy]\/[Nn]\)?|Y\/N):?|DARK:.*Ready\?\s*(?:\(?[Yy]\/[Nn]\)?|Y\/N):?|Calibrate DARK.*(?:now)?\?\s*(?:\(?[Yy]\/[Nn]\)?|Y\/N):?)/i, 'Y\r\n', 'DARK_READY')) {
+          this.emit('calibrationProgress', { phase: 'DARK_CURRENT', progress: 50, message: "Measuring DARK baseline with LED off..." });
+          continue;
+        }
       }
-    }
 
-    // 9. Ready for leaf scan?
-    if (/Ready for leaf scan\?/i.test(buf) || /Start leaf scan\?\s*Y\/N/i.test(buf)) {
-      if (respond(/(?:Ready for leaf scan\?\s*Y\/N:|Start leaf scan\?\s*Y\/N:?)/i, 'Y\r\n', 'LEAF_SCAN_READY')) {
-        return;
+      // 8. Save DARK? Y/N: -> ONLY if darkCalibPending
+      if (this.darkCalibPending && /Save\s+DARK\?\s*(?:\(?[Yy]\/[Nn]\)?|Y\/N):?/i.test(buf)) {
+        if (respond(/Save\s+DARK\?\s*(?:\(?[Yy]\/[Nn]\)?|Y\/N):\s*/i, 'Y\r\n', 'SAVE_DARK')) {
+          this.darkCalibPending = false;
+          this.calibration.darkCurrentCompleted = true;
+          this.calibration.darkCurrentTimestamp = new Date().toISOString();
+          this.emit('calibrationProgress', { phase: 'DARK_CURRENT', progress: 100, message: "Dark Current Reference Locked & Saved." });
+          continue;
+        }
       }
-    }
 
-    // 10. Enter Spot Number (1..) or Leaf Spot Number: (TURNS ON LEAF ILLUMINATION LIGHT!)
-    if (/(?:Enter|Leaf)\s*Spot\s*Number/i.test(buf)) {
-      if (respond(/(?:Enter|Leaf)\s*Spot\s*Number(?:\s*\([^\)]*\))?:\s*/i, '1\r\n', 'LEAF_SPOT_NUMBER')) {
-        this.leafScanPending = false;
-        return;
+      // 9. Ready for WHITE measurement? (TURNS ON WHITE LIGHT!) / Calibrate WHITE... Y/N -> ONLY if whiteCalibPending
+      if (this.whiteCalibPending && /(?:Ready for WHITE measurement\?|WHITE:.*Ready\?\s*Y\/N|Calibrate WHITE.*Y\/N)/i.test(buf)) {
+        if (respond(/(?:Ready for WHITE measurement\?\s*(?:\(?[Yy]\/[Nn]\)?|Y\/N):?|WHITE:.*Ready\?\s*(?:\(?[Yy]\/[Nn]\)?|Y\/N):?|Calibrate WHITE.*(?:now)?\?\s*(?:\(?[Yy]\/[Nn]\)?|Y\/N):?)/i, 'Y\r\n', 'WHITE_READY')) {
+          this.emit('calibrationProgress', { phase: 'WHITE_REFERENCE', progress: 50, message: "Illumination LED active (99% PTFE)... measuring WHITE" });
+          continue;
+        }
       }
+
+      // 10. Save WHITE? Y/N: -> ONLY if whiteCalibPending
+      if (this.whiteCalibPending && /Save\s+WHITE\?\s*(?:\(?[Yy]\/[Nn]\)?|Y\/N):?/i.test(buf)) {
+        if (respond(/Save\s+WHITE\?\s*(?:\(?[Yy]\/[Nn]\)?|Y\/N):\s*/i, 'Y\r\n', 'SAVE_WHITE')) {
+          this.whiteCalibPending = false;
+          this.calibration.whiteDiscCompleted = true;
+          this.calibration.whiteDiscTimestamp = new Date().toISOString();
+          this.calibration.isCalibrated = true;
+          this.emit('calibrationProgress', { phase: 'WHITE_REFERENCE', progress: 100, message: "White Reference Standard Locked & Saved." });
+          this.emit('hardwareReadyForScan', { ready: true, calibrated: true, metadata: this.specimenMetadata });
+          continue;
+        }
+      }
+
+      // 11. Ready for leaf scan? -> ONLY if leafScanPending
+      if (this.leafScanPending && /(?:Ready for leaf scan\?|Start leaf scan\?\s*Y\/N|Ready to scan leaf\?)/i.test(buf)) {
+        if (respond(/(?:Ready for leaf scan\?\s*(?:\(?[Yy]\/[Nn]\)?|Y\/N):?|Start leaf scan\?\s*(?:\(?[Yy]\/[Nn]\)?|Y\/N):?|Ready to scan leaf\?\s*(?:\(?[Yy]\/[Nn]\)?|Y\/N):?)/i, 'Y\r\n', 'LEAF_SCAN_READY')) {
+          this.emit('scanState', { status: 'SCANNING', message: "Acquiring leaf spectrum..." });
+          continue;
+        }
+      }
+
+      // 12. Enter Spot Number (1..) or Leaf Spot Number: (TURNS ON LEAF ILLUMINATION LIGHT!)
+      if (/(?:Enter|Leaf)\s*Spot(?:\s*Number)?/i.test(buf)) {
+        const spotVal = String(this.specimenMetadata?.leafSpot || 1) + '\r\n';
+        if (respond(/(?:Enter|Leaf)\s*Spot(?:\s*Number)?(?:\s*\([^\)]*\))?:\s*/i, spotVal, 'LEAF_SPOT_NUMBER')) {
+          this.leafScanPending = false;
+          continue;
+        }
+      }
+
+      // 13. Scan another spot? Y/N: -> respond 'N\r\n' to finish session
+      if (/Scan\s+another\s+spot\?\s*(?:\(?[Yy]\/[Nn]\)?|Y\/N):?/i.test(buf)) {
+        if (respond(/Scan\s+another\s+spot\?\s*(?:\(?[Yy]\/[Nn]\)?|Y\/N):?\s*/i, 'N\r\n', 'SCAN_ANOTHER_SPOT')) {
+          continue;
+        }
+      }
+
+      // 14. Exit anyway? Y/N: -> respond 'Y\r\n'
+      if (/Exit\s+anyway\?\s*(?:\(?[Yy]\/[Nn]\)?|Y\/N):?/i.test(buf)) {
+        if (respond(/Exit\s+anyway\?\s*(?:\(?[Yy]\/[Nn]\)?|Y\/N):?\s*/i, 'Y\r\n', 'EXIT_ANYWAY')) {
+          continue;
+        }
+      }
+
+      // 15. Drift check... Do it now? Y/N: -> respond 'N\r\n'
+      if (/Drift\s+check.*(?:Do\s+it\s+now\?)?\s*(?:\(?[Yy]\/[Nn]\)?|Y\/N):?/i.test(buf)) {
+        if (respond(/Drift\s+check.*(?:Do\s+it\s+now\?)?\s*(?:\(?[Yy]\/[Nn]\)?|Y\/N):?\s*/i, 'N\r\n', 'DRIFT_CHECK_PROMPT')) {
+          continue;
+        }
+      }
+
+      // 16. Start a new session? Y: -> respond 'Y\r\n'
+      if (/Start\s+a\s+new\s+session\?\s*Y:?/i.test(buf)) {
+        if (respond(/Start\s+a\s+new\s+session\?\s*Y:?\s*/i, 'Y\r\n', 'START_NEW_SESSION')) {
+          continue;
+        }
+      }
+
+      break;
     }
   }
 
   /**
-   * Transmit specimen metadata all at once to the spectroscope sensor.
-   * Sends plant number, plant name, pot number, and confirmation 'Y' sequentially
-   * with 300ms inter-command pacing so microcontroller UART buffers receive and parse every field cleanly.
+   * Single-Batch Metadata Command:
+   * Sets specimen metadata and transmits to hardware in a unified batch.
+   * Supports wire format: SET_METADATA PLANT=<plantNumber>,NAME=<plantName>,POT=<potNumber>,SPOT=<leafSpot>,ZONE=<zone>\r\n
+   * Also transmits legacy UART batch lines (<plantNumber>\r\n<plantName>\r\n<potNumber>\r\n<leafSpot>\r\n)
+   * so physical firmware in interactive mode is satisfied immediately all at once without waiting.
    */
-  async sendBatchSpecimenData({
-    plantNumber = 'PLANT-042',
+  async setSpecimenBatchData({
     plantName = 'Roma Tomato',
+    plantNumber = 'PLANT-042',
     potNumber = 'POT-01',
+    leafSpot = 1,
+    zone = 'Zone 1',
+    timestamp = null,
     cropVariety = '',
-    zone = ''
+    cropName = ''
   } = {}) {
-    if (leafClipDevice && leafClipDevice.isConnected) {
-      return await leafClipDevice.sendBatchSpecimenData({
-        plantNumber,
+    if (leafClipDevice && leafClipDevice.isConnected && !this.isConnected) {
+      return leafClipDevice.setSpecimenBatchData({
         plantName,
+        plantNumber,
         potNumber,
+        leafSpot,
+        zone,
+        timestamp,
         cropVariety,
-        zone
+        cropName
       });
     }
 
     const pNum = (plantNumber || 'PLANT-042').trim();
-    const pName = (plantName || cropVariety || 'Roma Tomato').trim();
+    const pName = (plantName || cropVariety || cropName || 'Roma Tomato').trim();
     const pPot = (potNumber || 'POT-01').trim();
+    const spot = Number(leafSpot) || 1;
+    const pZone = (zone || 'Zone 1').trim();
+    const ts = timestamp || new Date().toISOString();
 
     await this.setSpecimenMetadata({
       plantNumber: pNum,
@@ -795,24 +899,47 @@ export class SpectrometerUSBAdapter {
       cropVariety: cropVariety || pName,
       potNumber: pPot,
       portNumber: pPot,
-      zone: zone || 'Zone 1'
+      leafSpot: spot,
+      zone: pZone,
+      timestamp: ts
     });
 
-    const batchLines = [
+    // 1. Transmit unified batch wire format
+    const wireCommand = `SET_METADATA PLANT=${pNum},NAME=${pName},POT=${pPot},SPOT=${spot},ZONE=${pZone}\r\n`;
+    await this.sendRaw(wireCommand);
+
+    // 2. Also support legacy UART batch lines for interactive firmware
+    const legacyLines = [
       `${pNum}\r\n`,
       `${pName}\r\n`,
       `${pPot}\r\n`,
+      `${spot}\r\n`,
       `Y\r\n`
     ];
 
-    const delay = (this.isSimulated || !this.isConnected) ? 5 : 300;
-    for (const line of batchLines) {
+    const delay = (this.isSimulated || !this.isConnected) ? 5 : 250;
+    for (const line of legacyLines) {
       await this.sendRaw(line);
       await new Promise(r => setTimeout(r, delay));
     }
 
     this.emit('metadataUpdated', { metadata: this.specimenMetadata });
-    return { success: true, simulated: this.isSimulated, metadata: this.specimenMetadata };
+    this.emit('hardwareReadyForScan', { ready: true, metadata: this.specimenMetadata });
+
+    return {
+      success: true,
+      simulated: this.isSimulated,
+      metadata: this.specimenMetadata,
+      wireCommand: wireCommand.trim()
+    };
+  }
+
+  /**
+   * Transmit specimen metadata all at once to the spectroscope sensor.
+   * Backward-compatible alias delegating to setSpecimenBatchData.
+   */
+  async sendBatchSpecimenData(options = {}) {
+    return this.setSpecimenBatchData(options);
   }
 
   /**
@@ -846,6 +973,9 @@ export class SpectrometerUSBAdapter {
     const pNum = metadata.plantNumber || metadata.plantId || metadata.specimenId || this.specimenMetadata.plantNumber || "PLANT-042";
     const pName = metadata.plantName || metadata.cropVariety || metadata.cropName || metadata.crop || this.specimenMetadata.plantName || "Roma Tomato";
     const pot = metadata.potNumber || metadata.portNumber || metadata.pot || this.specimenMetadata.potNumber || "POT-01";
+    const spot = metadata.leafSpot !== undefined ? Number(metadata.leafSpot) : (this.specimenMetadata.leafSpot || 1);
+    const zone = metadata.zone || this.specimenMetadata.zone || "Zone 1";
+    const ts = metadata.timestamp || new Date().toISOString();
 
     this.specimenMetadata = {
       ...this.specimenMetadata,
@@ -856,7 +986,10 @@ export class SpectrometerUSBAdapter {
       cropVariety: metadata.cropVariety || pName,
       potNumber: pot,
       portNumber: pot,
-      updatedAt: new Date().toISOString()
+      leafSpot: spot,
+      zone: zone,
+      timestamp: ts,
+      updatedAt: ts
     };
     if (this.isConnected && !this.isSimulated) {
       await this.sendCommand({ cmd: 'SET_METADATA', metadata: this.specimenMetadata });
@@ -904,8 +1037,8 @@ export class SpectrometerUSBAdapter {
     } else if (this.isConnected && !this.isSimulated) {
       try {
         await this.sendRaw('Y\r\n');
-        await new Promise(r => setTimeout(r, 150));
-        await this.sendRaw('DARK\r\n');
+        await new Promise(r => setTimeout(r, 400));
+        await this.sendRaw('Y\r\n');
       } catch (e) {}
     }
 
@@ -965,8 +1098,8 @@ export class SpectrometerUSBAdapter {
     } else if (this.isConnected && !this.isSimulated) {
       try {
         await this.sendRaw('Y\r\n');
-        await new Promise(r => setTimeout(r, 150));
-        await this.sendRaw('WHITE\r\n');
+        await new Promise(r => setTimeout(r, 500));
+        await this.sendRaw('Y\r\n');
       } catch (e) {}
     }
 
@@ -1010,6 +1143,9 @@ export class SpectrometerUSBAdapter {
       isCalibrated: this.calibration.isCalibrated
     };
     this.emit('calibration', { type: 'WHITE', ...report });
+    if (this.calibration.isCalibrated) {
+      this.emit('hardwareReadyForScan', { ready: true, calibrated: true, metadata: this.specimenMetadata });
+    }
     return report;
   }
 
@@ -1105,6 +1241,13 @@ export class SpectrometerUSBAdapter {
       pri,
       ...chemometrics
     };
+  }
+
+  /**
+   * Acquire Leaf Scan directly without waiting for interactive prompt dialogues
+   */
+  async acquireLeafScan(options = {}) {
+    return this.captureSpectrum(options);
   }
 
   /**
@@ -1254,12 +1397,9 @@ export class SpectrometerUSBAdapter {
     if (this.isConnected && !this.isSimulated) {
       try {
         await this.sendRaw('Y\r\n');
-        await new Promise(r => setTimeout(r, 150));
+        await new Promise(r => setTimeout(r, 400));
         await this.sendRaw('1\r\n');
-        await new Promise(r => setTimeout(r, 150));
-        await this.sendRaw('SCAN\r\n');
-        await this.sendCommand({ cmd: 'ACQUIRE_LEAF', timestamp: Date.now() });
-        const packet = await this.accumulator.waitForPacket(PACKET_TYPES.SPECTRUM, 8000);
+        const packet = await this.accumulator.waitForPacket(PACKET_TYPES.SPECTRUM, 10000);
         if (packet.data && (packet.data.rawCounts || packet.data.rawSample)) {
           const counts = packet.data.rawCounts || packet.data.rawSample;
           if (counts.length === SPECTROMETER_CONFIG.TOTAL_BANDS) {

@@ -8,6 +8,7 @@ import { WAVELENGTHS } from '../hardware/chemometricsEngine.js';
 import { ttsEngine } from '../audio/voiceReadoutTTS.js';
 import { getVitalityColor } from '../utils/formatters.js';
 import { createBluetoothDevicePickerModal } from './BluetoothDevicePickerModal.js';
+import { createSpectroscopeSdCardExplorer } from './SpectroscopeSdCardExplorer.js';
 
 export function createSpectroscopyStudio({
   plots = [],
@@ -118,6 +119,19 @@ export function createSpectroscopyStudio({
           <span id="tab-raw-counter-badge" class="px-1.5 py-0.2 rounded text-[10px] font-mono ${activeTab === 'RAW_DATA' ? 'bg-slate-950 text-emeraldGlow' : 'bg-emeraldGlow/20 text-emeraldGlow'}">
             0 pkts
           </span>
+        </button>
+
+        <button 
+          id="tab-btn-sdcard" 
+          class="px-4 py-2 rounded-xl text-xs font-mono font-bold flex items-center gap-2 transition cursor-pointer ${activeTab === 'SD_CARD' ? 'bg-emeraldGlow text-slate-950 shadow-md shadow-emeraldGlow/20' : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700'}"
+          title="Browse on-board spectroscope FatFs SD card scan storage"
+        >
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="4" y="2" width="16" height="20" rx="2" ry="2"/>
+            <circle cx="12" cy="14" r="4"/>
+            <line x1="10" y1="6" x2="14" y2="6"/>
+          </svg>
+          <span>SD Card Explorer</span>
         </button>
       </div>
 
@@ -258,6 +272,11 @@ export function createSpectroscopyStudio({
       </div>
     </div>
 
+    <!-- TAB 3: Spectroscope SD Card Explorer Panel -->
+    <div id="panel-sdcard-view" class="${activeTab === 'SD_CARD' ? 'block' : 'hidden'} space-y-4">
+      <div id="sdcard-explorer-mount-point"></div>
+    </div>
+
     <!-- 5 FARMER AGRONOMIC DECISION CARDS -->
     <div id="decision-cards-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
       <!-- Will be filled dynamically by renderDecisionCards() -->
@@ -271,8 +290,12 @@ export function createSpectroscopyStudio({
   const scanBtn = container.querySelector('#spectro-scan-btn');
   const tabBtnCurve = container.querySelector('#tab-btn-curve');
   const tabBtnRaw = container.querySelector('#tab-btn-raw');
+  const tabBtnSdCard = container.querySelector('#tab-btn-sdcard');
   const panelCurveView = container.querySelector('#panel-curve-view');
   const panelRawView = container.querySelector('#panel-raw-view');
+  const panelSdCardView = container.querySelector('#panel-sdcard-view');
+  const sdCardMountPoint = container.querySelector('#sdcard-explorer-mount-point');
+  const decisionCardsContainer = container.querySelector('#decision-cards-container');
   const rawTerminalLog = container.querySelector('#raw-terminal-log');
   const tabRawCounterBadge = container.querySelector('#tab-raw-counter-badge');
   const rawChannelsMatrix = container.querySelector('#raw-channels-matrix');
@@ -418,7 +441,8 @@ export function createSpectroscopyStudio({
   async function handleMainConnectClick() {
     if (leafClipDevice.isConnected) {
       if (confirm(`Disconnect from ${leafClipDevice.deviceInfo?.model || 'Bluetooth device'}?`)) {
-        leafClipDevice.disconnect();
+        await leafClipDevice.disconnect();
+        updateBluetoothControls();
       }
       return;
     }
@@ -459,13 +483,33 @@ export function createSpectroscopyStudio({
   /**
    * 2. Tab Navigation Handling
    */
+  let sdCardExplorerInstance = null;
+  function mountSdCardExplorer() {
+    if (!sdCardMountPoint) return;
+    if (!sdCardExplorerInstance) {
+      sdCardExplorerInstance = createSpectroscopeSdCardExplorer({
+        onSelectBluetoothDevice: handleOpenDevicePicker,
+        onBack: () => switchTab('CURVE')
+      });
+      sdCardMountPoint.innerHTML = '';
+      sdCardMountPoint.appendChild(sdCardExplorerInstance);
+    }
+  }
+
   function switchTab(newTab) {
     activeTab = newTab;
+    const tabActive = "px-4 py-2 rounded-xl text-xs font-mono font-bold flex items-center gap-2 transition cursor-pointer bg-emeraldGlow text-slate-950 shadow-md shadow-emeraldGlow/20";
+    const tabInactive = "px-4 py-2 rounded-xl text-xs font-mono font-bold flex items-center gap-2 transition cursor-pointer bg-slate-800 text-slate-400 hover:text-white border border-slate-700";
+
     if (activeTab === 'CURVE') {
-      tabBtnCurve.className = "px-4 py-2 rounded-xl text-xs font-mono font-bold flex items-center gap-2 transition cursor-pointer bg-emeraldGlow text-slate-950 shadow-md shadow-emeraldGlow/20";
-      tabBtnRaw.className = "px-4 py-2 rounded-xl text-xs font-mono font-bold flex items-center gap-2 transition cursor-pointer bg-slate-800 text-slate-400 hover:text-white border border-slate-700";
+      tabBtnCurve.className = tabActive;
+      tabBtnRaw.className = tabInactive;
+      if (tabBtnSdCard) tabBtnSdCard.className = tabInactive;
+
       panelCurveView.classList.remove('hidden');
       panelRawView.classList.add('hidden');
+      if (panelSdCardView) panelSdCardView.classList.add('hidden');
+      if (decisionCardsContainer) decisionCardsContainer.classList.remove('hidden');
       tabRawCounterBadge.className = "px-1.5 py-0.2 rounded text-[10px] font-mono bg-emeraldGlow/20 text-emeraldGlow";
 
       // Redraw canvas on tab activation
@@ -473,11 +517,15 @@ export function createSpectroscopyStudio({
       if (canvas && latestAnalysis?.rawSpectrumPreview) {
         drawSpectralCurve(canvas, latestAnalysis.rawSpectrumPreview);
       }
-    } else {
-      tabBtnCurve.className = "px-4 py-2 rounded-xl text-xs font-mono font-bold flex items-center gap-2 transition cursor-pointer bg-slate-800 text-slate-400 hover:text-white border border-slate-700";
-      tabBtnRaw.className = "px-4 py-2 rounded-xl text-xs font-mono font-bold flex items-center gap-2 transition cursor-pointer bg-emeraldGlow text-slate-950 shadow-md shadow-emeraldGlow/20";
+    } else if (activeTab === 'RAW_DATA') {
+      tabBtnCurve.className = tabInactive;
+      tabBtnRaw.className = tabActive;
+      if (tabBtnSdCard) tabBtnSdCard.className = tabInactive;
+
       panelCurveView.classList.add('hidden');
       panelRawView.classList.remove('hidden');
+      if (panelSdCardView) panelSdCardView.classList.add('hidden');
+      if (decisionCardsContainer) decisionCardsContainer.classList.remove('hidden');
       tabRawCounterBadge.className = "px-1.5 py-0.2 rounded text-[10px] font-mono bg-slate-950 text-emeraldGlow";
 
       renderRawTerminal();
@@ -485,11 +533,25 @@ export function createSpectroscopyStudio({
       if (autoScroll) {
         rawTerminalLog.scrollTop = rawTerminalLog.scrollHeight;
       }
+    } else if (activeTab === 'SD_CARD') {
+      tabBtnCurve.className = tabInactive;
+      tabBtnRaw.className = tabInactive;
+      if (tabBtnSdCard) tabBtnSdCard.className = tabActive;
+
+      panelCurveView.classList.add('hidden');
+      panelRawView.classList.add('hidden');
+      if (panelSdCardView) panelSdCardView.classList.remove('hidden');
+      if (decisionCardsContainer) decisionCardsContainer.classList.add('hidden');
+
+      mountSdCardExplorer();
     }
   }
 
   tabBtnCurve.addEventListener('click', () => switchTab('CURVE'));
   tabBtnRaw.addEventListener('click', () => switchTab('RAW_DATA'));
+  if (tabBtnSdCard) {
+    tabBtnSdCard.addEventListener('click', () => switchTab('SD_CARD'));
+  }
 
   /**
    * 3. Raw Data Terminal Ingestion & Rendering
@@ -686,15 +748,27 @@ export function createSpectroscopyStudio({
     updateBluetoothControls();
   });
 
-  // Cleanup listeners when removed from DOM
-  const observer = new MutationObserver(() => {
-    if (!document.body.contains(container)) {
-      unbindRawData();
-      unbindConn();
-      observer.disconnect();
-    }
+  const unbindHwState = leafClipDevice.on('hardwareStateChange', () => {
+    updateBluetoothControls();
   });
-  observer.observe(document.body, { childList: true, subtree: true });
+
+  const unbindBleDisconnect = leafClipDevice.on('bleDisconnect', () => {
+    updateBluetoothControls();
+  });
+
+  // Cleanup listeners when removed from DOM
+  if (typeof MutationObserver !== 'undefined') {
+    const observer = new MutationObserver(() => {
+      if (!document.body.contains(container)) {
+        unbindRawData();
+        unbindConn();
+        unbindHwState();
+        unbindBleDisconnect();
+        observer.disconnect();
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
 
   // Initial UI Render
   updateBluetoothControls();

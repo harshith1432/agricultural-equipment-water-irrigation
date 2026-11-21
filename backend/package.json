@@ -8,10 +8,11 @@
     "start": "node server.js",
     "build": "node -e \"console.log('Build complete')\"",
     "dev": "node --watch server.js",
-    "test": "node test/backend-api.test.js && node test/smart-agri-microservice.test.js",
+    "test": "node test/backend-api.test.js && node test/smart-agri-microservice.test.js && node test/spectro-sync-api.test.js",
+    "test:spectro": "node test/spectro-sync-api.test.js",
     "test:microservice": "node test/smart-agri-microservice.test.js",
     "test:pentest": "node test/adversarial-pentest.test.js",
-    "test:all": "node test/backend-api.test.js && node test/smart-agri-microservice.test.js && node test/adversarial-pentest.test.js"
+    "test:all": "node test/backend-api.test.js && node test/smart-agri-microservice.test.js && node test/spectro-sync-api.test.js && node test/adversarial-pentest.test.js"
   },
   "dependencies": {
     "@google-cloud/firestore": "^9.4.1",

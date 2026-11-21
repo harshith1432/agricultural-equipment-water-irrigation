@@ -800,113 +800,331 @@ class SchemaManager {
   }
 
   /**
-   * Ingest and persist spectral scan (VIS-NIR 350nm-1100nm, 76 bands, specimen metadata)
-   * Auto-creates 'spectral_scans' table if not existing, fills data, and updates farm subcollection
+   * Validates payload structure for a spectral scan:
+   * scanId, specimen, location, timestamps, rawData, processedData
    */
-  async saveSpectralScan(scanData) {
-    const timestamp = scanData.timestamp || scanData.scannedAt || new Date().toISOString();
-    const id = scanData.id || `scan-${timestamp.slice(0, 10).replace(/-/g, '')}-${String(Math.floor(Math.random() * 900) + 100)}`;
-    const plotId = scanData.plotId || "plot-1";
-    const plotNumber = Number(scanData.plotNumber || (plotId.match(/\d+/) ? parseInt(plotId.match(/\d+/)[0], 10) : 1));
-    const plantNumber = String(scanData.plantNumber || `PLANT-${String(plotNumber).padStart(3, '0')}`);
-    const portNumber = String(scanData.portNumber || `PORT-0${plotNumber}`);
-    const plantName = String(scanData.plantName || scanData.crop || "Specimen Plant");
-    const farmId = scanData.farmId || "farm-valley-1";
-    const crop = String(scanData.crop || "tomato");
+  validateSpectralScan(scanData, isStrict = false) {
+    if (!scanData || typeof scanData !== 'object' || Object.keys(scanData).length === 0) {
+      return { valid: false, error: "Empty spectroscopy scan payload." };
+    }
 
-    const calibrationRef = scanData.calibrationRef || {
-      darkCurrent: Number(scanData.calibrationRef?.darkCurrent ?? 0.015),
-      whiteReference: Number(scanData.calibrationRef?.whiteReference ?? 0.985),
-      calibratedAt: scanData.calibrationRef?.calibratedAt || timestamp
+    if (isStrict) {
+      // 1. scanId (or id)
+      const scanId = scanData.scanId || scanData.id;
+      if (!scanId || typeof scanId !== 'string' || scanId.trim().length === 0) {
+        return { valid: false, error: "Validation Error: 'scanId' is required and must be a non-empty string." };
+      }
+
+      // 2. specimen
+      const hasSpecimen = Boolean(
+        (scanData.specimen && (typeof scanData.specimen === 'string' || (typeof scanData.specimen === 'object' && Object.keys(scanData.specimen).length > 0))) ||
+        scanData.crop ||
+        scanData.plantName
+      );
+      if (!hasSpecimen) {
+        return { valid: false, error: "Validation Error: 'specimen' metadata is required." };
+      }
+
+      // 3. location
+      const hasLocation = Boolean(
+        (scanData.location && (typeof scanData.location === 'string' || (typeof scanData.location === 'object' && Object.keys(scanData.location).length > 0))) ||
+        scanData.plotId ||
+        scanData.farmId
+      );
+      if (!hasLocation) {
+        return { valid: false, error: "Validation Error: 'location' metadata is required." };
+      }
+
+      // 4. timestamps
+      const hasTimestamps = Boolean(
+        (scanData.timestamps && (typeof scanData.timestamps === 'string' || (typeof scanData.timestamps === 'object' && Object.keys(scanData.timestamps).length > 0))) ||
+        scanData.timestamp ||
+        scanData.scannedAt
+      );
+      if (!hasTimestamps) {
+        return { valid: false, error: "Validation Error: 'timestamps' is required." };
+      }
+
+      // 5. rawData
+      const hasRawData = Boolean(
+        (scanData.rawData && (Array.isArray(scanData.rawData) || (typeof scanData.rawData === 'object' && Object.keys(scanData.rawData).length > 0))) ||
+        (Array.isArray(scanData.rawReflectance) && scanData.rawReflectance.length > 0) ||
+        (Array.isArray(scanData.rawIntensities) && scanData.rawIntensities.length > 0)
+      );
+      if (!hasRawData) {
+        return { valid: false, error: "Validation Error: 'rawData' is required." };
+      }
+
+      // 6. processedData
+      const hasProcessedData = Boolean(
+        (scanData.processedData && typeof scanData.processedData === 'object' && Object.keys(scanData.processedData).length > 0) ||
+        (scanData.chemometrics && typeof scanData.chemometrics === 'object' && Object.keys(scanData.chemometrics).length > 0) ||
+        (scanData.indices && typeof scanData.indices === 'object' && Object.keys(scanData.indices).length > 0) ||
+        scanData.vitalityScore !== undefined ||
+        scanData.ndvi !== undefined
+      );
+      if (!hasProcessedData) {
+        return { valid: false, error: "Validation Error: 'processedData' is required." };
+      }
+    }
+
+    return { valid: true };
+  }
+
+  /**
+   * Normalizes spectral scan payload into canonical schema
+   */
+  normalizeSpectralScan(scanData) {
+    const rawTimestamp = (scanData.timestamps && typeof scanData.timestamps === 'object' ? scanData.timestamps.scannedAt : scanData.timestamps) ||
+      scanData.timestamp ||
+      scanData.scannedAt ||
+      new Date().toISOString();
+
+    const scanId = String(scanData.scanId || scanData.id || `scan-${rawTimestamp.slice(0, 10).replace(/-/g, '')}-${String(Math.floor(Math.random() * 900) + 100)}`);
+    const id = scanId;
+
+    // Specimen normalization
+    const specimen = typeof scanData.specimen === 'object' && scanData.specimen !== null
+      ? { ...scanData.specimen }
+      : {
+          crop: String(scanData.specimen || scanData.crop || scanData.plantName || "Specimen Plant"),
+          plantName: String(scanData.plantName || scanData.specimen || "Specimen Plant")
+        };
+    if (!specimen.crop && scanData.crop) specimen.crop = String(scanData.crop);
+    if (!specimen.plantName && scanData.plantName) specimen.plantName = String(scanData.plantName);
+    const crop = String(specimen.crop || scanData.crop || "tomato");
+
+    // Location normalization
+    const location = typeof scanData.location === 'object' && scanData.location !== null
+      ? { ...scanData.location }
+      : {
+          plotId: String(scanData.location || scanData.plotId || "plot-1"),
+          farmId: String(scanData.farmId || "farm-valley-1")
+        };
+    if (!location.farmId) location.farmId = String(scanData.farmId || "farm-valley-1");
+    if (!location.plotId) location.plotId = String(scanData.plotId || "plot-1");
+    const farmId = String(location.farmId);
+    const plotId = String(location.plotId);
+    const plotNumber = Number(scanData.plotNumber || location.plotNumber || (plotId.match(/\d+/) ? parseInt(plotId.match(/\d+/)[0], 10) : 1));
+    const plantNumber = String(specimen.plantNumber || scanData.plantNumber || `PLANT-${String(plotNumber).padStart(3, '0')}`);
+    const portNumber = String(scanData.portNumber || `PORT-0${plotNumber}`);
+    const plantName = String(specimen.plantName || scanData.plantName || crop);
+
+    // Timestamps normalization
+    const timestamps = typeof scanData.timestamps === 'object' && scanData.timestamps !== null
+      ? { ...scanData.timestamps }
+      : { scannedAt: rawTimestamp };
+    if (!timestamps.scannedAt) timestamps.scannedAt = rawTimestamp;
+
+    // Raw data normalization
+    let rawReflectance;
+    if (Array.isArray(scanData.rawData)) {
+      rawReflectance = scanData.rawData.map(v => Number(Number(v).toFixed(4)));
+    } else if (scanData.rawData && typeof scanData.rawData === 'object') {
+      const arr = scanData.rawData.intensities || scanData.rawData.reflectance || scanData.rawData.rawIntensities || scanData.rawData.rawReflectance;
+      if (Array.isArray(arr)) {
+        rawReflectance = arr.map(v => Number(Number(v).toFixed(4)));
+      }
+    }
+    if (!rawReflectance) {
+      if (Array.isArray(scanData.rawReflectance) && scanData.rawReflectance.length > 0) {
+        rawReflectance = scanData.rawReflectance.map(v => Number(Number(v).toFixed(4)));
+      } else if (Array.isArray(scanData.rawIntensities) && scanData.rawIntensities.length > 0) {
+        rawReflectance = scanData.rawIntensities.map(v => Number(Number(v).toFixed(4)));
+      } else {
+        rawReflectance = Array.from({ length: 76 }, (_, i) => Number((0.05 + 0.6 * Math.sin((i / 75) * Math.PI)).toFixed(4)));
+      }
+    }
+
+    const rawData = (typeof scanData.rawData === 'object' && !Array.isArray(scanData.rawData) && scanData.rawData !== null)
+      ? { ...scanData.rawData, intensities: rawReflectance, bandCount: rawReflectance.length }
+      : { intensities: rawReflectance, bandCount: rawReflectance.length };
+
+    // Processed data & chemometrics normalization
+    const proc = scanData.processedData || scanData.chemometrics || scanData.indices || {};
+    const ndvi = Number(proc.ndvi ?? scanData.chemometrics?.ndvi ?? scanData.indices?.ndvi ?? scanData.ndvi ?? 0.75);
+    const ndre = Number(proc.ndre ?? scanData.chemometrics?.ndre ?? scanData.indices?.ndre ?? scanData.ndre ?? 0.32);
+    const lwi = Number(proc.leafWaterIndex ?? proc.lwi ?? proc.wbi ?? scanData.chemometrics?.leafWaterIndex ?? scanData.chemometrics?.wbi ?? scanData.indices?.wbi ?? 0.92);
+    const cire = Number(proc.cire ?? scanData.chemometrics?.cire ?? scanData.indices?.cire ?? scanData.cire ?? 2.10);
+    const vitality = Number(proc.vitalityScore ?? proc.vitality ?? scanData.chemometrics?.vitalityScore ?? scanData.indices?.vitality ?? scanData.vitalityScore ?? scanData.vitality ?? 85);
+    const nitrogenPrescriptionKg = Number(proc.nitrogenPrescriptionKg ?? scanData.nitrogenPrescriptionKg ?? (ndre < 0.28 ? 18.0 : (ndre < 0.35 ? 8.0 : 0.0)));
+    const irrigationNeedHours = Number(proc.irrigationCountdownHours ?? proc.irrigationNeedHours ?? scanData.irrigationNeedHours ?? (lwi < 0.82 ? 4 : (lwi < 0.89 ? 18 : 36)));
+    const diseaseRisk = typeof (proc.diseaseRisk || scanData.diseaseRisk) === 'string'
+      ? (proc.diseaseRisk || scanData.diseaseRisk)
+      : ((proc.diseaseRisk || scanData.diseaseRisk)?.pathogen || "HEALTHY_OPTIMAL");
+
+    const processedData = {
+      ndvi,
+      ndre,
+      leafWaterIndex: lwi,
+      cire,
+      vitalityScore: vitality,
+      nitrogenPrescriptionKg,
+      irrigationCountdownHours: irrigationNeedHours,
+      diseaseRisk: typeof diseaseRisk === 'string' ? { pathogen: diseaseRisk } : diseaseRisk
     };
 
     const indices = {
-      ndvi: Number(scanData.chemometrics?.ndvi ?? scanData.indices?.ndvi ?? scanData.ndvi ?? 0.75),
-      ndre: Number(scanData.chemometrics?.ndre ?? scanData.indices?.ndre ?? scanData.ndre ?? 0.32),
-      wbi: Number(scanData.chemometrics?.wbi ?? scanData.chemometrics?.leafWaterIndex ?? scanData.indices?.wbi ?? scanData.wbi ?? 0.92),
-      cire: Number(scanData.chemometrics?.cire ?? scanData.indices?.cire ?? scanData.cire ?? 2.10),
-      vitality: Number(scanData.chemometrics?.vitalityScore ?? scanData.indices?.vitality ?? scanData.vitalityScore ?? scanData.vitality ?? 85),
-      lwi: Number(scanData.chemometrics?.leafWaterIndex ?? scanData.indices?.lwi ?? scanData.indices?.leafWaterIndex ?? scanData.leafWaterIndex ?? 0.92)
+      ndvi,
+      ndre,
+      wbi: lwi,
+      cire,
+      vitality,
+      lwi
     };
 
-    const rawReflectance = Array.isArray(scanData.rawReflectance) && scanData.rawReflectance.length === 76
-      ? scanData.rawReflectance.map(v => Number(Number(v).toFixed(4)))
-      : (Array.isArray(scanData.rawReflectance) && scanData.rawReflectance.length > 0
-          ? scanData.rawReflectance.map(v => Number(Number(v).toFixed(4)))
-          : Array.from({ length: 76 }, (_, i) => Number((0.05 + 0.6 * Math.sin((i / 75) * Math.PI)).toFixed(4))));
+    const calibrationRef = scanData.calibrationRef || scanData.calibrationReference || {
+      darkCurrent: Number(scanData.calibrationRef?.darkCurrent ?? 0.015),
+      whiteReference: Number(scanData.calibrationRef?.whiteReference ?? 0.985),
+      calibratedAt: scanData.calibrationRef?.calibratedAt || rawTimestamp
+    };
 
-    const nitrogenPrescriptionKg = Number(scanData.nitrogenPrescriptionKg ?? 0);
-    const irrigationNeedHours = Number(scanData.irrigationNeedHours ?? (indices.lwi < 0.82 ? 4 : (indices.lwi < 0.89 ? 18 : 36)));
-    const diseaseRisk = typeof scanData.diseaseRisk === 'string' ? scanData.diseaseRisk : (scanData.diseaseRisk?.pathogen || "HEALTHY_OPTIMAL");
     const source = scanData.connectionMode || scanData.source || scanData.hardwareLink || "SIMULATED";
     const hardwareLink = ["BLE_NUS", "USB_SERIAL", "SIMULATED"].includes(scanData.hardwareLink) ? scanData.hardwareLink : (scanData.sourceMode || source);
 
     const chemometrics = scanData.chemometrics || {
-      ndvi: indices.ndvi,
-      ndre: indices.ndre,
-      leafWaterIndex: indices.lwi,
-      cire: indices.cire,
-      vitalityScore: indices.vitality,
-      nitrogenPrescriptionKg,
-      irrigationCountdownHours: irrigationNeedHours,
-      diseaseRisk: { pathogen: diseaseRisk }
+      ...processedData,
+      irrigationUrgency: scanData.chemometrics?.irrigationUrgency || (lwi < 0.82 ? "CRITICAL" : "NORMAL"),
+      diseaseRisk: typeof diseaseRisk === 'string' ? { pathogen: diseaseRisk } : diseaseRisk
     };
 
-    const record = {
+    return {
+      scanId,
       id,
       plantNumber,
       portNumber,
       plantName,
       plotId,
       plotNumber,
+      farmId,
       crop,
+      specimen,
+      location,
+      timestamps,
+      timestamp: rawTimestamp,
+      scannedAt: rawTimestamp,
       calibrationRef,
+      rawData,
       rawReflectance,
+      rawIntensities: rawReflectance,
       indices,
+      processedData,
       chemometrics,
       nitrogenPrescriptionKg,
       irrigationNeedHours,
       diseaseRisk,
       hardwareLink,
       source,
-      connectionMode: source,
-      timestamp
+      connectionMode: source
     };
+  }
 
-    // Auto-create/save to root spectral_scans table
-    await this.saveUserData('spectral_scans', id, record, { merge: true });
+  /**
+   * Sync a single spectral scan with duplicate detection and idempotency:
+   * Checks if scanId already exists in Firestore (farms/{farmId}/spectralScans/{scanId}).
+   * If exists, updates/confirms without creating duplicate records or erroring out.
+   * Permanently writes verified records to Cloud Firestore.
+   */
+  async syncSpectralScan(scanData, options = {}) {
+    const isStrict = options.isStrict !== false;
+    const validation = this.validateSpectralScan(scanData, isStrict);
+    if (!validation.valid) {
+      const err = new Error(validation.error);
+      err.status = 400;
+      throw err;
+    }
 
-    // Auto-create/save to farm subcollection
-    await this.saveUserData(`farms/${farmId}/spectralScans`, id, record, { merge: true });
+    const record = this.normalizeSpectralScan(scanData);
+    const farmId = record.farmId;
+    const scanId = record.scanId;
 
-    // Update centralStorage in-memory model
+    // Idempotency check: verify existence in Cloud Firestore & in-memory cache
+    const existsInCloud = await firestoreClient.spectralScanExists(farmId, scanId);
+    const existsInMemory = Boolean(centralStorage.getSpectroScanById(scanId));
+    const isDuplicate = existsInCloud || existsInMemory;
+
+    record.syncedAt = new Date().toISOString();
+    record.status = isDuplicate ? 'updated' : 'created';
+    record.isDuplicate = isDuplicate;
+
+    // Permanently write to Cloud Firestore under farms/{farmId}/spectralScans/{scanId}
+    await firestoreClient.saveSpectralScanDoc(farmId, scanId, record, { merge: true });
+
+    // Also persist to root spectral_scans table for collection index compatibility
+    await this.saveUserData('spectral_scans', scanId, record, { merge: true });
+
+    // Update in-memory centralStorage
     try {
       centralStorage.addSpectroScan({
-        id,
-        farmId,
-        plotId,
-        crop,
-        timestamp,
-        connectionMode: source,
-        source: source,
-        rawIntensities: rawReflectance,
-        chemometrics: {
-          ndvi: indices.ndvi,
-          ndre: indices.ndre,
-          leafWaterIndex: indices.lwi,
-          cire: indices.cire,
-          vitalityScore: indices.vitality,
-          nitrogenPrescriptionKg,
-          irrigationCountdownHours: irrigationNeedHours,
-          irrigationUrgency: scanData.chemometrics?.irrigationUrgency || (indices.lwi < 0.82 ? "CRITICAL" : "NORMAL"),
-          diseaseRisk: { pathogen: diseaseRisk }
-        }
+        ...record,
+        id: scanId,
+        source: record.source,
+        rawIntensities: record.rawReflectance,
+        chemometrics: record.chemometrics
       });
-    } catch (e) {
+    } catch {
       // Non-fatal
     }
 
-    return record;
+    return {
+      success: true,
+      scanId,
+      cloudDocumentId: `farms/${farmId}/spectralScans/${scanId}`,
+      syncedAt: record.syncedAt,
+      isDuplicate,
+      status: record.status,
+      data: record
+    };
+  }
+
+  /**
+   * Batch synchronize spectral scans from mobile application
+   */
+  async batchSyncSpectralScans(scansList, options = {}) {
+    if (!Array.isArray(scansList) || scansList.length === 0) {
+      const err = new Error("Validation Error: Batch scan payload must be a non-empty array.");
+      err.status = 400;
+      throw err;
+    }
+
+    // Validate all items first
+    for (let i = 0; i < scansList.length; i++) {
+      const item = scansList[i];
+      const validation = this.validateSpectralScan(item, true);
+      if (!validation.valid) {
+        const err = new Error(`Item ${i}: ${validation.error}`);
+        err.status = 400;
+        throw err;
+      }
+    }
+
+    const results = [];
+    for (const item of scansList) {
+      const syncRes = await this.syncSpectralScan(item, { isStrict: true });
+      results.push({
+        success: true,
+        scanId: syncRes.scanId,
+        cloudDocumentId: syncRes.cloudDocumentId,
+        syncedAt: syncRes.syncedAt,
+        isDuplicate: syncRes.isDuplicate,
+        status: syncRes.status
+      });
+    }
+
+    return {
+      success: true,
+      syncedCount: results.length,
+      results
+    };
+  }
+
+  /**
+   * Ingest and persist spectral scan (VIS-NIR 350nm-1100nm, 76 bands, specimen metadata)
+   * Auto-creates 'spectral_scans' table if not existing, fills data, and updates farm subcollection
+   */
+  async saveSpectralScan(scanData) {
+    const syncRes = await this.syncSpectralScan(scanData, { isStrict: false });
+    return syncRes.data;
   }
 }
 

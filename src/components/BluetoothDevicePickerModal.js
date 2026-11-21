@@ -10,7 +10,44 @@
 import { leafClipDevice } from '../hardware/webBluetoothLeafClip.js';
 import { escapeHtml } from '../utils/sanitizer.js';
 
-export const DEFAULT_BLE_PRESETS = [];
+export function getInitialBlePresets() {
+  const presets = [];
+  try {
+    if (typeof localStorage !== 'undefined' && localStorage.getItem) {
+      const raw = localStorage.getItem('agri_last_spectro_device');
+      if (raw) {
+        const saved = JSON.parse(raw);
+        if (saved && (saved.id || saved.deviceId || saved.mac)) {
+          presets.push({
+            ...saved,
+            isRemembered: true,
+            recommended: true,
+            rssi: saved.rssi || -55
+          });
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[BLE] Could not parse remembered spectroscope:', e);
+  }
+
+  // Pre-seed default BlueNRG_Chat spectroscope if not already present
+  if (!presets.some(p => p.isBlueNrg || /bluenrg|chat/i.test(p.name || ''))) {
+    presets.push({
+      id: '02:80:E1:00:00:AA',
+      deviceId: '02:80:E1:00:00:AA',
+      name: 'BlueNRG_Chat (Spectroscope)',
+      mac: '02:80:E1:00:00:AA',
+      isBlueNrg: true,
+      recommended: true,
+      rssi: -58,
+      type: 'STMicroelectronics B-L475E-IOT01A2 Spectroscope'
+    });
+  }
+  return presets;
+}
+
+export const DEFAULT_BLE_PRESETS = getInitialBlePresets();
 
 export function enrichDevice(dev) {
   if (!dev) return dev;
@@ -20,6 +57,7 @@ export function enrichDevice(dev) {
   const macUpper = String(mac || id).toUpperCase();
   const last4 = macUpper.replace(/[^A-F0-9]/g, '').slice(-4);
   const last4Fmt = last4.length === 4 ? `${last4.slice(0, 2)}:${last4.slice(2)}` : (last4 || 'BLE');
+  const isRemembered = Boolean(dev.isRemembered || dev.remembered);
 
   const isBlueNrg = Boolean(
     dev.isBlueNrg || 
@@ -65,6 +103,7 @@ export function enrichDevice(dev) {
     mac: dev.mac || (isBlueNrg ? '02:80:E1:00:00:AA' : (dev.id || dev.deviceId)),
     isBlueNrg,
     isNrf,
+    isRemembered,
     recommended: isBlueNrg ? true : (dev.recommended !== undefined ? dev.recommended : isNrf),
     protocol: isBlueNrg ? 'ST BlueNRG Chat' : (dev.protocol || (isNrf ? 'Nordic UART (NUS)' : 'Standard BLE GATT')),
     type: dev.type || (isBlueNrg ? 'STMicroelectronics B-L475E-IOT01A2 Spectroscope' : (isNrf ? 'Leaf-Clip Spectroscope' : 'Bluetooth Peripheral'))
@@ -216,11 +255,21 @@ export function createBluetoothDevicePickerModal({ onConnected, onDismiss } = {}
     const enrichedList = discoveredDevices.map(enrichDevice);
 
     // Prioritization:
-    // 1. ST BlueNRG & nRF Spectroscopes at top
-    // 2. Real named peripherals (e.g. OnePlus, Printers, named devices)
-    // 3. Generic unnamed beacons
-    // 4. Signal strength (RSSI)
+    // 1. Currently connected device
+    // 2. ST BlueNRG & Remembered Spectroscopes at top
+    // 3. nRF Spectroscopes
+    // 4. Real named peripherals (e.g. OnePlus, Printers, named devices)
+    // 5. Generic unnamed beacons
+    // 6. Signal strength (RSSI)
     enrichedList.sort((a, b) => {
+      const aIsConn = leafClipDevice.isConnected && (leafClipDevice.deviceInfo?.id === (a.id || a.deviceId || a.mac));
+      const bIsConn = leafClipDevice.isConnected && (leafClipDevice.deviceInfo?.id === (b.id || b.deviceId || b.mac));
+      if (aIsConn && !bIsConn) return -1;
+      if (!aIsConn && bIsConn) return 1;
+
+      if ((a.isBlueNrg || a.isRemembered) && !(b.isBlueNrg || b.isRemembered)) return -1;
+      if (!(a.isBlueNrg || a.isRemembered) && (b.isBlueNrg || b.isRemembered)) return 1;
+
       if (a.isBlueNrg && !b.isBlueNrg) return -1;
       if (!a.isBlueNrg && b.isBlueNrg) return 1;
       if (a.isNrf && !b.isNrf) return -1;
@@ -331,6 +380,12 @@ export function createBluetoothDevicePickerModal({ onConnected, onDismiss } = {}
         badge.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 shrink-0';
         badge.textContent = 'Spectroscope';
         titleRow.appendChild(badge);
+      }
+      if (dev.isRemembered && !isCurrentConnected) {
+        const memBadge = document.createElement('span');
+        memBadge.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 shrink-0';
+        memBadge.textContent = 'Known (1-Tap)';
+        titleRow.appendChild(memBadge);
       }
       if (isCurrentConnected) {
         const badge = document.createElement('span');
@@ -447,7 +502,13 @@ export function createBluetoothDevicePickerModal({ onConnected, onDismiss } = {}
         connBtn.addEventListener('click', async (e) => {
           e.stopPropagation();
           if (leafClipDevice.isConnected && (leafClipDevice.deviceInfo?.id === devKey || leafClipDevice.device?.deviceId === devKey)) {
-            leafClipDevice.disconnect();
+            connBtn.disabled = true;
+            connBtn.innerHTML = '<svg class="w-4 h-4 animate-spin text-slate-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-linecap="round"/></svg><span>Resetting spectroscope & disconnecting...</span>';
+            try {
+              await leafClipDevice.disconnect();
+            } catch (err) {
+              console.warn('[BLE] Disconnect error:', err);
+            }
             renderList();
             return;
           }
@@ -456,6 +517,10 @@ export function createBluetoothDevicePickerModal({ onConnected, onDismiss } = {}
           renderList();
 
           try {
+            isScanning = false;
+            try {
+              if (leafClipDevice.BleClient) await leafClipDevice.BleClient.stopLEScan();
+            } catch (_) {}
             const res = await leafClipDevice.connectToDevice(dev);
             connectingDeviceId = null;
             renderList();

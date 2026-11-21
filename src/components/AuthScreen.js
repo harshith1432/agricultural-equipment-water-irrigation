@@ -36,7 +36,6 @@ export function createAuthScreen({ onAuthSuccess, onThemeChange, currentTheme = 
   let selectedRole = 'Farm Owner'; // 'Farm Owner' | 'Agronomist' | 'Field Tech'
   let bannerState = null; // { type: 'success' | 'error', message: string }
   let isSubmitting = false;
-  let showDemoAccordion = false;
   let currentEmail = '';
   let currentPassword = '';
   let currentName = '';
@@ -59,10 +58,10 @@ export function createAuthScreen({ onAuthSuccess, onThemeChange, currentTheme = 
 
     container.innerHTML = `
       <!-- Top Navigation Header: Branding + Language + Theme Switcher -->
-      <header class="w-full px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between border-b border-[#E5DDCF] dark:border-emerald-950/80 bg-white/70 dark:bg-[#0c2214]/80 backdrop-blur-md sticky top-0 z-30">
+      <header class="w-full px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between border-b border-emerald-900/60 bg-[#071f11] backdrop-blur-md sticky top-0 z-30 shadow-sm">
         <div class="flex items-center gap-2.5 min-w-0">
-          <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-[#1E462A] via-[#2A603B] to-[#12301A] flex items-center justify-center text-white shadow-md shadow-emerald-950/30 ring-2 ring-emerald-500/20 shrink-0">
-            <svg class="w-5 h-5 text-emerald-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-md shadow-emerald-900/40 ring-2 ring-emerald-400/60 shrink-0">
+            <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 2a10 10 0 0 1 10 10c0 5.523-4.477 10-10 10S2 17.523 2 12a10 10 0 0 1 10-10Z"/>
               <path d="m9 12 2 2 4-4"/>
               <path d="M12 6v2"/>
@@ -70,10 +69,10 @@ export function createAuthScreen({ onAuthSuccess, onThemeChange, currentTheme = 
             </svg>
           </div>
           <div class="min-w-0">
-            <span class="text-xs sm:text-sm font-black tracking-tight text-[#1E462A] dark:text-white uppercase font-sans block truncate">
+            <span class="text-xs sm:text-sm font-black tracking-wide text-white uppercase font-sans block truncate drop-shadow-sm">
               AGRISPECTRA FLOW & FIELD
             </span>
-            <span class="text-[10px] text-emerald-700 dark:text-emerald-400 font-mono hidden sm:block">
+            <span class="text-[10px] text-emerald-300 font-mono hidden sm:block">
               Precision Agronomy & Hydraulic Infrastructure
             </span>
           </div>
@@ -190,12 +189,13 @@ export function createAuthScreen({ onAuthSuccess, onThemeChange, currentTheme = 
                 <span>${t('continue_with_google', 'Continue with Google')}</span>
               </button>
 
-              <!-- Organic Divider -->
-              <div class="relative flex items-center justify-center my-3">
-                <div class="border-t border-[#E5DDCF] dark:border-emerald-950 w-full"></div>
-                <span class="bg-white dark:bg-[#0c2214] px-3 text-[11px] font-bold text-stone-400 dark:text-emerald-500/80 uppercase tracking-wider">
+              <!-- Symmetrical Centered Divider -->
+              <div class="relative flex items-center my-4 w-full">
+                <div class="flex-grow border-t border-[#E5DDCF] dark:border-emerald-900/60"></div>
+                <span class="flex-shrink mx-3 text-[11px] font-bold text-stone-400 dark:text-emerald-400 uppercase tracking-wider text-center">
                   ${mode === 'SIGN_IN' ? t('or_signin_email', 'or sign in with email') : t('or_register_email', 'or create with email')}
                 </span>
+                <div class="flex-grow border-t border-[#E5DDCF] dark:border-emerald-900/60"></div>
               </div>
             ` : ''}
 
@@ -391,63 +391,6 @@ export function createAuthScreen({ onAuthSuccess, onThemeChange, currentTheme = 
               `)}
             </div>
 
-            <!-- Instant Demo Roles (1-Click Test Drive Accordion) -->
-            <div class="pt-2 border-t border-[#E5DDCF] dark:border-emerald-950">
-              <button 
-                type="button" 
-                id="btn-toggle-demo-roles" 
-                class="w-full py-2 px-3 rounded-xl bg-stone-100 dark:bg-slate-900/80 hover:bg-stone-200 dark:hover:bg-slate-800 text-[#1E462A] dark:text-emerald-300 font-bold text-xs flex items-center justify-between transition cursor-pointer"
-              >
-                <div class="flex items-center gap-2">
-                  <span>🧪</span>
-                  <span>${t('demo_roles_title', 'Instant Test Profiles (1-Click Demo)')}</span>
-                </div>
-                <svg class="w-4 h-4 transition-transform duration-200 ${showDemoAccordion ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                </svg>
-              </button>
-
-              ${showDemoAccordion ? `
-                <div class="grid grid-cols-2 gap-2 mt-2.5 animate-fadeIn">
-                  <!-- Demo 1: Farm Owner -->
-                  <button type="button" data-demo-role="Farm Owner" class="btn-demo-persona p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700 text-left hover:bg-amber-100 dark:hover:bg-amber-950/50 transition cursor-pointer">
-                    <div class="flex items-center gap-1.5">
-                      <span class="text-sm">👨‍🌾</span>
-                      <div class="font-bold text-[11px] text-amber-950 dark:text-amber-200 truncate">Farm Owner (Demo)</div>
-                    </div>
-                    <div class="text-[9px] font-mono text-amber-800 dark:text-amber-300 mt-0.5">Executive Workspace • 6 Zones</div>
-                  </button>
-
-                  <!-- Demo 2: Agronomist -->
-                  <button type="button" data-demo-role="Agronomist" class="btn-demo-persona p-2.5 rounded-xl bg-teal-50 dark:bg-teal-950/30 border border-teal-300 dark:border-teal-700 text-left hover:bg-teal-100 dark:hover:bg-teal-950/50 transition cursor-pointer">
-                    <div class="flex items-center gap-1.5">
-                      <span class="text-sm">🔬</span>
-                      <div class="font-bold text-[11px] text-teal-950 dark:text-teal-200 truncate">Agronomist (Demo)</div>
-                    </div>
-                    <div class="text-[9px] font-mono text-teal-800 dark:text-teal-300 mt-0.5">Spectroscopy & Crop Science</div>
-                  </button>
-
-                  <!-- Demo 3: Field Operator -->
-                  <button type="button" data-demo-role="Field Operator" class="btn-demo-persona p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-300 dark:border-blue-700 text-left hover:bg-blue-100 dark:hover:bg-blue-950/50 transition cursor-pointer">
-                    <div class="flex items-center gap-1.5">
-                      <span class="text-sm">💧</span>
-                      <div class="font-bold text-[11px] text-blue-950 dark:text-blue-200 truncate">Field Tech (Demo)</div>
-                    </div>
-                    <div class="text-[9px] font-mono text-blue-800 dark:text-blue-300 mt-0.5">±12V Solenoids & Valves</div>
-                  </button>
-
-                  <!-- Demo 4: SuperAdmin -->
-                  <button type="button" data-demo-role="SuperAdmin" class="btn-demo-persona p-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/30 border border-purple-300 dark:border-purple-700 text-left hover:bg-purple-100 dark:hover:bg-purple-950/50 transition cursor-pointer">
-                    <div class="flex items-center gap-1.5">
-                      <span class="text-sm">🛡️</span>
-                      <div class="font-bold text-[11px] text-purple-950 dark:text-purple-200 truncate">SuperAdmin (Demo)</div>
-                    </div>
-                    <div class="text-[9px] font-mono text-purple-800 dark:text-purple-300 mt-0.5">Multi-Tenant Governance</div>
-                  </button>
-                </div>
-              ` : ''}
-            </div>
-
           </div>
         </div>
 
@@ -508,12 +451,6 @@ export function createAuthScreen({ onAuthSuccess, onThemeChange, currentTheme = 
       render();
     });
 
-    // Toggle demo accordion
-    container.querySelector('#btn-toggle-demo-roles')?.addEventListener('click', () => {
-      showDemoAccordion = !showDemoAccordion;
-      render();
-    });
-
     // Toggle password eye
     container.querySelector('#auth-toggle-pwd')?.addEventListener('click', () => {
       showPassword = !showPassword;
@@ -525,28 +462,6 @@ export function createAuthScreen({ onAuthSuccess, onThemeChange, currentTheme = 
       btn.addEventListener('click', () => {
         selectedRole = btn.getAttribute('data-role') || 'Farm Owner';
         render();
-      });
-    });
-
-    // 1-Click Demo Persona buttons
-    container.querySelectorAll('.btn-demo-persona').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const role = btn.getAttribute('data-demo-role');
-        try {
-          isSubmitting = true;
-          bannerState = null;
-          render();
-          const user = await authService.loginAsDemoRole(role);
-          bannerState = { type: 'success', message: `Entering as ${user.displayName} (${user.role})...` };
-          render();
-          setTimeout(() => {
-            if (onAuthSuccess) onAuthSuccess(user);
-          }, 350);
-        } catch (err) {
-          isSubmitting = false;
-          bannerState = { type: 'error', message: err.message || "Failed to launch demo role." };
-          render();
-        }
       });
     });
 

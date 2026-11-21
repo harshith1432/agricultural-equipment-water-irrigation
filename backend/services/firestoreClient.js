@@ -197,7 +197,8 @@ export class FirestoreClient {
       for (let i = 0; i < segment.length; i++) {
         const code = segment.charCodeAt(i);
         const isAlphaNum = (code >= 48 && code <= 57) || (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
-        if (!isAlphaNum && code !== 95 && code !== 45) { // '_' is 95, '-' is 45
+        // Allow alphanumeric, '_', '-', '.', ':'
+        if (!isAlphaNum && code !== 95 && code !== 45 && code !== 46 && code !== 58) {
           return null;
         }
       }
@@ -457,6 +458,178 @@ export class FirestoreClient {
       return { mapValue: { fields } };
     }
     return { stringValue: String(val) };
+  }
+
+  /**
+   * Check if a spectral scan exists in Firestore under farms/{farmId}/spectralScans/{scanId}
+   * Used for idempotency and duplicate prevention
+   */
+  async spectralScanExists(farmId, scanId) {
+    await this.ensureReady();
+    const docPath = `farms/${farmId}/spectralScans/${scanId}`;
+    if (this.adminDb) {
+      try {
+        const docRef = this.adminDb.collection('farms').doc(farmId).collection('spectralScans').doc(scanId);
+        const snap = await docRef.get();
+        return snap.exists;
+      } catch (err) {
+        console.warn(`[FirestoreClient] Admin SDK spectralScanExists error: ${err.message}`);
+      }
+    }
+    return this.docExists(docPath);
+  }
+
+  /**
+   * Fetch a spectral scan from farms/{farmId}/spectralScans/{scanId}
+   * Transparently resolves reference structure if payload was partitioned
+   */
+  async getSpectralScan(farmId, scanId) {
+    await this.ensureReady();
+    const docPath = `farms/${farmId}/spectralScans/${scanId}`;
+    if (this.adminDb) {
+      try {
+        const docRef = this.adminDb.collection('farms').doc(farmId).collection('spectralScans').doc(scanId);
+        const snap = await docRef.get();
+        if (snap.exists) {
+          const docData = { id: snap.id, ...snap.data() };
+          // If large payload was offloaded to reference subdoc, fetch and reconstruct
+          if (docData.isReferenced && docData.rawDataReference) {
+            try {
+              const refSnap = await this.adminDb.doc(docData.rawDataReference).get();
+              if (refSnap.exists) {
+                const refData = refSnap.data();
+                docData.rawData = refData.rawData || docData.rawData;
+                docData.rawReflectance = refData.rawReflectance || docData.rawReflectance;
+              }
+            } catch (refErr) {
+              console.warn(`[FirestoreClient] Error resolving reference structure: ${refErr.message}`);
+            }
+          }
+          return docData;
+        }
+        return null;
+      } catch (err) {
+        console.warn(`[FirestoreClient] Admin SDK getSpectralScan error: ${err.message}`);
+      }
+    }
+    return this.getDoc(docPath);
+  }
+
+  /**
+   * Securely writes spectral scan to farms/{farmId}/spectralScans/{scanId}
+   * Defends against Firestore 1MB document limit by automatically preparing reference structure if needed.
+   */
+  async saveSpectralScanDoc(farmId, scanId, data, options = { merge: true }) {
+    await this.ensureReady();
+    const docPath = `farms/${farmId}/spectralScans/${scanId}`;
+    let dataToSave = { ...data };
+
+    // Payload size guard: Firestore limit is 1MB (1,048,576 bytes)
+    try {
+      const jsonStr = JSON.stringify(dataToSave);
+      const byteLength = Buffer.byteLength(jsonStr, 'utf8');
+      const CHUNK_THRESHOLD = 750 * 1024; // 750 KB safety limit
+
+      if (byteLength > CHUNK_THRESHOLD) {
+        console.warn(`[FirestoreClient] Spectral scan '${scanId}' size (${byteLength} bytes) approaches 1MB limit. Offloading raw data to reference subdocument.`);
+        const refPath = `${docPath}/chunks/raw_payload`;
+        const rawPayload = {
+          scanId,
+          rawData: dataToSave.rawData || null,
+          rawReflectance: dataToSave.rawReflectance || null,
+          storedAt: new Date().toISOString()
+        };
+
+        if (this.adminDb) {
+          await this.adminDb.doc(refPath).set(rawPayload);
+        } else {
+          await this.setDocument(refPath, rawPayload);
+        }
+
+        dataToSave = {
+          ...dataToSave,
+          isReferenced: true,
+          rawDataReference: refPath,
+          rawDataSize: byteLength,
+          rawDataSummary: {
+            bandCount: Array.isArray(dataToSave.rawData?.intensities) ? dataToSave.rawData.intensities.length : (Array.isArray(dataToSave.rawReflectance) ? dataToSave.rawReflectance.length : 0),
+            reference: refPath
+          }
+        };
+        delete dataToSave.rawData;
+        delete dataToSave.rawReflectance;
+      }
+    } catch (sizeErr) {
+      console.warn(`[FirestoreClient] Size check error: ${sizeErr.message}`);
+    }
+
+    if (this.adminDb) {
+      try {
+        const docRef = this.adminDb.collection('farms').doc(farmId).collection('spectralScans').doc(scanId);
+        await docRef.set(dataToSave, options);
+        this.isConnected = true;
+        return { success: true, docPath, cloudDocumentId: docPath };
+      } catch (err) {
+        console.warn(`[FirestoreClient] Admin SDK saveSpectralScanDoc error: ${err.message}`);
+      }
+    }
+
+    const ok = await this.setDocument(docPath, dataToSave, options);
+    return { success: ok, docPath, cloudDocumentId: docPath };
+  }
+
+  /**
+   * Batch write multiple spectral scans using Firebase Admin SDK batch operations
+   */
+  async batchSaveSpectralScans(farmId, scansList, options = { merge: true }) {
+    await this.ensureReady();
+    if (!Array.isArray(scansList) || scansList.length === 0) {
+      return [];
+    }
+
+    if (this.adminDb) {
+      try {
+        const CHUNK_SIZE = 400; // Firestore batch write limit is 500
+        const results = [];
+        for (let i = 0; i < scansList.length; i += CHUNK_SIZE) {
+          const chunk = scansList.slice(i, i + CHUNK_SIZE);
+          const batch = this.adminDb.batch();
+          for (const item of chunk) {
+            const scanId = item.scanId || item.id;
+            const docRef = this.adminDb.collection('farms').doc(farmId).collection('spectralScans').doc(scanId);
+            batch.set(docRef, item, options);
+          }
+          await batch.commit();
+          for (const item of chunk) {
+            const scanId = item.scanId || item.id;
+            results.push({
+              success: true,
+              scanId,
+              cloudDocumentId: `farms/${farmId}/spectralScans/${scanId}`,
+              syncedAt: item.syncedAt || new Date().toISOString()
+            });
+          }
+        }
+        this.isConnected = true;
+        return results;
+      } catch (err) {
+        console.warn(`[FirestoreClient] Admin SDK batch error: ${err.message}, falling back to sequential writes`);
+      }
+    }
+
+    // Fallback sequential
+    const fallbackResults = [];
+    for (const item of scansList) {
+      const scanId = item.scanId || item.id;
+      const res = await this.saveSpectralScanDoc(farmId, scanId, item, options);
+      fallbackResults.push({
+        success: res.success,
+        scanId,
+        cloudDocumentId: `farms/${farmId}/spectralScans/${scanId}`,
+        syncedAt: item.syncedAt || new Date().toISOString()
+      });
+    }
+    return fallbackResults;
   }
 }
 

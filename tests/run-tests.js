@@ -53,6 +53,13 @@ import { registerBleNusSpectrometerTests } from './ble-nus-spectrometer.test.js'
 import { registerSpectroscopyGuidedFlowTests } from './spectroscopy-guided-flow.test.js';
 import { registerCalibrationWizardTests } from './calibration-wizard.test.js';
 import { registerSpecimenSetupModalTests } from './specimen-setup-modal.test.js';
+import { registerSpecimenBatchAutofillTests } from './specimen-batch-autofill.test.js';
+import { registerOfflineSyncChaosTests } from './offline-sync-chaos.test.js';
+import { registerOfflineStorageTests } from './offline-storage.test.js';
+import { registerSpectralSyncUITests } from './spectral-sync-ui.test.js';
+import { registerSDCardStorageTests } from './sd-card-storage.test.js';
+import { registerSDCardSecurityTests } from './sd-card-security.test.js';
+import { registerSdCardExplorerTests } from './sd-card-explorer.test.js';
 
 async function main() {
   console.log('\x1b[35mStarting AgriSpectra Flow & Field Automated Test Suite...\x1b[0m');
@@ -67,6 +74,7 @@ async function main() {
   registerBleNusSpectrometerTests();
   registerMobileLifecycleTests();
   registerDatabaseStorageTests();
+  registerOfflineStorageTests();
   registerCropZoneManagerTests();
   registerUICompleteOptionsAuditTests();
   registerMultilingualVerificationTests();
@@ -77,6 +85,12 @@ async function main() {
   registerSpectroscopyGuidedFlowTests();
   registerCalibrationWizardTests();
   registerSpecimenSetupModalTests();
+  registerSpecimenBatchAutofillTests();
+  registerOfflineSyncChaosTests();
+  registerSpectralSyncUITests();
+  registerSDCardStorageTests();
+  registerSDCardSecurityTests();
+  registerSdCardExplorerTests();
 
   // Execute runner
   const success = await runner.run();
