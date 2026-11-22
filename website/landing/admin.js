@@ -48,12 +48,24 @@ loginForm.addEventListener('submit', async (e) => {
 
   const username = document.getElementById('loginUsername').value;
   const password = document.getElementById('loginPassword').value;
+  const submitBtn = loginForm.querySelector('button[type="submit"]');
+  const originalBtnText = submitBtn.textContent;
+
+  // The backend is a Render free-tier service that spins down after
+  // inactivity and can take 30-60s to wake on the next request - without
+  // this, a click during that window looks exactly like "nothing happens."
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Signing in… (waking up server if idle)';
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 45000);
 
   try {
     const res = await fetch(`${BACKEND_URL}/api/admin/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
+      body: JSON.stringify({ username, password }),
+      signal: controller.signal
     });
     const body = await res.json();
 
@@ -71,7 +83,15 @@ loginForm.addEventListener('submit', async (e) => {
     showLoggedIn();
     await loadDashboard(body.token);
   } catch (err) {
-    showError(`Sign-in failed: ${err.message}`);
+    if (err.name === 'AbortError') {
+      showError('The server took too long to respond (it may be waking up from sleep). Please try again.');
+    } else {
+      showError(`Sign-in failed: ${err.message}`);
+    }
+  } finally {
+    clearTimeout(timeoutId);
+    submitBtn.disabled = false;
+    submitBtn.textContent = originalBtnText;
   }
 });
 
@@ -84,11 +104,26 @@ signOutBtn.addEventListener('click', () => {
 async function loadDashboard(token) {
   adminMain.classList.add('active');
   adminLoading.style.display = 'block';
+  adminLoading.textContent = 'Loading platform data… (waking up the server if it was idle, this can take up to a minute)';
   adminContent.style.display = 'none';
 
-  const res = await fetch(`${BACKEND_URL}/api/admin/platform-overview`, {
-    headers: { 'X-Enterprise-Secret': token, 'Authorization': `Bearer ${token}` }
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 45000);
+
+  let res;
+  try {
+    res = await fetch(`${BACKEND_URL}/api/admin/platform-overview`, {
+      headers: { 'X-Enterprise-Secret': token, 'Authorization': `Bearer ${token}` },
+      signal: controller.signal
+    });
+  } catch (err) {
+    clearTimeout(timeoutId);
+    adminLoading.textContent = err.name === 'AbortError'
+      ? 'The server took too long to respond. Please reload this page and try again.'
+      : `Failed to load dashboard: ${err.message}`;
+    return;
+  }
+  clearTimeout(timeoutId);
 
   if (res.status === 401 || res.status === 403) {
     adminLoading.style.display = 'none';
