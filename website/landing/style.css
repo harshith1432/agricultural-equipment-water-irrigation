@@ -573,9 +573,37 @@ button, input, select, textarea {
 }
 
 .section-wrapper.bg-dark {
+  position: relative;
   background-color: var(--slate-900);
+  background-image:
+    linear-gradient(180deg, rgba(15,23,42,0.93) 0%, rgba(2,6,23,0.97) 100%),
+    url('/assets/drone-farmland-bg.svg');
+  background-size: auto, cover;
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
   color: var(--white);
   border-bottom-color: var(--slate-800);
+}
+
+#how-it-works {
+  position: relative;
+  background-image: linear-gradient(180deg, #ffffff 0%, #ffffff 85%, #fbfaf6 100%), url('/assets/drone-farmland-bg.svg');
+  background-size: auto, 160%;
+  background-position: center, center 8%;
+  background-repeat: no-repeat, no-repeat;
+}
+
+#how-it-works::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,0.97) 0%, rgba(255,255,255,0.99) 100%);
+  z-index: 0;
+}
+
+#how-it-works > .container {
+  position: relative;
+  z-index: 1;
 }
 
 .section-header-wrap {
@@ -2805,22 +2833,73 @@ button, input, select, textarea {
 }
 
 .layer-hills-far {
-  background: linear-gradient(180deg, transparent 0%, transparent 55%, #cfe3c8 58%, #b8d7ad 70%, transparent 70%);
-  opacity: 0.8;
+  background: linear-gradient(180deg, transparent 0%, transparent 72%, rgba(207, 227, 200, 0.4) 74%, transparent 90%);
 }
 
 .layer-hills-near {
-  background: linear-gradient(180deg, transparent 0%, transparent 68%, #9fc98f 71%, #6fa85c 85%, transparent 85%);
-  opacity: 0.9;
+  opacity: 0;
 }
 
+/* The farmland illustration is the vivid centerpiece - a slow continuous
+   Ken Burns pan+zoom gives it a "video" feel without shipping an actual
+   video file. A dark readability wash keeps the hero text legible over it. */
 .layer-field {
-  background-size: cover;
+  background-size: 120% auto;
   background-position: center bottom;
   background-repeat: no-repeat;
-  opacity: 0.5;
-  bottom: -10%;
-  mix-blend-mode: multiply;
+  opacity: 1;
+  bottom: -5%;
+  animation: kenBurnsPan 32s ease-in-out infinite alternate;
+}
+
+@keyframes kenBurnsPan {
+  0%   { background-position: 20% bottom; background-size: 125% auto; }
+  50%  { background-position: 55% bottom; background-size: 115% auto; }
+  100% { background-position: 80% bottom; background-size: 128% auto; }
+}
+
+.hero-readability-wash {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: linear-gradient(100deg, rgba(255,255,255,0.94) 0%, rgba(255,255,255,0.8) 32%, rgba(255,255,255,0.25) 58%, rgba(255,255,255,0.05) 75%);
+}
+
+/* Drone flying across the scene, propellers spinning */
+.hero-drone {
+  position: absolute;
+  top: 16%;
+  left: -8%;
+  z-index: 3;
+  width: 72px;
+  height: auto;
+  filter: drop-shadow(0 8px 14px rgba(0,0,0,0.3));
+  animation: droneFlyAcross 26s linear infinite;
+}
+
+.hero-drone .propeller {
+  transform-origin: center;
+  animation: propellerSpin 0.15s linear infinite;
+}
+
+@keyframes propellerSpin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes droneFlyAcross {
+  0%   { left: -8%; top: 16%; }
+  45%  { left: 55%; top: 10%; }
+  55%  { left: 62%; top: 10%; }
+  100% { left: 112%; top: 20%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .layer-field { animation: none; }
+  .hero-drone, .hero-drone .propeller { animation: none; }
+}
+
+@media (max-width: 768px) {
+  .hero-drone { display: none; }
 }
 
 .hero-vignette {
