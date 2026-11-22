@@ -165,38 +165,4 @@ router.get('/admin/audit-logs', requireAdmin, (req, res) => {
   }
 });
 
-/**
- * GET /api/admin/analytics
- * Executive business & sustainability analytics
- * Requires: Superadmin
- */
-router.get('/admin/analytics', requireAdmin, (req, res) => {
-  try {
-    const metrics = enterpriseStore.getExecutiveMetrics();
-    res.status(200).json({
-      success: true,
-      timestamp: new Date().toISOString(),
-      analytics: {
-        financialRoi: {
-          totalWaterCostSavingsUsd: Math.round(metrics.waterThroughput24hLiters * 0.0035 * 30 * 10) / 10,
-          projectedAnnualSavingsUsd: 14250.0,
-          nitrogenFertilizerSavedKg: 185.0
-        },
-        agronomicGains: {
-          yieldIncreasePercent: metrics.estimatedCropYieldGainPercent,
-          canopyVitalityAverageScore: 84.6,
-          activeDiseaseVectorsDetected: 0
-        },
-        sustainabilityScore: {
-          waterEfficiencyIndex: "A+",
-          carbonCreditsGenerated: 1.24,
-          leachateRunoffReductionPercent: 42.0
-        }
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
 export default router;

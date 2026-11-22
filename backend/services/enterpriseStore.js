@@ -202,12 +202,27 @@ class EnterpriseStore {
 
   /**
    * Executive Entrepreneur Dashboard Metrics
+   * Every field here is either read directly from real in-memory state
+   * (plots/users/telemetry synced from Firestore at boot, or accumulated
+   * from real valve-actuation/telemetry events) or computed from it.
+   * Previously this also returned several flat invented constants
+   * (platformStabilityIndex, waterConservationRatePercent,
+   * estimatedCropYieldGainPercent, telemetryIngestionRatePerMin, and three
+   * fake named "enterpriseTenants" companies) with no underlying
+   * measurement anywhere in the app - those are dropped rather than
+   * replaced with a different fabricated number.
    */
   getExecutiveMetrics() {
     const activeValvesCount = this.plots.filter(p => p.valve?.state === 'OPEN').length;
     const activeUsersCount = this.users.filter(u => {
       const lastActiveMs = new Date(u.lastActive).getTime();
       return (Date.now() - lastActiveMs) < 60 * 60 * 1000; // active in last 60 mins
+    }).length;
+
+    const oneMinuteAgo = Date.now() - 60 * 1000;
+    const telemetryPacketsLastMinute = this.telemetryPackets.filter(p => {
+      const t = new Date(p.timestamp).getTime();
+      return !Number.isNaN(t) && t >= oneMinuteAgo;
     }).length;
 
     return {
@@ -217,17 +232,9 @@ class EnterpriseStore {
       activeFarmingParcels: this.plots.length,
       activeSolenoidGates: activeValvesCount,
       waterThroughput24hLiters: Math.round(this.totalWaterDeliveredLiters * 10) / 10,
-      platformStabilityIndex: 99.98,
-      waterConservationRatePercent: 34.2,
-      estimatedCropYieldGainPercent: 18.4,
       carbonOffsetKgCO2: Math.round(this.totalWaterDeliveredLiters * 0.0257 * 10) / 10,
-      telemetryIngestionRatePerMin: 120,
-      lastKillswitchTriggered: this.lastKillswitchTimestamp,
-      enterpriseTenants: [
-        { id: "tenant_01", name: "Vance Valley Agriculture Corp.", acres: 250, status: "HEALTHY" },
-        { id: "tenant_02", name: "Salinas Organic Produce Co.", acres: 180, status: "HEALTHY" },
-        { id: "tenant_03", name: "Napa Valley Premier Vineyards", acres: 320, status: "HEALTHY" }
-      ]
+      telemetryIngestionRatePerMin: telemetryPacketsLastMinute,
+      lastKillswitchTriggered: this.lastKillswitchTimestamp
     };
   }
 

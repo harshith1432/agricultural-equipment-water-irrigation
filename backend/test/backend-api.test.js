@@ -102,9 +102,7 @@ async function runTests() {
         assert(data.activeFarmingParcels === 6, `Expected 6 farming parcels, got ${data.activeFarmingParcels}`);
         assert(typeof data.activeSolenoidGates === "number", "activeSolenoidGates should be a number");
         assert(data.waterThroughput24hLiters > 0, "Throughput should be > 0");
-        assert(data.platformStabilityIndex === 99.98, "Expected 99.98% platform SLA");
-        assert(data.waterConservationRatePercent === 34.2, "Expected 34.2% water savings");
-        assert(Array.isArray(data.enterpriseTenants), "Should list enterprise tenants");
+        assert(typeof data.telemetryIngestionRatePerMin === "number", "telemetryIngestionRatePerMin should be a number");
       }
     },
     {
@@ -231,15 +229,6 @@ async function runTests() {
         assert(res.body.data.vitalityScore === 88, "Vitality mismatch");
       }
     },
-    {
-      name: "GET /api/admin/analytics - Returns ROI, water savings and sustainability metrics",
-      fn: async () => {
-        const res = await request('GET', '/api/admin/analytics');
-        assert(res.status === 200, `Expected 200, got ${res.status}`);
-        assert(res.body.analytics.financialRoi.projectedAnnualSavingsUsd > 0, "Annual savings should be > 0");
-        assert(res.body.analytics.sustainabilityScore.waterEfficiencyIndex === "A+", "Expected A+ index");
-      }
-    }
   ];
 
   for (const tc of testCases) {
