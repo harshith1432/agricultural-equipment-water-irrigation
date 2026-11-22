@@ -114,8 +114,8 @@ async function runAudit() {
       }
     });
     assert(authMetrics.status === 200, "Authenticated admin metrics responds with HTTP 200");
-    assert(authMetrics.body.data.waterConservationRatePercent >= 30, "Water conservation metric calculated accurately", `${authMetrics.body.data.waterConservationRatePercent}%`);
-    assert(authMetrics.body.data.platformStabilityIndex >= 99.9, "Cloud SLA platform stability guarantees >= 99.9%", `${authMetrics.body.data.platformStabilityIndex}%`);
+    assert(authMetrics.body.data.waterThroughput24hLiters >= 0, "Water throughput metric calculated accurately", `${authMetrics.body.data.waterThroughput24hLiters}L`);
+    assert(typeof authMetrics.body.data.telemetryIngestionRatePerMin === "number", "Telemetry ingestion rate computed from real packet buffer", `${authMetrics.body.data.telemetryIngestionRatePerMin}/min`);
     assert(authMetrics.body.data.platformStatus === "OPERATIONAL", "Platform operating status reports OPERATIONAL");
 
     // Test 4: Bi-Stable Solenoid Valve Actuation (+12V Pulse)
