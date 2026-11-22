@@ -131,7 +131,36 @@ export function createSpectroscopyAnalysisView({
     }
   }
 
-  function downloadTextFile(filename, text, mimeType = 'text/plain') {
+  async function downloadTextFile(filename, text, mimeType = 'text/plain') {
+    const isNativePlatform = typeof window !== 'undefined' &&
+      (window.Capacitor?.isNativePlatform?.() || window.Capacitor?.getPlatform?.() === 'android');
+
+    // On Android, a blob <a download> link silently does nothing inside the
+    // Capacitor WebView (no download manager integration like a real mobile
+    // browser) - the file never appears anywhere. Write it to the device's
+    // Documents directory via Filesystem and hand it to the native Share
+    // sheet instead, so the farmer actually gets a file they can save/send.
+    if (isNativePlatform) {
+      try {
+        const { Filesystem, Directory, Encoding } = await import('@capacitor/filesystem');
+        const { Share } = await import('@capacitor/share');
+        const writeResult = await Filesystem.writeFile({
+          path: filename,
+          data: text,
+          directory: Directory.Documents,
+          encoding: Encoding.UTF8
+        });
+        await Share.share({
+          title: filename,
+          text: `AgriSpectra export: ${filename}`,
+          url: writeResult.uri
+        });
+        return;
+      } catch (e) {
+        console.warn('[downloadTextFile] Native Filesystem/Share export failed, falling back to blob link:', e);
+      }
+    }
+
     if (typeof document === 'undefined') return;
     try {
       const blob = new Blob([text], { type: mimeType });
@@ -146,6 +175,70 @@ export function createSpectroscopyAnalysisView({
     } catch (e) {
       console.warn('[downloadTextFile] File download failed:', e);
     }
+  }
+
+  const ALL_SCANS_TABLE_COLUMN_LABELS = [
+    'Date/Time', 'Plant #', 'Plant Name', 'Pot', 'Zone', 'Crop',
+    'Vitality %', 'NDVI', 'NDRE', 'Leaf Water', 'CIre',
+    'Nitrogen kg/acre', 'Irrigation h', 'Urgency', 'Disease?', 'Pathogen', 'Sync Status'
+  ];
+
+  /**
+   * Shows every locally stored scan as a scrollable, spreadsheet-style table
+   * inside the app itself - a fallback that always works, regardless of
+   * whether the device can actually save/download a real file (Capacitor
+   * Android WebViews don't reliably support that).
+   */
+  function showAllScansTableModal(allScans) {
+    if (typeof document === 'undefined') return;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'fixed inset-0 z-[9998] bg-slate-950/80 backdrop-blur-sm flex items-start sm:items-center justify-center p-2 sm:p-4';
+
+    const rowsHtml = allScans.map(s => {
+      const cells = [
+        s.timestamp ? new Date(s.timestamp).toLocaleString() : '',
+        s.plantNumber, s.plantName, s.potNumber, s.zone, s.cropVariety,
+        s.chemometrics?.vitalityScore,
+        s.chemometrics?.indices?.ndvi,
+        s.chemometrics?.indices?.ndre,
+        s.chemometrics?.indices?.leafWaterIndex ?? s.chemometrics?.indices?.wbi,
+        s.chemometrics?.indices?.cire,
+        s.chemometrics?.nitrogenPrescriptionKg,
+        s.chemometrics?.irrigationCountdownHours,
+        s.chemometrics?.irrigationUrgency,
+        s.chemometrics?.diseaseRisk?.detected ? 'Yes' : 'No',
+        s.chemometrics?.diseaseRisk?.pathogen || '-',
+        s.syncStatus
+      ];
+      return `<tr class="border-b border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+        ${cells.map(c => `<td class="px-2.5 py-2 whitespace-nowrap">${escapeHtml(c == null ? '-' : String(c))}</td>`).join('')}
+      </tr>`;
+    }).join('');
+
+    overlay.innerHTML = `
+      <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
+        <div class="flex items-center justify-between gap-2 px-4 py-3 border-b border-slate-200 dark:border-slate-800 shrink-0">
+          <h3 class="text-sm font-bold text-slate-900 dark:text-white">All Scans (${allScans.length})</h3>
+          <button type="button" id="btn-close-all-scans-table" class="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 cursor-pointer" aria-label="Close">
+            ✕
+          </button>
+        </div>
+        <div class="overflow-auto flex-1">
+          <table class="w-full text-left text-[11px] font-mono border-collapse">
+            <thead class="bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 uppercase text-[10px] font-bold sticky top-0">
+              <tr>${ALL_SCANS_TABLE_COLUMN_LABELS.map(c => `<th class="px-2.5 py-2 whitespace-nowrap">${c}</th>`).join('')}</tr>
+            </thead>
+            <tbody class="text-slate-800 dark:text-slate-200">${rowsHtml}</tbody>
+          </table>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+    const close = () => overlay.remove();
+    overlay.querySelector('#btn-close-all-scans-table')?.addEventListener('click', close);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
   }
 
   async function handleLeafScanCaptured(scan) {
@@ -889,6 +982,15 @@ export function createSpectroscopyAnalysisView({
           <div class="flex items-center gap-1.5 shrink-0">
             <button
               type="button"
+              id="btn-view-all-scans"
+              class="min-h-[32px] px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-[11px] flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
+              title="View every scan on this phone in a spreadsheet-style table"
+            >
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+              <span>View All</span>
+            </button>
+            <button
+              type="button"
               id="btn-export-all-scans-csv"
               class="min-h-[32px] px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-[11px] flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
               title="Download every scan on this phone as a spreadsheet (CSV)"
@@ -1064,23 +1166,8 @@ export function createSpectroscopyAnalysisView({
             </div>
           ` : ''}
 
-          <!-- SPECTROSCOPE ARMED & READY GUIDANCE BANNER -->
-          ${isSpecimenArmed ? `
-            <div class="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-500/50 flex items-start gap-3 text-xs text-[#1b4332] dark:text-emerald-200">
-              <div class="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 font-extrabold text-sm">
-                ✓
-              </div>
-              <div class="min-w-0 flex-1">
-                <span class="font-extrabold uppercase tracking-wider text-[11px] text-[#2d6a4f] dark:text-emerald-300 block mb-0.5">
-                  Spectroscope Ready
-                </span>
-                <p class="text-slate-900 dark:text-white text-xs font-semibold leading-relaxed">✓ Spectroscope is ready! You can scan now. Press the button below to scan <strong>${escapeHtml(getRemainingScanTarget())}</strong>.</p>
-                <p class="text-[10px] text-slate-500 dark:text-emerald-400/80 font-mono mt-1">
-                  Batch Target: ${escapeHtml(specimenData.plantNumber)} (${escapeHtml(specimenData.plantName)}) | ${escapeHtml(specimenData.potNumber)} | ${escapeHtml(specimenData.leafSpot || 'Leaf 1')} | ${escapeHtml(specimenData.timestamp || '')}
-                </p>
-              </div>
-            </div>
-          ` : ''}
+          <!-- The "Spectroscope Ready" guidance banner was removed per request -
+               redundant with Step 3/4/5's own "next action" state below. -->
 
           <div class="space-y-3">
             <!-- 1. Plant / Crop Name + Presets -->
@@ -2334,6 +2421,37 @@ export function createSpectroscopyAnalysisView({
       }
     });
 
+    const ALL_SCANS_COLUMNS = [
+      'timestamp', 'plantNumber', 'plantName', 'potNumber', 'zone', 'cropVariety',
+      'vitalityScore', 'ndvi', 'ndre', 'leafWaterIndex', 'cire',
+      'nitrogenPrescriptionKg', 'irrigationCountdownHours', 'irrigationUrgency',
+      'diseaseDetected', 'diseasePathogen', 'syncStatus'
+    ];
+    function allScansRowValues(s) {
+      const che = s.chemometrics || {};
+      return [
+        s.timestamp, s.plantNumber, s.plantName, s.potNumber, s.zone, s.cropVariety,
+        che.vitalityScore, che.indices?.ndvi, che.indices?.ndre, che.indices?.leafWaterIndex ?? che.indices?.wbi, che.indices?.cire,
+        che.nitrogenPrescriptionKg, che.irrigationCountdownHours, che.irrigationUrgency,
+        che.diseaseRisk?.detected || false, che.diseaseRisk?.pathogen || '', s.syncStatus
+      ];
+    }
+
+    // View every locally-stored scan as an in-app spreadsheet-style table
+    // (works even when the device can't save/download a real file)
+    container.querySelector('#btn-view-all-scans')?.addEventListener('click', async () => {
+      try {
+        const allScans = await offlineSpectralDatabase.getAllScans();
+        if (!allScans || allScans.length === 0) {
+          showSpectroToast({ title: 'No Scans Yet', type: 'warning' });
+          return;
+        }
+        showAllScansTableModal(allScans);
+      } catch (err) {
+        showSpectroToast({ title: 'View Failed', message: err.message, type: 'error' });
+      }
+    });
+
     // Export every locally-stored scan as a single downloadable spreadsheet (CSV)
     container.querySelector('#btn-export-all-scans-csv')?.addEventListener('click', async () => {
       try {
@@ -2343,28 +2461,14 @@ export function createSpectroscopyAnalysisView({
           return;
         }
 
-        const columns = [
-          'timestamp', 'plantNumber', 'plantName', 'potNumber', 'zone', 'cropVariety',
-          'vitalityScore', 'ndvi', 'ndre', 'leafWaterIndex', 'cire',
-          'nitrogenPrescriptionKg', 'irrigationCountdownHours', 'irrigationUrgency',
-          'diseaseDetected', 'diseasePathogen', 'syncStatus'
-        ];
         const csvEscape = (v) => {
           const s = v == null ? '' : String(v);
           return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
         };
-        const rows = allScans.map(s => {
-          const che = s.chemometrics || {};
-          return [
-            s.timestamp, s.plantNumber, s.plantName, s.potNumber, s.zone, s.cropVariety,
-            che.vitalityScore, che.indices?.ndvi, che.indices?.ndre, che.indices?.leafWaterIndex ?? che.indices?.wbi, che.indices?.cire,
-            che.nitrogenPrescriptionKg, che.irrigationCountdownHours, che.irrigationUrgency,
-            che.diseaseRisk?.detected || false, che.diseaseRisk?.pathogen || '', s.syncStatus
-          ].map(csvEscape).join(',');
-        });
-        const csv = [columns.join(','), ...rows].join('\r\n');
+        const rows = allScans.map(s => allScansRowValues(s).map(csvEscape).join(','));
+        const csv = [ALL_SCANS_COLUMNS.join(','), ...rows].join('\r\n');
         const dateStr = new Date().toISOString().slice(0, 10);
-        downloadTextFile(`agrispectra_all_scans_${dateStr}.csv`, csv, 'text/csv');
+        await downloadTextFile(`agrispectra_all_scans_${dateStr}.csv`, csv, 'text/csv');
         showSpectroToast({ title: `Exported ${allScans.length} Scans`, type: 'success' });
       } catch (err) {
         showSpectroToast({ title: 'Export Failed', message: err.message, type: 'error' });
@@ -2435,7 +2539,7 @@ export function createSpectroscopyAnalysisView({
     });
 
     // CSV & JSON Download Handlers for Raw AS7265x Spectrum
-    container.querySelector('#btn-download-raw-csv')?.addEventListener('click', () => {
+    container.querySelector('#btn-download-raw-csv')?.addEventListener('click', async () => {
       if (!isLeafScanDone || !currentScan) {
         showSpectroToast({ title: 'No Scan Data', message: 'Please capture a leaf scan first in Step 5.', type: 'warning' });
         return;
@@ -2467,14 +2571,14 @@ export function createSpectroscopyAnalysisView({
         csv += `Timestamp,${currentScan.timestamp || new Date().toISOString()}\r\n`;
         csv += `Plant_Number,${specimenData.plantNumber}\r\n`;
 
-        downloadTextFile(`agrispectra_as7265x_${specimenData.plantNumber}_${Date.now()}.csv`, csv, 'text/csv');
+        await downloadTextFile(`agrispectra_as7265x_${specimenData.plantNumber}_${Date.now()}.csv`, csv, 'text/csv');
         showSpectroToast({ title: 'CSV Downloaded', message: 'AS7265x 18-channel raw counts exported to CSV.', type: 'success' });
       } catch (err) {
         showSpectroToast({ title: 'Download Failed', message: err.message, type: 'error' });
       }
     });
 
-    container.querySelector('#btn-download-raw-json')?.addEventListener('click', () => {
+    container.querySelector('#btn-download-raw-json')?.addEventListener('click', async () => {
       if (!isLeafScanDone || !currentScan) {
         showSpectroToast({ title: 'No Scan Data', message: 'Please capture a leaf scan first in Step 5.', type: 'warning' });
         return;
@@ -2505,7 +2609,7 @@ export function createSpectroscopyAnalysisView({
           calibration: leafClipDevice.calibration || {}
         };
 
-        downloadTextFile(`agrispectra_scan_${specimenData.plantNumber}_${Date.now()}.json`, JSON.stringify(fullRecord, null, 2), 'application/json');
+        await downloadTextFile(`agrispectra_scan_${specimenData.plantNumber}_${Date.now()}.json`, JSON.stringify(fullRecord, null, 2), 'application/json');
         showSpectroToast({ title: 'JSON Downloaded', message: 'Complete spectral dataset exported to JSON.', type: 'success' });
       } catch (err) {
         showSpectroToast({ title: 'Download Failed', message: err.message, type: 'error' });
