@@ -22,6 +22,7 @@ import environmentRoutes from './routes/environmentRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import platformRoutes from './routes/platformRoutes.js';
+import { adminCredentials } from './services/adminCredentials.js';
 import { authLimiter } from './middleware/rateLimiter.js';
 import { firestoreClient } from './services/firestoreClient.js';
 import { enterpriseStore } from './services/enterpriseStore.js';
@@ -227,6 +228,13 @@ if (isMainModule || process.env.START_SERVER === 'true') {
   (async () => {
     // 1. Verify Database and Auto-Create Missing Tables / Collections on Startup
     await schemaManager.ensureSchemaAndCollections();
+
+    // 2. Sync ADMIN_USERNAME/ADMIN_PASSWORD into Firestore on every boot, so
+    // changing them in Render's dashboard takes effect on the very next
+    // redeploy rather than waiting for someone to attempt a login first.
+    await adminCredentials.syncFromEnv().catch((err) => {
+      console.warn(`[AdminCredentials] Startup sync failed: ${err.message}`);
+    });
 
     serverInstance = app.listen(PORT, '0.0.0.0', () => {
       const token = firestoreClient.getAccessToken();

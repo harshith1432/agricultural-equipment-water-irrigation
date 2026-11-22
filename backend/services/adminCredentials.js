@@ -28,19 +28,27 @@ function safeCompare(a, b) {
 class AdminCredentialsService {
   /**
    * Ensures Firestore mirrors the current ADMIN_USERNAME/ADMIN_PASSWORD env
-   * vars (creating or updating the record if they differ), then verifies
-   * the submitted username/password against the synced record.
-   * Returns { configured: boolean, valid: boolean }.
+   * vars - creates or overwrites platformConfig/adminCredentials if they've
+   * changed since the last sync. Called on every server boot (so a Render
+   * redeploy after changing the env vars updates Firestore immediately,
+   * with no need to wait for someone to attempt a login first) and again
+   * defensively on every login attempt.
+   * Returns the stored record, or null if ADMIN_USERNAME/ADMIN_PASSWORD
+   * aren't set.
    */
-  async syncAndVerify(submittedUsername, submittedPassword) {
+  async syncFromEnv() {
     const envUsername = process.env.ADMIN_USERNAME;
     const envPassword = process.env.ADMIN_PASSWORD;
 
     if (!envUsername || !envPassword) {
-      return { configured: false, valid: false };
+      console.warn('[AdminCredentials] ADMIN_USERNAME/ADMIN_PASSWORD not set - admin login is disabled.');
+      return null;
     }
 
-    let stored = await firestoreClient.getDoc(DOC_PATH).catch(() => null);
+    let stored = await firestoreClient.getDoc(DOC_PATH).catch((err) => {
+      console.warn(`[AdminCredentials] Firestore read failed during sync: ${err.message}`);
+      return null;
+    });
 
     const usernameChanged = !stored || stored.username !== envUsername;
     const passwordChanged = !stored || !stored.passwordSalt ||
@@ -54,7 +62,26 @@ class AdminCredentialsService {
         passwordSalt: salt,
         updatedAt: new Date().toISOString()
       };
-      await firestoreClient.setDocument(DOC_PATH, stored, { merge: false });
+      const ok = await firestoreClient.setDocument(DOC_PATH, stored, { merge: false });
+      console.log(ok
+        ? `[AdminCredentials] Synced admin credentials to Firestore (${DOC_PATH}), username="${envUsername}".`
+        : `[AdminCredentials] Firestore write FAILED for ${DOC_PATH} - admin login will not work until this succeeds.`);
+    } else {
+      console.log('[AdminCredentials] Stored credentials already match ADMIN_USERNAME/ADMIN_PASSWORD, no sync needed.');
+    }
+
+    return stored;
+  }
+
+  /**
+   * Syncs env -> Firestore (in case the env vars changed since boot), then
+   * verifies the submitted username/password against the synced record.
+   * Returns { configured: boolean, valid: boolean }.
+   */
+  async syncAndVerify(submittedUsername, submittedPassword) {
+    const stored = await this.syncFromEnv();
+    if (!stored) {
+      return { configured: false, valid: false };
     }
 
     const valid =
