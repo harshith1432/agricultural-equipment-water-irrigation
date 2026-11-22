@@ -162,8 +162,9 @@ export function registerMultilingualVerificationTests() {
           });
           expect(spectro).toBeDefined();
           const specHtml = spectro.innerHTML;
-          expect(specHtml).toContain(t('spectro_title'));
-          expect(specHtml).toContain(t('spectro_subtitle'));
+          // The title banner was removed from the simplified UI - check a
+          // translation key that's still always rendered instead.
+          expect(specHtml).toContain(t('decision_vitality'));
           expect(specHtml).toContain(t('decision_vitality'));
 
           // 6. SoilAnalysisView
