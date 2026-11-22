@@ -11,6 +11,18 @@
     <meta name="apple-mobile-web-app-title" content="AgriSpectra" />
     <title>AgriSpectra | Precision IoT Agricultural Irrigation &amp; Spectroscopy</title>
 
+    <script>
+      (function() {
+        var isCapacitor = (typeof window !== 'undefined' && (
+          window.location.protocol === 'capacitor:' ||
+          (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform())
+        ));
+        if (!isCapacitor && window.location.pathname !== '/landing/' && !window.location.pathname.startsWith('/landing')) {
+          window.location.replace('/landing/');
+        }
+      })();
+    </script>
+
     <!-- PWA Icons & Manifest -->
     <link rel="icon" type="image/png" href="/landing/assets/logo.png" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />

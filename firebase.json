@@ -22,10 +22,23 @@
       "**/.*",
       "**/node_modules/**"
     ],
+    "cleanUrls": true,
     "rewrites": [
       {
+        "source": "/",
+        "destination": "/landing/index.html"
+      },
+      {
+        "source": "/landing",
+        "destination": "/landing/index.html"
+      },
+      {
+        "source": "/landing/**",
+        "destination": "/landing/index.html"
+      },
+      {
         "source": "**",
-        "destination": "/index.html"
+        "destination": "/landing/index.html"
       }
     ]
   },
