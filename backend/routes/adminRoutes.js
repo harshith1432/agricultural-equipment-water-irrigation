@@ -4,12 +4,43 @@
  */
 import { Router } from 'express';
 import { enterpriseStore, VALID_ROLES } from '../services/enterpriseStore.js';
-import { authenticate, requireAdmin, requireRole, sanitizeUserInput } from '../middleware/authMiddleware.js';
-import { adminLimiter, standardApiLimiter } from '../middleware/rateLimiter.js';
+import { authenticate, requireAdmin, requireRole, sanitizeUserInput, safeCompare } from '../middleware/authMiddleware.js';
+import { adminLimiter, standardApiLimiter, loginLimiter } from '../middleware/rateLimiter.js';
 
 const router = Router();
 
-// Apply administrative rate limiter and base authentication to all /admin/* endpoints
+/**
+ * POST /api/admin/login
+ * Registered BEFORE the blanket '/admin' authenticate middleware below so
+ * this one route stays reachable without a prior credential. Username/
+ * password are checked against ADMIN_USERNAME / ADMIN_PASSWORD env vars
+ * (set in Render's dashboard for production). On success returns the same
+ * enterprise secret the mobile app already uses as its superadmin bearer
+ * credential, so the dashboard's subsequent /api/admin/* calls reuse the
+ * existing, already-hardened authenticate() + requireAdmin() middleware
+ * below rather than introducing a second auth mechanism.
+ */
+router.post('/admin/login', loginLimiter, (req, res) => {
+  const { username, password } = req.body || {};
+  const expectedUsername = process.env.ADMIN_USERNAME;
+  const expectedPassword = process.env.ADMIN_PASSWORD;
+
+  if (!expectedUsername || !expectedPassword) {
+    return res.status(503).json({ success: false, error: 'Admin login is not configured on this server.' });
+  }
+
+  if (
+    typeof username !== 'string' || typeof password !== 'string' ||
+    !safeCompare(username, expectedUsername) || !safeCompare(password, expectedPassword)
+  ) {
+    return res.status(401).json({ success: false, error: 'Invalid username or password.' });
+  }
+
+  const enterpriseSecret = process.env.ENTERPRISE_API_SECRET || 'agrispectra_enterprise_sec_2026_99x';
+  res.status(200).json({ success: true, token: enterpriseSecret });
+});
+
+// Apply administrative rate limiter and base authentication to all other /admin/* endpoints
 router.use('/admin', standardApiLimiter, adminLimiter, authenticate);
 
 /**

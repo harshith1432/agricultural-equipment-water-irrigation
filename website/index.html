@@ -88,8 +88,20 @@
 
 <main>
   <!-- HERO -->
-  <section class="hero-section">
-    <div class="container">
+  <section class="hero-section cinematic-hero" id="cinematicHero">
+    <div class="parallax-layer layer-sky" data-speed="0.15"></div>
+    <div class="parallax-layer layer-sun" data-speed="0.25"></div>
+    <div class="parallax-layer layer-hills-far" data-speed="0.35"></div>
+    <div class="parallax-layer layer-hills-near" data-speed="0.5"></div>
+    <div class="parallax-layer layer-field" data-speed="0.65" style="background-image:url('/assets/drone-farmland-bg.svg')"></div>
+    <div class="particle-field" aria-hidden="true">
+      <span class="particle p1"></span><span class="particle p2"></span><span class="particle p3"></span>
+      <span class="particle p4"></span><span class="particle p5"></span><span class="particle p6"></span>
+      <span class="particle p7"></span><span class="particle p8"></span><span class="particle p9"></span>
+      <span class="particle p10"></span><span class="particle p11"></span><span class="particle p12"></span>
+    </div>
+    <div class="hero-vignette"></div>
+    <div class="container hero-content-z">
       <div class="hero-grid">
         <div>
           <div class="hero-context-label"><span class="status-dot"></span> Handheld Hardware &amp; Android App</div>
@@ -159,6 +171,10 @@
           </div>
         </div>
       </div>
+    </div>
+    <div class="scroll-cue" aria-hidden="true">
+      <span>Scroll</span>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
     </div>
   </section>
 
@@ -308,7 +324,6 @@
         <h5 class="footer-heading">Company</h5>
         <div class="footer-links-list">
           <a href="#faq">FAQ</a>
-          <a href="/landing/admin.html" class="admin-footer-link">Admin Portal</a>
         </div>
       </div>
     </div>

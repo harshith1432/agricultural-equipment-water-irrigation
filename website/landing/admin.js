@@ -1,70 +1,101 @@
 /**
  * AgriSpectra Admin Portal
- * Real Firebase Auth (same project as the mobile app) + the backend's
- * real Firestore-backed /api/admin/* endpoints. Non-admin accounts are
- * rejected by the backend itself (bootstrap-admin email check in
- * authMiddleware.js) - this page has no client-side-only gating.
+ * Username/password login (checked server-side against ADMIN_USERNAME /
+ * ADMIN_PASSWORD env vars) backed by the real Firestore-backed
+ * /api/admin/* endpoints. On success the server returns the enterprise
+ * secret as a bearer token for subsequent requests; "remember me" persists
+ * it in localStorage so the admin isn't prompted every visit.
  */
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.2.0/firebase-app.js';
-import {
-  getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
-} from 'https://www.gstatic.com/firebasejs/11.2.0/firebase-auth.js';
-
-const firebaseConfig = {
-  apiKey: 'AIzaSyBm_aZ_92IJwSuX4YHgWh6eca4ygQSH8eE',
-  authDomain: 'water-irrigation-system-8aeeb.firebaseapp.com',
-  projectId: 'water-irrigation-system-8aeeb',
-  storageBucket: 'water-irrigation-system-8aeeb.firebasestorage.app',
-  messagingSenderId: '160643566396',
-  appId: '1:160643566396:web:62dedea727308c050d6c39'
-};
-
 const BACKEND_URL = 'https://agricultural-equipment-water-irrigation.onrender.com';
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+const TOKEN_STORAGE_KEY = 'agrispectra_admin_token';
 
 const loginWrap = document.getElementById('loginWrap');
 const adminMain = document.getElementById('adminMain');
 const adminLoading = document.getElementById('adminLoading');
 const adminContent = document.getElementById('adminContent');
 const signOutBtn = document.getElementById('signOutBtn');
-const googleSignInBtn = document.getElementById('googleSignInBtn');
+const loginForm = document.getElementById('loginForm');
 const loginErrorMsg = document.getElementById('loginErrorMsg');
+const rememberMeCheckbox = document.getElementById('rememberMeCheckbox');
 
 function showError(message) {
   loginErrorMsg.textContent = message;
   loginErrorMsg.style.display = 'block';
 }
 
-googleSignInBtn.addEventListener('click', async () => {
+function hideError() {
   loginErrorMsg.style.display = 'none';
-  try {
-    await signInWithPopup(auth, new GoogleAuthProvider());
-  } catch (err) {
-    showError(`Sign-in failed: ${err.message}`);
-  }
-});
-
-signOutBtn.addEventListener('click', () => signOut(auth));
+}
 
 function escapeHtml(str) {
   return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-async function loadDashboard(idToken) {
+function showLoggedOut() {
+  loginWrap.style.display = 'flex';
+  signOutBtn.style.display = 'none';
+  adminMain.classList.remove('active');
+}
+
+function showLoggedIn() {
+  loginWrap.style.display = 'none';
+  signOutBtn.style.display = 'inline-flex';
+}
+
+loginForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  hideError();
+
+  const username = document.getElementById('loginUsername').value;
+  const password = document.getElementById('loginPassword').value;
+
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/admin/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const body = await res.json();
+
+    if (!res.ok || !body.success) {
+      showError(body.error || 'Invalid username or password.');
+      return;
+    }
+
+    if (rememberMeCheckbox.checked) {
+      localStorage.setItem(TOKEN_STORAGE_KEY, body.token);
+    } else {
+      sessionStorage.setItem(TOKEN_STORAGE_KEY, body.token);
+    }
+
+    showLoggedIn();
+    await loadDashboard(body.token);
+  } catch (err) {
+    showError(`Sign-in failed: ${err.message}`);
+  }
+});
+
+signOutBtn.addEventListener('click', () => {
+  localStorage.removeItem(TOKEN_STORAGE_KEY);
+  sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+  showLoggedOut();
+});
+
+async function loadDashboard(token) {
   adminMain.classList.add('active');
   adminLoading.style.display = 'block';
   adminContent.style.display = 'none';
 
   const res = await fetch(`${BACKEND_URL}/api/admin/platform-overview`, {
-    headers: { 'Authorization': `Bearer ${idToken}` }
+    headers: { 'X-Enterprise-Secret': token, 'Authorization': `Bearer ${token}` }
   });
 
   if (res.status === 401 || res.status === 403) {
     adminLoading.style.display = 'none';
-    await signOut(auth);
-    showError('This account does not have admin access to AgriSpectra Flow & Field.');
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+    sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+    showLoggedOut();
+    showError('Session expired or invalid. Please sign in again.');
     return;
   }
 
@@ -123,12 +154,15 @@ function renderDashboard(data) {
     : `<tr><td colspan="3" class="admin-empty">No app events logged yet</td></tr>`;
 }
 
+function getStoredToken() {
+  return localStorage.getItem(TOKEN_STORAGE_KEY) || sessionStorage.getItem(TOKEN_STORAGE_KEY);
+}
+
 document.getElementById('downloadCsvBtn').addEventListener('click', async () => {
-  const user = auth.currentUser;
-  if (!user) return;
-  const idToken = await user.getIdToken();
+  const token = getStoredToken();
+  if (!token) return;
   const res = await fetch(`${BACKEND_URL}/api/admin/scan-reports?format=csv&limit=1000`, {
-    headers: { 'Authorization': `Bearer ${idToken}` }
+    headers: { 'X-Enterprise-Secret': token, 'Authorization': `Bearer ${token}` }
   });
   if (!res.ok) {
     alert('Failed to download scan report CSV.');
@@ -145,19 +179,11 @@ document.getElementById('downloadCsvBtn').addEventListener('click', async () => 
   URL.revokeObjectURL(url);
 });
 
-onAuthStateChanged(auth, async (user) => {
-  if (user) {
-    loginWrap.style.display = 'none';
-    signOutBtn.style.display = 'inline-flex';
-    try {
-      const idToken = await user.getIdToken();
-      await loadDashboard(idToken);
-    } catch (err) {
-      adminLoading.textContent = `Error loading dashboard: ${err.message}`;
-    }
-  } else {
-    loginWrap.style.display = 'flex';
-    signOutBtn.style.display = 'none';
-    adminMain.classList.remove('active');
-  }
-});
+// Auto-login if a remembered token exists
+const existingToken = getStoredToken();
+if (existingToken) {
+  showLoggedIn();
+  loadDashboard(existingToken);
+} else {
+  showLoggedOut();
+}

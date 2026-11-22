@@ -12,6 +12,44 @@ const BACKEND_URL = 'https://agricultural-equipment-water-irrigation.onrender.co
 const APK_DOWNLOAD_PATH = `${BACKEND_URL}/downloads/agrispectra-flow-and-field.apk`;
 
 // ---------------------------------------------------------------------------
+// Cinematic hero parallax: layered sky/sun/hills/field move at different
+// speeds while scrolling, and the whole scene zooms + fades as you scroll
+// past it, like descending into the field rather than past a flat banner.
+// ---------------------------------------------------------------------------
+const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const hero = document.getElementById('cinematicHero');
+
+if (hero && !prefersReducedMotion) {
+  const layers = Array.from(hero.querySelectorAll('.parallax-layer'));
+  let ticking = false;
+
+  function applyParallax() {
+    const heroHeight = hero.offsetHeight || 1;
+    const scrollY = window.scrollY;
+    const progress = Math.min(Math.max(scrollY / heroHeight, 0), 1);
+
+    layers.forEach((layer) => {
+      const speed = parseFloat(layer.dataset.speed) || 0.3;
+      const offset = scrollY * speed * 0.4;
+      const zoom = 1 + progress * 0.12;
+      layer.style.transform = `translateY(${offset}px) scale(${zoom})`;
+      layer.style.opacity = String(1 - progress * 0.55);
+    });
+
+    ticking = false;
+  }
+
+  window.addEventListener('scroll', () => {
+    if (!ticking) {
+      requestAnimationFrame(applyParallax);
+      ticking = true;
+    }
+  }, { passive: true });
+
+  applyParallax();
+}
+
+// ---------------------------------------------------------------------------
 // Footer year
 // ---------------------------------------------------------------------------
 const yearSpan = document.getElementById('yearSpan');

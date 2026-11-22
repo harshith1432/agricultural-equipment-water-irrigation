@@ -9,7 +9,7 @@ import { VALID_ROLES } from '../services/enterpriseStore.js';
 /**
  * Constant-time string comparison to prevent side-channel timing attacks
  */
-function safeCompare(a, b) {
+export function safeCompare(a, b) {
   if (typeof a !== 'string' || typeof b !== 'string') return false;
   const bufA = Buffer.from(a, 'utf8');
   const bufB = Buffer.from(b, 'utf8');

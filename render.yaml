@@ -15,6 +15,10 @@ services:
         value: 5050
       - key: ENTERPRISE_API_SECRET
         sync: false
+      - key: ADMIN_USERNAME
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
       - key: FIREBASE_PROJECT_ID
         value: water-irrigation-system-8aeeb
       - key: FIREBASE_API_KEY

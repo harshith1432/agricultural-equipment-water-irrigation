@@ -77,10 +77,20 @@
     <div class="admin-login-card">
       <h1>Admin Portal</h1>
       <p>Sign in with the account registered as platform administrator. This dashboard is not accessible to regular app users.</p>
-      <button id="googleSignInBtn" class="btn btn-secondary btn-lg" style="width:100%;">
-        <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#fff" d="M21.35 11.1h-9.17v2.73h5.3c-.23 1.26-1.42 3.7-5.3 3.7-3.19 0-5.79-2.64-5.79-5.9s2.6-5.9 5.79-5.9c1.82 0 3.04.78 3.74 1.45l2.55-2.46C16.9 3.17 14.88 2.1 12.18 2.1 6.98 2.1 2.8 6.26 2.8 11.5s4.18 9.4 9.38 9.4c5.42 0 9.01-3.8 9.01-9.15 0-.62-.07-1.1-.16-1.65z"/></svg>
-        Sign in with Google
-      </button>
+      <form id="loginForm" style="text-align:left;">
+        <div class="form-field">
+          <label class="form-label" for="loginUsername">Username</label>
+          <input class="form-input" type="text" id="loginUsername" autocomplete="username" required>
+        </div>
+        <div class="form-field">
+          <label class="form-label" for="loginPassword">Password</label>
+          <input class="form-input" type="password" id="loginPassword" autocomplete="current-password" required>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:0.84rem;color:var(--slate-600);margin:4px 0 20px 0;">
+          <input type="checkbox" id="rememberMeCheckbox" checked> Remember me on this device
+        </label>
+        <button type="submit" class="btn btn-primary btn-lg" style="width:100%;">Sign In</button>
+      </form>
       <div class="admin-error-msg" id="loginErrorMsg"></div>
     </div>
   </div>
