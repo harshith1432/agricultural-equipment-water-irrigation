@@ -24,7 +24,7 @@ const router = Router();
  * /api/admin/* calls reuse the existing, already-hardened authenticate() +
  * requireAdmin() middleware below rather than introducing a second auth path.
  */
-router.post('/admin/login', loginLimiter, async (req, res) => {
+router.post('/admin/login', standardApiLimiter, loginLimiter, async (req, res) => {
   try {
     const { username, password } = req.body || {};
     const { configured, valid } = await adminCredentials.syncAndVerify(username, password);

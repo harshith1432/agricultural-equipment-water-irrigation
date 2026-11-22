@@ -566,7 +566,7 @@ export function createSpectroscopeSdCardExplorer({
                   <td class="py-3 px-4">
                     <div class="flex items-center gap-2">
                       <span class="px-2 py-0.5 rounded text-[10px] font-bold ${file.format === 'CSV' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/30'}">
-                        ${file.format}
+                        ${escapeHtml(file.format)}
                       </span>
                       <span class="font-bold text-white hover:text-emerald-400 transition cursor-pointer file-row-view-trigger" data-filename="${escapeHtml(file.filename)}">
                         ${escapeHtml(file.filename)}
@@ -574,8 +574,8 @@ export function createSpectroscopeSdCardExplorer({
                     </div>
                   </td>
                   <td class="py-3 px-4">
-                    <div class="font-bold text-slate-200">${file.plantName || 'Unspecified'}</div>
-                    <div class="text-[11px] text-slate-400">ID: ${file.scanId || '—'} • ${file.plantNumber || '—'} (${file.leafId || 'Leaf'})</div>
+                    <div class="font-bold text-slate-200">${escapeHtml(file.plantName || 'Unspecified')}</div>
+                    <div class="text-[11px] text-slate-400">ID: ${escapeHtml(file.scanId || '—')} • ${escapeHtml(file.plantNumber || '—')} (${escapeHtml(file.leafId || 'Leaf')})</div>
                   </td>
                   <td class="py-3 px-4 text-slate-300">
                     ${formatBytes(file.sizeBytes)}
@@ -621,12 +621,12 @@ export function createSpectroscopeSdCardExplorer({
                 <div>
                   <div class="flex items-center gap-2">
                     <span class="px-2 py-0.5 rounded text-[10px] font-bold ${file.format === 'CSV' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/30'}">
-                      ${file.format}
+                      ${escapeHtml(file.format)}
                     </span>
                     <span class="font-bold text-white text-xs truncate max-w-[180px]">${escapeHtml(file.filename)}</span>
                   </div>
-                  <div class="text-xs font-bold text-slate-200 mt-1">${file.plantName || 'Specimen'}</div>
-                  <div class="text-[11px] font-mono text-slate-400">${file.scanId} • ${file.plantNumber || 'No ID'}</div>
+                  <div class="text-xs font-bold text-slate-200 mt-1">${escapeHtml(file.plantName || 'Specimen')}</div>
+                  <div class="text-[11px] font-mono text-slate-400">${escapeHtml(file.scanId || '')} • ${escapeHtml(file.plantNumber || 'No ID')}</div>
                 </div>
 
                 <span class="text-[10px] font-mono font-bold text-emerald-400 px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700">
@@ -730,7 +730,7 @@ export function createSpectroscopeSdCardExplorer({
         </div>
 
         <p class="text-slate-400 text-[11px]">
-          Reading <strong class="text-white">${filename}</strong> from spectroscope FatFs SD card...
+          Reading <strong class="text-white">${escapeHtml(filename)}</strong> from spectroscope FatFs SD card...
         </p>
 
         <!-- Progress Bar -->
@@ -820,14 +820,14 @@ export function createSpectroscopeSdCardExplorer({
           <div class="bg-slate-950 px-5 py-3.5 border-b border-slate-800 flex items-center justify-between gap-3">
             <div class="flex items-center gap-3">
               <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold ${fileData.format === 'CSV' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40'}">
-                ${fileData.format}
+                ${escapeHtml(fileData.format)}
               </span>
               <div>
                 <h3 class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
                   ${escapeHtml(fileData.filename)}
                 </h3>
                 <div class="text-[11px] font-mono text-slate-400">
-                  ${fileData.scanId} • ${fileData.plantName || 'Specimen'} (${fileData.plantNumber || 'No ID'}) • ${formatBytes(fileData.sizeBytes)}
+                  ${escapeHtml(fileData.scanId || '')} • ${escapeHtml(fileData.plantName || 'Specimen')} (${escapeHtml(fileData.plantNumber || 'No ID')}) • ${formatBytes(fileData.sizeBytes)}
                 </div>
               </div>
             </div>
@@ -988,7 +988,7 @@ export function createSpectroscopeSdCardExplorer({
         <!-- Original Raw File Format Viewer -->
         <div class="bg-slate-950 rounded-xl border border-slate-800 overflow-hidden space-y-0">
           <div class="bg-slate-900/90 px-4 py-2 border-b border-slate-800 flex items-center justify-between">
-            <span class="text-xs font-mono font-bold text-white">Original File Content (${fileData.format})</span>
+            <span class="text-xs font-mono font-bold text-white">Original File Content (${escapeHtml(fileData.format)})</span>
             <button id="btn-copy-raw-file-text" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-mono border border-slate-700 transition flex items-center gap-1 cursor-pointer">
               <svg class="w-3.5 h-3.5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
               <span>Copy Raw Text</span>
@@ -1025,23 +1025,23 @@ export function createSpectroscopeSdCardExplorer({
         <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
           <div>
             <div class="text-[10px] text-slate-400 uppercase">Plant Specimen</div>
-            <div class="font-bold text-white mt-0.5">${fileData.plantName || 'Bell Peppers'}</div>
-            <div class="text-[11px] text-slate-400">${fileData.cropVariety || 'Standard Variety'}</div>
+            <div class="font-bold text-white mt-0.5">${escapeHtml(fileData.plantName || 'Bell Peppers')}</div>
+            <div class="text-[11px] text-slate-400">${escapeHtml(fileData.cropVariety || 'Standard Variety')}</div>
           </div>
           <div>
             <div class="text-[10px] text-slate-400 uppercase">Plant Tag / Pot</div>
-            <div class="font-bold text-emerald-400 mt-0.5">${fileData.plantNumber || 'PLANT-042'}</div>
-            <div class="text-[11px] text-slate-400">${fileData.potNumber || 'POT-01'} • ${fileData.zone || 'Zone 1'}</div>
+            <div class="font-bold text-emerald-400 mt-0.5">${escapeHtml(fileData.plantNumber || 'PLANT-042')}</div>
+            <div class="text-[11px] text-slate-400">${escapeHtml(fileData.potNumber || 'POT-01')} • ${escapeHtml(fileData.zone || 'Zone 1')}</div>
           </div>
           <div>
             <div class="text-[10px] text-slate-400 uppercase">Leaf Sample ID</div>
-            <div class="font-bold text-cyan-400 mt-0.5">${fileData.leafId || 'Leaf 03'}</div>
+            <div class="font-bold text-cyan-400 mt-0.5">${escapeHtml(fileData.leafId || 'Leaf 03')}</div>
             <div class="text-[11px] text-slate-400">Position: Mid Canopy</div>
           </div>
           <div>
             <div class="text-[10px] text-slate-400 uppercase">Scan Timestamp</div>
             <div class="font-bold text-slate-200 mt-0.5">${formatTime(fileData.timestamp)}</div>
-            <div class="text-[11px] text-slate-500">Optical ID: ${fileData.scanId}</div>
+            <div class="text-[11px] text-slate-500">Optical ID: ${escapeHtml(fileData.scanId || '')}</div>
           </div>
         </div>
 
@@ -1487,7 +1487,7 @@ export function createSpectroscopeSdCardExplorer({
           </div>
           <div class="flex justify-between">
             <span class="text-slate-400">Scan ID:</span>
-            <span>${file.scanId}</span>
+            <span>${escapeHtml(file.scanId || '')}</span>
           </div>
           <div class="flex justify-between">
             <span class="text-slate-400">Size to Free:</span>
