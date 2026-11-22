@@ -127,6 +127,40 @@ document.addEventListener('DOMContentLoaded', () => {
         { label: 'Local Memory', val: 'MicroSD storage for raw spectral CSV logs' },
         { label: 'Battery Capacity', val: '300+ field leaf scans per USB-C charge' }
       ],
+      illustrationSvg: `
+        <div class="product-illustration-card">
+          <svg viewBox="0 0 460 160" width="100%" height="160" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="460" height="160" rx="12" fill="#04130a"/>
+            <!-- Leaf Outline -->
+            <path d="M 60,110 C 100,30 220,30 300,80 C 240,140 120,150 60,110 Z" fill="#14532d" stroke="#22c55e" stroke-width="2"/>
+            <path d="M 60,110 Q 180,85 300,80" stroke="#86efac" stroke-width="2" stroke-linecap="round"/>
+            <path d="M 120,95 Q 150,70 170,60" stroke="#86efac" stroke-width="1.2" stroke-linecap="round"/>
+            <path d="M 180,88 Q 210,70 230,65" stroke="#86efac" stroke-width="1.2" stroke-linecap="round"/>
+            <!-- Spectroscope Clip Head -->
+            <rect x="180" y="20" width="100" height="45" rx="8" fill="#1e293b" stroke="#34d399" stroke-width="1.5"/>
+            <text x="230" y="46" fill="#f8fafc" font-size="11" font-weight="700" text-anchor="middle" font-family="monospace">AS7265x SENSOR</text>
+            <!-- 18 Spectral Rays -->
+            <g opacity="0.85">
+              <line x1="195" y1="65" x2="195" y2="85" stroke="#818cf8" stroke-width="2"/>
+              <line x1="205" y1="65" x2="205" y2="85" stroke="#38bdf8" stroke-width="2"/>
+              <line x1="215" y1="65" x2="215" y2="85" stroke="#34d399" stroke-width="2"/>
+              <line x1="225" y1="65" x2="225" y2="85" stroke="#facc15" stroke-width="2"/>
+              <line x1="235" y1="65" x2="235" y2="85" stroke="#fb923c" stroke-width="2"/>
+              <line x1="245" y1="65" x2="245" y2="85" stroke="#f87171" stroke-width="2"/>
+              <line x1="255" y1="65" x2="255" y2="85" stroke="#dc2626" stroke-width="2"/>
+              <line x1="265" y1="65" x2="265" y2="85" stroke="#991b1b" stroke-width="2"/>
+            </g>
+            <!-- Photodiode Detector -->
+            <rect x="180" y="95" width="100" height="40" rx="8" fill="#1e293b" stroke="#34d399" stroke-width="1.5"/>
+            <text x="230" y="119" fill="#a7f3d0" font-size="10" font-weight="700" text-anchor="middle" font-family="monospace">CHEMOMETRICS</text>
+            <!-- Callout -->
+            <rect x="330" y="45" width="115" height="70" rx="6" fill="#0f291a" stroke="#22c55e" stroke-width="1"/>
+            <text x="340" y="68" fill="#86efac" font-size="10" font-weight="700" font-family="monospace">NDVI: 0.87</text>
+            <text x="340" y="86" fill="#86efac" font-size="10" font-weight="700" font-family="monospace">NDRE: 0.74</text>
+            <text x="340" y="104" fill="#34d399" font-size="9" font-weight="600">Active Crop</text>
+          </svg>
+        </div>
+      `,
       simType: 'spectroscope'
     },
     valve: {
@@ -160,6 +194,27 @@ document.addEventListener('DOMContentLoaded', () => {
         { label: 'Field Waterproofing', val: 'IP68 fully submersible waterproof housing' },
         { label: 'Emergency Override', val: 'Mechanical manual quarter-turn shutoff' }
       ],
+      illustrationSvg: `
+        <div class="product-illustration-card">
+          <svg viewBox="0 0 460 160" width="100%" height="160" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="460" height="160" rx="12" fill="#04130a"/>
+            <!-- Pipe Body -->
+            <path d="M 40,90 L 160,90 L 160,60 L 300,60 L 300,90 L 420,90 L 420,130 L 300,130 L 300,140 L 160,140 L 160,130 L 40,130 Z" fill="#1e293b" stroke="#475569" stroke-width="2"/>
+            <!-- Solenoid Tower -->
+            <rect x="200" y="15" width="60" height="55" rx="6" fill="#0f172a" stroke="#059669" stroke-width="2"/>
+            <text x="230" y="38" fill="#a7f3d0" font-size="9" font-weight="700" text-anchor="middle" font-family="monospace">BI-STABLE</text>
+            <text x="230" y="52" fill="#34d399" font-size="8" text-anchor="middle" font-family="monospace">+12V / -12V</text>
+            <!-- Water Flow Arrows -->
+            <g stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round">
+              <path d="M 60,110 L 120,110 M 110,105 L 120,110 L 110,115"/>
+              <path d="M 210,105 Q 230,85 250,105"/>
+              <path d="M 340,110 L 400,110 M 390,105 L 400,110 L 390,115"/>
+            </g>
+            <text x="90" y="100" fill="#bae6fd" font-size="10" font-weight="700">INLET (Main)</text>
+            <text x="350" y="100" fill="#bae6fd" font-size="10" font-weight="700">DRIP ZONE</text>
+          </svg>
+        </div>
+      `,
       simType: 'valve'
     },
     soil: {
@@ -193,6 +248,29 @@ document.addEventListener('DOMContentLoaded', () => {
         { label: 'Probe Construction', val: '316L Marine-grade stainless steel electrodes' },
         { label: 'Autonomous Lifespan', val: '5+ years on internal solar-assisted lithium cell' }
       ],
+      illustrationSvg: `
+        <div class="product-illustration-card">
+          <svg viewBox="0 0 460 160" width="100%" height="160" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="460" height="160" rx="12" fill="#04130a"/>
+            <!-- Soil Strata Background -->
+            <rect x="20" y="30" width="420" height="40" fill="#292524" opacity="0.8"/>
+            <rect x="20" y="70" width="420" height="45" fill="#1c1917" opacity="0.9"/>
+            <rect x="20" y="115" width="420" height="35" fill="#0c0a09"/>
+            <!-- Probe Body -->
+            <rect x="190" y="10" width="22" height="135" rx="4" fill="#94a3b8" stroke="#f8fafc" stroke-width="1.5"/>
+            <!-- Sensing Rings -->
+            <rect x="187" y="40" width="28" height="10" rx="2" fill="#059669" stroke="#34d399"/>
+            <rect x="187" y="80" width="28" height="10" rx="2" fill="#059669" stroke="#34d399"/>
+            <rect x="187" y="120" width="28" height="10" rx="2" fill="#059669" stroke="#34d399"/>
+            <!-- Depth Labels -->
+            <text x="70" y="52" fill="#d6d3d1" font-size="11" font-weight="700">10cm: Organic Topsoil</text>
+            <text x="70" y="92" fill="#86efac" font-size="11" font-weight="700">20cm: Active Root Zone (42% VWC)</text>
+            <text x="70" y="132" fill="#94a3b8" font-size="11" font-weight="700">30cm: Subsoil Horizon</text>
+            <!-- Plant Root Graphics -->
+            <path d="M 280,30 Q 290,60 320,80 M 295,45 Q 330,65 350,90 M 285,55 Q 260,75 250,105" stroke="#fef08a" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+      `,
       simType: 'soil'
     },
     climate: {
@@ -226,6 +304,34 @@ document.addEventListener('DOMContentLoaded', () => {
         { label: 'Wireless Link', val: 'Sub-1GHz Long Range / Bluetooth LE mesh' },
         { label: 'Mounting Style', val: 'Canopy height 1.5m stainless mast clamp' }
       ],
+      illustrationSvg: `
+        <div class="product-illustration-card">
+          <svg viewBox="0 0 460 160" width="100%" height="160" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="460" height="160" rx="12" fill="#04130a"/>
+            <!-- Weather Mast -->
+            <rect x="220" y="20" width="12" height="130" fill="#64748b"/>
+            <!-- Solar Shield Plates -->
+            <path d="M 190,45 L 260,45 L 250,55 L 200,55 Z" fill="#e2e8f0"/>
+            <path d="M 190,60 L 260,60 L 250,70 L 200,70 Z" fill="#e2e8f0"/>
+            <path d="M 190,75 L 260,75 L 250,85 L 200,85 Z" fill="#e2e8f0"/>
+            <path d="M 190,90 L 260,90 L 250,100 L 200,100 Z" fill="#e2e8f0"/>
+            <!-- Anemometer Arms -->
+            <circle cx="226" cy="22" r="4" fill="#38bdf8"/>
+            <line x1="205" y1="22" x2="247" y2="22" stroke="#38bdf8" stroke-width="2"/>
+            <circle cx="205" cy="22" r="5" fill="#0284c7"/>
+            <circle cx="247" cy="22" r="5" fill="#0284c7"/>
+            <!-- Telemetry Broadcast Waves -->
+            <path d="M 270,30 Q 285,45 270,60" stroke="#34d399" stroke-width="2" stroke-linecap="round"/>
+            <path d="M 280,22 Q 302,45 280,68" stroke="#34d399" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+            <!-- Metrics Callout -->
+            <rect x="310" y="35" width="130" height="90" rx="6" fill="#0f291a" stroke="#22c55e" stroke-width="1"/>
+            <text x="320" y="58" fill="#f0fdf4" font-size="11" font-weight="700">CANOPY METRICS</text>
+            <text x="320" y="76" fill="#86efac" font-size="10" font-family="monospace">Air Temp: 28.4°C</text>
+            <text x="320" y="94" fill="#86efac" font-size="10" font-family="monospace">Humidity: 64.2%</text>
+            <text x="320" y="112" fill="#38bdf8" font-size="10" font-family="monospace">VPD: 1.32 kPa</text>
+          </svg>
+        </div>
+      `,
       simType: 'climate'
     }
   };
@@ -412,6 +518,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         <div class="product-content-grid">
           <div class="specs-card-box">
+            ${product.illustrationSvg || ''}
             <h4>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
               Hardware Specifications
