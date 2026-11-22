@@ -297,7 +297,7 @@ export function createSpectroscopeSdCardExplorer({
             </div>
             <div>
               <div class="flex items-center gap-2">
-                <span class="text-sm font-bold text-white">${devName}</span>
+                <span class="text-sm font-bold text-white">${escapeHtml(devName)}</span>
                 <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
                   <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
                   SD Card Ready / Online
@@ -306,7 +306,7 @@ export function createSpectroscopeSdCardExplorer({
               <div class="flex items-center gap-3 text-[11px] font-mono text-slate-400 mt-0.5">
                 <span>RSSI: <strong class="text-emerald-400">${rssi} dBm</strong></span>
                 <span>•</span>
-                <span>Storage: <strong class="text-slate-300">${sdStatus?.fsType || 'FAT32'}</strong></span>
+                <span>Storage: <strong class="text-slate-300">${escapeHtml(sdStatus?.fsType || 'FAT32')}</strong></span>
                 <span>•</span>
                 <span>Scans: <strong class="text-cyan-400">${files.length}</strong></span>
               </div>
@@ -440,7 +440,7 @@ export function createSpectroscopeSdCardExplorer({
             type="text" 
             id="sd-search-input" 
             placeholder="Search by filename, plant name, plant number, or date..." 
-            value="${searchQuery}" 
+            value="${escapeHtml(searchQuery)}"
             class="w-full min-h-[42px] bg-slate-950 text-xs text-white placeholder-slate-500 rounded-xl pl-9 pr-8 border border-slate-750 focus:outline-none focus:border-emerald-500 transition font-mono"
           />
           ${searchQuery ? `
