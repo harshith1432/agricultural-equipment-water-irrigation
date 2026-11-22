@@ -5,12 +5,12 @@
 import { Router } from 'express';
 import { enterpriseStore, VALID_ROLES } from '../services/enterpriseStore.js';
 import { authenticate, requireAdmin, requireRole, sanitizeUserInput } from '../middleware/authMiddleware.js';
-import { adminLimiter } from '../middleware/rateLimiter.js';
+import { adminLimiter, standardApiLimiter } from '../middleware/rateLimiter.js';
 
 const router = Router();
 
 // Apply administrative rate limiter and base authentication to all /admin/* endpoints
-router.use('/admin', adminLimiter, authenticate);
+router.use('/admin', standardApiLimiter, adminLimiter, authenticate);
 
 /**
  * GET /api/admin/metrics

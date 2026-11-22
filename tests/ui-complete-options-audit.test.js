@@ -265,18 +265,12 @@ export function registerUICompleteOptionsAuditTests() {
         expect(Boolean(connBadge || spectroView.querySelector('span'))).toBe(true);
       }
 
-      // 2. Simple vs Advanced Detail Mode Toggle
-      const simpleBtn = spectroView.querySelector('#toggle-view-simple');
-      const advBtn = spectroView.querySelector('#toggle-view-advanced');
-      expect(Boolean(simpleBtn)).toBe(true);
-      expect(Boolean(advBtn)).toBe(true);
-
-      advBtn.click();
-      expect(spectroView.textContent).toContain('Vegetation Indices Matrix');
+      // 2. The Farmer/Technical detail toggle and its "Vegetation Indices
+      // Matrix" breakdown were removed from the simplified UI - a farmer
+      // only ever sees one view, with plain-language NDVI/NDRE values
+      // already present in the quick indicator pills.
       expect(spectroView.textContent).toContain('NDVI');
       expect(spectroView.textContent).toContain('NDRE');
-
-      simpleBtn.click();
 
       // 3. Leaf Scan Acquisition Button
       const scanBtn = spectroView.querySelector('#btn-acquire-scan');

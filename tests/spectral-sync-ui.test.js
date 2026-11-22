@@ -350,10 +350,11 @@ export function registerSpectralSyncUITests() {
       const widget = view.querySelector('#spectral-sync-metrics-widget');
       expect(widget).toBeDefined();
 
-      // Verify "Sync Now" button
+      // Verify "Sync" button (compact single-line bar replaced the old full-width
+      // "Sync Now" card - see simplified UI)
       const syncBtn = view.querySelector('#btn-sync-now');
       expect(syncBtn).toBeDefined();
-      expect(syncBtn.textContent).toContain('Sync Now');
+      expect(syncBtn.textContent).toContain('Sync');
 
       // Verify metrics counters in DOM
       const totalEl = view.querySelector('#metric-total-scans');
@@ -406,78 +407,34 @@ export function registerSpectralSyncUITests() {
   // =========================================================================
   // SUITE 4: Step 6 Results View - Section 7.C Two Tabs (Processed vs Raw)
   // =========================================================================
-  describe('SpectroscopyAnalysisView - Section 7.C Results Two Tabs (Processed vs Raw)', () => {
-    it('renders both tab navigation buttons: Processed Results & Raw Spectrum', () => {
+  describe('SpectroscopyAnalysisView - Step 6 Results (simplified single-view, no raw/technical tabs)', () => {
+    // The Raw Spectrum tab, the Farmer/Technical toggle, and the formula/units/
+    // validity table were removed from the default view - a farmer only sees
+    // the spectral curve, plain-language numbers, and 5 decision cards. Export
+    // of the underlying data moved to the single "Export All (CSV)" button.
+    it('displays canvas and 5 decision cards in the results section (no formula/validity table)', () => {
       const view = createSpectroscopyAnalysisView();
 
-      const processedTabBtn = view.querySelector('#tab-btn-processed-results');
-      const rawTabBtn = view.querySelector('#tab-btn-raw-spectrum');
-
-      expect(processedTabBtn).toBeDefined();
-      expect(rawTabBtn).toBeDefined();
-      expect(processedTabBtn.textContent).toContain('Processed Results');
-      expect(rawTabBtn.textContent).toContain('Raw Spectrum');
-    });
-
-    it('in Processed Results tab: displays canvas, calculated indices table with formula/units/validity, and 5 decision cards', () => {
-      const view = createSpectroscopyAnalysisView();
-
-      // Ensure Processed tab is active
-      const processedTabBtn = view.querySelector('#tab-btn-processed-results');
-      processedTabBtn.click();
-
-      // Verify canvas
       const canvas = view.querySelector('#spectralChartCanvas');
       expect(canvas).toBeDefined();
 
-      // Verify Human-Readable Calculated Indices Matrix Table
-      expect(view.innerHTML).toContain('Human-Readable Calculated Indices & Decision Basis');
-      expect(view.innerHTML).toContain('NDVI (Canopy Vigor)');
-      expect(view.innerHTML).toContain('(R810 - R680) / (R810 + R680)');
-      expect(view.innerHTML).toContain('NDRE (Nitrogen Level)');
-      expect(view.innerHTML).toContain('(R790 - R720) / (R790 + R720)');
-      expect(view.innerHTML).toContain('WBI / LWI (Leaf Water)');
-      expect(view.innerHTML).toContain('Crop Vitality Score');
-      expect(view.innerHTML).toContain('Urea / Nitrogen Prescription');
+      expect(view.innerHTML).not.toContain('Calculation Method / Formula');
+      expect(view.innerHTML).not.toContain('(R810 - R680) / (R810 + R680)');
 
-      // Verify 5 Decision TTS buttons
       const ttsBtns = view.querySelectorAll('.tts-speak-btn');
       expect(ttsBtns.length).toBe(5);
     });
 
-    it('in Raw Spectrum tab: displays 18-channel AS7265x table, environmental readings, and CSV/JSON download buttons', () => {
+    it('exposes a single "Export All (CSV)" button for downloading every locally stored scan', () => {
       const view = createSpectroscopyAnalysisView();
-
-      // Click Raw Spectrum tab
-      const rawTabBtn = view.querySelector('#tab-btn-raw-spectrum');
-      rawTabBtn.click();
-
-      // Verify Raw Spectrum section is rendered
-      const rawSection = view.querySelector('#raw-spectrum-section');
-      expect(rawSection).toBeDefined();
-
-      // Verify Environmental Readings
-      expect(rawSection.textContent).toContain('Sensor Temperature');
-      expect(rawSection.textContent).toContain('Relative Humidity');
-      expect(rawSection.textContent).toContain('Barometric Pressure');
-
-      // Verify CSV & JSON download buttons
-      const csvBtn = view.querySelector('#btn-download-raw-csv');
-      const jsonBtn = view.querySelector('#btn-download-raw-json');
-      expect(csvBtn).toBeDefined();
-      expect(jsonBtn).toBeDefined();
-      expect(csvBtn.textContent).toContain('Download 18-Channel CSV');
-      expect(jsonBtn.textContent).toContain('Download JSON Scan Record');
+      const exportBtn = view.querySelector('#btn-export-all-scans-csv');
+      expect(exportBtn).toBeDefined();
+      expect(exportBtn.textContent).toContain('Export All');
     });
 
-    it('enforces ABSOLUTELY NO FAKE DATA: displays Real Sensor Status: Awaiting Measurement when scan is pending', () => {
+    it('shows a plain-language "leaf scan pending" message when no scan has been captured yet', () => {
       const view = createSpectroscopyAnalysisView();
-
-      // Click Raw Spectrum tab when scan is not completed
-      view.querySelector('#tab-btn-raw-spectrum').click();
-
-      expect(view.innerHTML).toContain('Real Sensor Status: Awaiting Measurement');
-      expect(view.innerHTML).toContain('Policy: ABSOLUTELY NO FAKE DATA • True hardware measurements only');
+      expect(view.innerHTML).toContain('Leaf scan pending');
     });
 
     it('verifies AS7265X_CHANNELS constant has exactly 18 spectral channels spanning AS72651, AS72652, and AS72653', () => {

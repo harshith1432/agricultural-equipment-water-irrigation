@@ -602,7 +602,10 @@ export function registerSdCardExplorerTests() {
     });
 
     it('simulates fragmented small BLE MTU notifications (20 to 64 bytes)', () => {
-      const testLine = '$SD_STATUS,mounted=1,totalKb=15240000,usedKb=128400,freeKb=15111600,fileCount=142,lastScan=SCAN_142.CSV,health=OK\r\n';
+      // Real firmware wire format: $ACK:SD_STATUS,STATUS=OK,DETECTED=...
+      // (protocol_parser.c), reassembled from 20-byte BLE notification
+      // fragments - the real, unnegotiated BLE ATT_MTU on this hardware.
+      const testLine = '$ACK:SD_STATUS,STATUS=OK,DETECTED=YES,MOUNTED=YES,FS=FAT32,TOTAL_MB=15240,USED_MB=128,FREE_MB=15112,FILES=142,LAST_ERR=NONE\r\n';
       const accumulator = new PacketChunkAccumulator({ capacity: 4096 });
       const received = [];
       accumulator.on('packet', p => received.push(p));
@@ -613,9 +616,9 @@ export function registerSdCardExplorerTests() {
       }
 
       expect(received.length).toBe(1);
-      expect(received[0].type).toBe(PACKET_TYPES.SD_STATUS);
-      expect(Number(received[0].data.mounted)).toBe(1);
-      expect(received[0].data.filecount).toBe('142');
+      expect(received[0].type).toBe(PACKET_TYPES.SD_OP_ACK);
+      expect(received[0].data.mounted).toBe('YES');
+      expect(received[0].data.files).toBe(142);
     });
 
     it('detects missing chunks and completes cleanly upon retry retransmission', () => {

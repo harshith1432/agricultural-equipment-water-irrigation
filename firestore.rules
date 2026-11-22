@@ -134,8 +134,25 @@ service cloud.firestore {
     function isAdmin() {
       return isAuthenticated() && (
         request.auth.token.get('admin', false) == true ||
-        request.auth.token.get('role', '') in ['admin', 'superadmin']
+        request.auth.token.get('role', '') in ['admin', 'superadmin'] ||
+        isBootstrapSuperAdminEmail()
       );
+    }
+
+    // The mobile app's bootstrap SuperAdmin account writes every Firestore
+    // document under the fixed uid "system-admin-harshith" regardless of
+    // which real Firebase Auth identity (Google/email) actually signed in,
+    // and the client never calls Admin SDK setCustomUserClaims - so the
+    // token-based role checks above never fire for this account and it gets
+    // "Missing or insufficient permissions" on every plots/crops/
+    // irrigationLogs/actionRecommendations read. request.auth.token.email is
+    // a standard Firebase ID token claim (not a custom claim, so no backend
+    // provisioning needed) - match on the same fixed admin email the client
+    // already special-cases, so the real signed-in identity is recognized
+    // as admin without needing a uid remap.
+    function isBootstrapSuperAdminEmail() {
+      return isAuthenticated() &&
+             request.auth.token.email in ['harshithkd0321@gmail.com', 'harshithkd032@gmail.com'];
     }
 
     function isRecent(time) {

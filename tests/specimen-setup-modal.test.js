@@ -398,22 +398,22 @@ export function registerSpecimenSetupModalTests() {
       expect(zoneChips.length).toBeGreaterThan(0);
     });
 
-    it('highlights Step 3 as NEXT ACTION when Dark Baseline is not done', () => {
+    it('shows Step 3 (Dark Baseline) as not yet done, with a highlighted border and the scan button', () => {
       leafClipDevice.calibration.darkCurrentCompleted = false;
       leafClipDevice.calibration.whiteDiscCompleted = false;
 
       const view = createSpectroscopyAnalysisView();
       const text = view.textContent;
 
-      expect(text).toContain('Step 3: Dark Baseline Calibration (0% Null)');
-      expect(text).toContain('NEXT ACTION');
+      expect(text).toContain('Step 3: Cover the clip (Dark Baseline)');
+      expect(text).not.toContain('✓ Done');
 
       const darkBtn = view.querySelector('#btn-step-dark-calib');
       expect(Boolean(darkBtn)).toBe(true);
       expect(darkBtn.textContent).toContain('Scan Dark Baseline');
     });
 
-    it('highlights Step 4 as NEXT ACTION when Dark is done but White is not done', async () => {
+    it('marks Step 3 done and shows Step 4 (White Reference) once Dark Baseline completes', async () => {
       const origRunCalib = leafClipDevice.runCalibrationStep;
       const origConnected = leafClipDevice.isConnected;
       leafClipDevice.isConnected = true;
@@ -428,9 +428,8 @@ export function registerSpecimenSetupModalTests() {
       await darkBtn.click();
 
       const text = view.textContent;
-      expect(text).toContain('0% Dark Baseline Verified');
-      expect(text).toContain('Step 4: White Reference Standard (100% Normalization)');
-      expect(text).toContain('NEXT ACTION');
+      expect(text).toContain('✓ Done');
+      expect(text).toContain('Step 4: Insert the white disc');
 
       leafClipDevice.isConnected = origConnected;
       leafClipDevice.runCalibrationStep = origRunCalib;

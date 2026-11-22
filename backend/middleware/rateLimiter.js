@@ -2,6 +2,22 @@
  * Enterprise Rate Limiting Middleware (AgriSpectra Security Defense)
  * Prevents DDoS, brute-force attacks, email flooding, and solenoid coil burnout.
  */
+import rateLimit from 'express-rate-limit';
+
+/**
+ * Standard express-rate-limit instance for ingestion/data endpoints
+ * (telemetry, spectroscopy sync, admin). Uses the well-known library so
+ * static analysis tooling recognizes the route as rate-limited, on top of
+ * the custom MemoryRateLimiter already applied where present.
+ */
+export const standardApiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => process.env.NODE_ENV === 'test',
+  message: { success: false, error: 'Too many requests. Please slow down.' }
+});
 
 export class MemoryRateLimiter {
   constructor(options = {}) {

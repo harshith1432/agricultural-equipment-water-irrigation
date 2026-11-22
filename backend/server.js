@@ -37,9 +37,11 @@ const app = express();
 const PORT = parseInt(process.env.PORT || process.env.BACKEND_PORT || "5050", 10);
 
 // OWASP A05:2021 Security Misconfiguration - standard hardened HTTP response
-// headers (HSTS, X-Content-Type-Options, X-Frame-Options, no X-Powered-By, etc).
-// CSP is disabled since this server serves a JSON API, not HTML pages.
-app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+// headers (HSTS, X-Content-Type-Options, X-Frame-Options, CSP, no X-Powered-By).
+// Keep Helmet's secure defaults (including CSP and frame protection) rather
+// than disabling them - this is a JSON API so a default CSP is harmless, and
+// disabling it is itself flagged as an insecure configuration.
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 
 // Hardened Security & CORS Middleware
 const allowedOrigins = process.env.CORS_ORIGIN

@@ -865,42 +865,11 @@ export function createSpectroscopyAnalysisView({
       const che = (isLeafScanDone && currentScan) ? (currentScan.chemometrics || currentScan) : null;
 
       container.innerHTML = `
-        <!-- Header: Linear Spectroscopy Studio Banner -->
-        <div class="bg-gradient-to-br from-[#1b4332] to-[#2d6a4f] text-white rounded-3xl p-4 sm:p-5 shadow-sm border border-[#2d6a4f]/50 space-y-2">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-2xl bg-white/15 text-emerald-100 flex items-center justify-center shrink-0">
-                ${icon('spectroscopy', 'w-5 h-5 text-[#52b788]')}
-              </div>
-              <div>
-                <h2 class="text-sm sm:text-base font-extrabold text-white tracking-tight leading-snug">
-                  ${t('spectro_title', 'Spectroscopy Analysis Studio')}
-                </h2>
-                <p class="text-[11px] text-emerald-200/90 font-medium">
-                  ${t('spectro_subtitle', '350–1100 nm VIS-NIR Handheld Leaf Reflectance')}
-                </p>
-              </div>
-            </div>
-            <div class="flex items-center gap-1.5 p-1 rounded-2xl bg-black/25 border border-white/15">
-              <button 
-                type="button" 
-                id="btn-tab-guided-studio"
-                class="px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${studioTab === 'studio' ? 'bg-[#52b788] text-slate-950 shadow-sm' : 'text-emerald-100 hover:text-white'}"
-              >
-                <span>🍃 Guided Studio</span>
-              </button>
-              <button 
-                type="button" 
-                id="btn-tab-hardware-diag"
-                class="px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${studioTab === 'diagnostics' ? 'bg-[#52b788] text-slate-950 shadow-sm' : 'text-emerald-100 hover:text-white'}"
-              >
-                <span>🔧 Diagnostics</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        ${studioTab === 'diagnostics' ? renderHardwareDiagnosticsScreen() : `
+        <!-- The "Spectroscopy Analysis Studio" title banner and the Guided
+             Studio/Diagnostics tab switcher were removed per user request -
+             not useful to a farmer. Diagnostics mode is still available via
+             renderHardwareDiagnosticsScreen() for a future entry point, but
+             there is currently no UI control to reach it. -->
         <!-- SYNC STATUS: compact single-line bar (was a large multi-metric card) -->
         <div id="spectral-sync-metrics-widget" class="bg-white dark:bg-slate-900 rounded-2xl px-4 py-2.5 shadow-sm border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 text-xs">
           <div class="flex items-center gap-2 min-w-0">
@@ -1652,7 +1621,6 @@ export function createSpectroscopyAnalysisView({
             </button>
           </div>
         </div>
-        `}
 
         <!-- Off-Screen Testing & Compatibility Container (Zero Visual Clutter, 100% Test Passing) -->
         <div class="sr-only" style="position: absolute; left: -9999px; top: -9999px; width: 1px; height: 1px; overflow: hidden; pointer-events: none;" aria-hidden="true">

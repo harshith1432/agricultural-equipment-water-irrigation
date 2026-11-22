@@ -6,7 +6,7 @@ import { Router } from 'express';
 import { enterpriseStore } from '../services/enterpriseStore.js';
 import { schemaManager } from '../services/schemaManager.js';
 import { authenticate, requireRole, verifyFarmTenantAccess } from '../middleware/authMiddleware.js';
-import { valveActuationLimiter } from '../middleware/rateLimiter.js';
+import { valveActuationLimiter, standardApiLimiter } from '../middleware/rateLimiter.js';
 
 const router = Router();
 
@@ -14,8 +14,11 @@ const router = Router();
  * POST /api/telemetry/sync
  * Ingestion endpoint for direct edge IoT sensor packets from field probes & wireless gateways.
  * Auto-creates 'telemetry_logs' table if missing and fills the data.
+ * Requires the same enterprise secret / bearer auth as every other write
+ * endpoint - this previously accepted unauthenticated writes straight into
+ * Firestore, which let anyone poison telemetry data with no credentials.
  */
-router.post('/telemetry/sync', async (req, res) => {
+router.post('/telemetry/sync', standardApiLimiter, authenticate, async (req, res) => {
   try {
     const packet = req.body;
     if (!packet || Object.keys(packet).length === 0) {
@@ -59,9 +62,10 @@ router.get('/plots', (req, res) => {
  * Actuate specific solenoid valve (OPEN / CLOSE with +/-12V latching pulse)
  * Protected by hardware thermal rate limiter & RBAC role authorization
  */
-router.post('/plots/:plotId/valve', 
-  valveActuationLimiter, 
-  authenticate, 
+router.post('/plots/:plotId/valve',
+  standardApiLimiter,
+  valveActuationLimiter,
+  authenticate,
   requireRole(['superadmin', 'farm_owner', 'field_operator']),
   verifyFarmTenantAccess,
   async (req, res) => {
@@ -110,7 +114,8 @@ router.post('/plots/:plotId/valve',
  * POST /api/leaf-scans
  * Direct ingestion of handheld leaf spectroscopy scan results
  */
-router.post('/leaf-scans', 
+router.post('/leaf-scans',
+  standardApiLimiter,
   authenticate,
   requireRole(['superadmin', 'farm_owner', 'agronomist']),
   (req, res) => {

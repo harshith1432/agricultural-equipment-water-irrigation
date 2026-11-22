@@ -104,7 +104,10 @@ int32_t HCI_TL_SPI_Reset(void)
 int32_t HCI_TL_SPI_Receive(uint8_t* buffer, uint16_t size)
 {
   uint16_t byte_count;
-  uint8_t len = 0;
+  /* Must match byte_count's width: on a negotiated MTU this can exceed 255,
+     and a uint8_t loop counter here would silently wrap at 256, causing an
+     infinite read loop and out-of-bounds writes into buffer[]. */
+  uint16_t len = 0;
   uint8_t char_ff = 0xff;
   uint8_t read_char;
 

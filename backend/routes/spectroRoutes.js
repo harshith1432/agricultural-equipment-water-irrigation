@@ -15,12 +15,15 @@ import { centralStorage } from '../services/centralStorage.js';
 import { schemaManager } from '../services/schemaManager.js';
 import { firestoreClient } from '../services/firestoreClient.js';
 import { authenticate } from '../middleware/authMiddleware.js';
+import { standardApiLimiter } from '../middleware/rateLimiter.js';
 
 const router = Router();
 
 // Protect all spectroscopy endpoints with enterprise authentication / ID token verification
-router.use('/spectroscopy', authenticate);
-router.use('/spectral', authenticate);
+// and a standard rate limiter (mobile handhelds sync scans in bursts, but should
+// never be able to flood the ingestion endpoint).
+router.use('/spectroscopy', standardApiLimiter, authenticate);
+router.use('/spectral', standardApiLimiter, authenticate);
 
 // ===========================================================================
 // 1. INGESTION & SYNCHRONIZATION ENDPOINTS

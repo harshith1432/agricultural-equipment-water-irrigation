@@ -15,6 +15,7 @@
 
 import { leafClipDevice } from '../hardware/webBluetoothLeafClip.js';
 import { WAVELENGTHS, processSpectralVector } from '../hardware/chemometricsEngine.js';
+import { escapeHtml } from '../utils/sanitizer.js';
 
 export const SD_FILENAME_REGEX = /^[a-zA-Z0-9_-]{1,32}\.(CSV|csv|JSON|json)$/;
 
@@ -100,7 +101,7 @@ export function createSpectroscopeSdCardExplorer({
     toast.className = `flex items-center gap-2.5 px-4 py-2.5 rounded-xl border text-xs font-mono shadow-xl transition-all duration-300 transform translate-y-2 opacity-0 ${bgColors[type] || bgColors.info}`;
     toast.innerHTML = `
       <span class="w-2 h-2 rounded-full ${type === 'success' ? 'bg-emerald-400' : type === 'error' ? 'bg-rose-400' : type === 'warning' ? 'bg-amber-400' : 'bg-cyan-400'} animate-pulse"></span>
-      <span class="font-medium">${message}</span>
+      <span class="font-medium">${escapeHtml(message)}</span>
     `;
 
     toastContainer.appendChild(toast);
@@ -567,8 +568,8 @@ export function createSpectroscopeSdCardExplorer({
                       <span class="px-2 py-0.5 rounded text-[10px] font-bold ${file.format === 'CSV' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/30'}">
                         ${file.format}
                       </span>
-                      <span class="font-bold text-white hover:text-emerald-400 transition cursor-pointer file-row-view-trigger" data-filename="${file.filename}">
-                        ${file.filename}
+                      <span class="font-bold text-white hover:text-emerald-400 transition cursor-pointer file-row-view-trigger" data-filename="${escapeHtml(file.filename)}">
+                        ${escapeHtml(file.filename)}
                       </span>
                     </div>
                   </td>
@@ -589,19 +590,19 @@ export function createSpectroscopeSdCardExplorer({
                   </td>
                   <td class="py-3 px-4 text-right">
                     <div class="flex items-center justify-end gap-1.5">
-                      <button class="p-1.5 rounded-lg bg-slate-800 hover:bg-emerald-500/20 text-slate-300 hover:text-emerald-300 border border-slate-700 transition cursor-pointer file-btn-view" data-filename="${file.filename}" title="View Scan Details">
+                      <button class="p-1.5 rounded-lg bg-slate-800 hover:bg-emerald-500/20 text-slate-300 hover:text-emerald-300 border border-slate-700 transition cursor-pointer file-btn-view" data-filename="${escapeHtml(file.filename)}" title="View Scan Details">
                         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                       </button>
-                      <button class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition cursor-pointer file-btn-copy" data-filename="${file.filename}" title="Copy Content">
+                      <button class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition cursor-pointer file-btn-copy" data-filename="${escapeHtml(file.filename)}" title="Copy Content">
                         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                       </button>
-                      <button class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition cursor-pointer file-btn-export" data-filename="${file.filename}" title="Export File">
+                      <button class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition cursor-pointer file-btn-export" data-filename="${escapeHtml(file.filename)}" title="Export File">
                         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
                       </button>
-                      <button class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition cursor-pointer file-btn-duplicate" data-filename="${file.filename}" title="Duplicate File">
+                      <button class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition cursor-pointer file-btn-duplicate" data-filename="${escapeHtml(file.filename)}" title="Duplicate File">
                         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
                       </button>
-                      <button class="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-950/40 text-rose-400 hover:text-rose-300 border border-slate-700 hover:border-rose-500/40 transition cursor-pointer file-btn-delete" data-filename="${file.filename}" title="Delete File from SD Card">
+                      <button class="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-950/40 text-rose-400 hover:text-rose-300 border border-slate-700 hover:border-rose-500/40 transition cursor-pointer file-btn-delete" data-filename="${escapeHtml(file.filename)}" title="Delete File from SD Card">
                         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
                       </button>
                     </div>
@@ -622,7 +623,7 @@ export function createSpectroscopeSdCardExplorer({
                     <span class="px-2 py-0.5 rounded text-[10px] font-bold ${file.format === 'CSV' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/30'}">
                       ${file.format}
                     </span>
-                    <span class="font-bold text-white text-xs truncate max-w-[180px]">${file.filename}</span>
+                    <span class="font-bold text-white text-xs truncate max-w-[180px]">${escapeHtml(file.filename)}</span>
                   </div>
                   <div class="text-xs font-bold text-slate-200 mt-1">${file.plantName || 'Specimen'}</div>
                   <div class="text-[11px] font-mono text-slate-400">${file.scanId} • ${file.plantNumber || 'No ID'}</div>
@@ -640,19 +641,19 @@ export function createSpectroscopeSdCardExplorer({
 
               <!-- 5 Mobile Action Buttons (Min 44px touch targets) -->
               <div class="grid grid-cols-5 gap-1.5 pt-1 border-t border-slate-800/80">
-                <button class="min-h-[44px] rounded-xl bg-slate-800 hover:bg-emerald-500/20 text-slate-300 hover:text-emerald-300 border border-slate-700 flex items-center justify-center file-btn-view cursor-pointer" data-filename="${file.filename}" title="View">
+                <button class="min-h-[44px] rounded-xl bg-slate-800 hover:bg-emerald-500/20 text-slate-300 hover:text-emerald-300 border border-slate-700 flex items-center justify-center file-btn-view cursor-pointer" data-filename="${escapeHtml(file.filename)}" title="View">
                   <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                 </button>
-                <button class="min-h-[44px] rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 flex items-center justify-center file-btn-copy cursor-pointer" data-filename="${file.filename}" title="Copy">
+                <button class="min-h-[44px] rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 flex items-center justify-center file-btn-copy cursor-pointer" data-filename="${escapeHtml(file.filename)}" title="Copy">
                   <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                 </button>
-                <button class="min-h-[44px] rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 flex items-center justify-center file-btn-export cursor-pointer" data-filename="${file.filename}" title="Export">
+                <button class="min-h-[44px] rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 flex items-center justify-center file-btn-export cursor-pointer" data-filename="${escapeHtml(file.filename)}" title="Export">
                   <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
                 </button>
-                <button class="min-h-[44px] rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 flex items-center justify-center file-btn-duplicate cursor-pointer" data-filename="${file.filename}" title="Duplicate">
+                <button class="min-h-[44px] rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 flex items-center justify-center file-btn-duplicate cursor-pointer" data-filename="${escapeHtml(file.filename)}" title="Duplicate">
                   <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
                 </button>
-                <button class="min-h-[44px] rounded-xl bg-slate-800 hover:bg-rose-950/40 text-rose-400 hover:text-rose-300 border border-slate-700 hover:border-rose-500/40 flex items-center justify-center file-btn-delete cursor-pointer" data-filename="${file.filename}" title="Delete">
+                <button class="min-h-[44px] rounded-xl bg-slate-800 hover:bg-rose-950/40 text-rose-400 hover:text-rose-300 border border-slate-700 hover:border-rose-500/40 flex items-center justify-center file-btn-delete cursor-pointer" data-filename="${escapeHtml(file.filename)}" title="Delete">
                   <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
                 </button>
               </div>
@@ -823,7 +824,7 @@ export function createSpectroscopeSdCardExplorer({
               </span>
               <div>
                 <h3 class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
-                  ${fileData.filename}
+                  ${escapeHtml(fileData.filename)}
                 </h3>
                 <div class="text-[11px] font-mono text-slate-400">
                   ${fileData.scanId} • ${fileData.plantName || 'Specimen'} (${fileData.plantNumber || 'No ID'}) • ${formatBytes(fileData.sizeBytes)}
@@ -1368,7 +1369,7 @@ export function createSpectroscopeSdCardExplorer({
         `AGRISPECTRA SPECTROSCOPY SCAN REPORT`,
         `==================================================`,
         `Scan ID:        ${fileData.scanId}`,
-        `File Name:      ${fileData.filename}`,
+        `File Name:      ${escapeHtml(fileData.filename)}`,
         `Plant Name:     ${fileData.plantName || 'Bell Peppers'}`,
         `Plant Number:   ${fileData.plantNumber || 'PLANT-042'}`,
         `Leaf Position:  ${fileData.leafId || 'L-03'}`,
@@ -1482,7 +1483,7 @@ export function createSpectroscopeSdCardExplorer({
         <div class="bg-slate-950 rounded-xl p-3 border border-slate-800 space-y-1 text-slate-300">
           <div class="flex justify-between">
             <span class="text-slate-400">Target File:</span>
-            <strong class="text-white">${file.filename}</strong>
+            <strong class="text-white">${escapeHtml(file.filename)}</strong>
           </div>
           <div class="flex justify-between">
             <span class="text-slate-400">Scan ID:</span>
@@ -1575,7 +1576,7 @@ export function createSpectroscopeSdCardExplorer({
         <div class="bg-slate-950 rounded-xl p-3 border border-slate-800 space-y-1 text-slate-300">
           <div class="flex justify-between">
             <span class="text-slate-400">Source File:</span>
-            <span class="text-white">${file.filename}</span>
+            <span class="text-white">${escapeHtml(file.filename)}</span>
           </div>
           <div class="flex justify-between">
             <span class="text-slate-400">Required Space:</span>
@@ -1592,7 +1593,7 @@ export function createSpectroscopeSdCardExplorer({
           <input 
             type="text" 
             id="duplicate-target-input" 
-            value="${defaultTargetName}" 
+            value="${escapeHtml(defaultTargetName)}" 
             class="w-full min-h-[40px] bg-slate-950 text-white rounded-xl px-3 border border-slate-750 focus:outline-none focus:border-cyan-400 font-mono text-xs"
           />
         </div>

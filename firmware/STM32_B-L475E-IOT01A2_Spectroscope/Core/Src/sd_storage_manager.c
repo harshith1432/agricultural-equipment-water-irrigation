@@ -400,18 +400,30 @@ SD_StorageResult_t SD_Storage_SaveScan(uint32_t *outScanId, char *outFilename, s
   size_t len;
   UINT bw;
 
+  /* snprintf returns the number of characters that WOULD have been written
+     had the buffer been large enough, not the number actually written. If an
+     earlier call in this accumulation chain truncates, that inflated return
+     value would push `len` past sizeof(buf), making the next call's
+     `sizeof(buf) - len` size_t argument underflow to a huge value and write
+     out of bounds. Clamp len to the buffer size after every accumulation. */
   if (asJson) {
     len = SD_Storage_FormatJsonHeader(buf, sizeof(buf), scanId, meta);
+    if (len > sizeof(buf)) len = sizeof(buf);
     len += (size_t)snprintf(buf + len, sizeof(buf) - len, "  \"channels\": [");
+    if (len > sizeof(buf)) len = sizeof(buf);
     for (int i = 0; i < SENSOR_RAW_CHANNELS; i++) {
       len += (size_t)snprintf(buf + len, sizeof(buf) - len, "%u%s", sen->lastRawCounts[i],
                                (i < SENSOR_RAW_CHANNELS - 1) ? "," : "");
+      if (len > sizeof(buf)) len = sizeof(buf);
     }
     len += (size_t)snprintf(buf + len, sizeof(buf) - len, "]\r\n}\r\n");
+    if (len > sizeof(buf)) len = sizeof(buf);
   } else {
     len = SD_Storage_FormatCsvHeader(buf, sizeof(buf), scanId, meta);
+    if (len > sizeof(buf)) len = sizeof(buf);
     len += (size_t)snprintf(buf + len, sizeof(buf) - len,
       "timestamp,plant_id,zone,leaf_spot,ch_410,ch_435,ch_460,ch_485,ch_510,ch_535,ch_560,ch_585,ch_610,ch_645,ch_680,ch_705,ch_730,ch_760,ch_810,ch_860,ch_900,ch_940\r\n");
+    if (len > sizeof(buf)) len = sizeof(buf);
     len += (size_t)snprintf(buf + len, sizeof(buf) - len,
       "%lu,%s,%s,%s,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u\r\n",
       (unsigned long)(HAL_GetTick() / 1000U),
@@ -423,6 +435,7 @@ SD_StorageResult_t SD_Storage_SaveScan(uint32_t *outScanId, char *outFilename, s
       sen->lastRawCounts[8], sen->lastRawCounts[9], sen->lastRawCounts[10], sen->lastRawCounts[11],
       sen->lastRawCounts[12], sen->lastRawCounts[13], sen->lastRawCounts[14], sen->lastRawCounts[15],
       sen->lastRawCounts[16], sen->lastRawCounts[17]);
+    if (len > sizeof(buf)) len = sizeof(buf);
   }
 
   FRESULT wr = f_write(&f, buf, (UINT)len, &bw);
