@@ -21,6 +21,7 @@ import spectroRoutes from './routes/spectroRoutes.js';
 import environmentRoutes from './routes/environmentRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
 import authRoutes from './routes/authRoutes.js';
+import platformRoutes from './routes/platformRoutes.js';
 import { authLimiter } from './middleware/rateLimiter.js';
 import { firestoreClient } from './services/firestoreClient.js';
 import { enterpriseStore } from './services/enterpriseStore.js';
@@ -184,6 +185,7 @@ app.use('/api', soilRoutes);
 app.use('/api', spectroRoutes);
 app.use('/api', environmentRoutes);
 app.use('/api', aiRoutes);
+app.use('/api', platformRoutes);
 
 // 404 Handler
 app.use((req, res) => {

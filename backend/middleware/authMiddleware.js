@@ -18,6 +18,15 @@ function safeCompare(a, b) {
 }
 
 /**
+ * Bootstrap superadmin emails (mirrors firestore.rules isBootstrapSuperAdminEmail()).
+ * Custom claims (setCustomUserClaims) are never set anywhere in this codebase, so a
+ * real Firebase ID token otherwise always defaults to 'farm_owner' here - without this
+ * allowlist the real admin account could never pass requireAdmin on the website's
+ * admin dashboard despite being a genuine, correctly-signed Firebase user.
+ */
+const BOOTSTRAP_SUPERADMIN_EMAILS = ['harshithkd0321@gmail.com', 'harshithkd032@gmail.com'];
+
+/**
  * Validates request authentication credentials:
  * - Enterprise API Secret (X-Enterprise-Secret or X-API-Secret header)
  * - Enterprise Bearer Tokens (Authorization: Bearer <token>) including Firebase ID Tokens
@@ -118,11 +127,12 @@ export async function authenticate(req, res, next) {
             if (adminApp && getAuth && adminApp.getApps().length > 0) {
               const decoded = await getAuth().verifyIdToken(token);
               if (decoded && decoded.uid) {
+                const isBootstrapSuperAdmin = decoded.email && BOOTSTRAP_SUPERADMIN_EMAILS.includes(decoded.email);
                 authenticatedUser = {
                   uid: decoded.uid,
                   email: decoded.email || '',
-                  role: decoded.role || 'farm_owner',
-                  assignedFarms: decoded.assignedFarms || ['*']
+                  role: isBootstrapSuperAdmin ? 'superadmin' : (decoded.role || 'farm_owner'),
+                  assignedFarms: isBootstrapSuperAdmin ? ['*'] : (decoded.assignedFarms || ['*'])
                 };
               }
             }

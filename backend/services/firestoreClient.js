@@ -343,6 +343,30 @@ export class FirestoreClient {
   }
 
   /**
+   * Atomically increment a numeric field on a document, creating the
+   * document (starting from the increment amount) if it does not exist yet.
+   */
+  async incrementCounter(docPath, field, amount = 1) {
+    await this.ensureReady();
+    if (this.adminDb && adminFirestore) {
+      try {
+        await this.adminDb.doc(docPath).set({
+          [field]: adminFirestore.FieldValue.increment(amount),
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+        this.isConnected = true;
+        return true;
+      } catch (err) {
+        console.warn(`[FirestoreClient] Admin SDK incrementCounter error: ${err.message}`);
+      }
+    }
+    // REST fallback: non-atomic read-modify-write (acceptable for low-frequency counters)
+    const current = await this.getDoc(docPath);
+    const next = (current?.[field] || 0) + amount;
+    return this.setDocument(docPath, { [field]: next, updatedAt: new Date().toISOString() }, { merge: true });
+  }
+
+  /**
    * Add a new document with auto-generated ID to a collection
    */
   async addDocument(collectionPath, data) {

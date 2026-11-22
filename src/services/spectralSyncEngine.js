@@ -448,4 +448,11 @@ export class SpectralSyncEngine {
   }
 }
 
-export const spectralSyncEngine = new SpectralSyncEngine();
+// Guard against the automated test harness making real network calls to the
+// production Render backend: dozens of UI-interaction tests save scans
+// through this shared singleton without mocking fetch, and an unmocked
+// background sync can dangle on _activeSyncPromise for minutes (3 endpoints
+// x 8s timeout) if a later test awaits it. Real app bundles never set
+// NODE_ENV=test, so this has no effect on farmer-facing behavior.
+const isTestHarness = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
+export const spectralSyncEngine = new SpectralSyncEngine(isTestHarness ? { autoSync: false } : {});

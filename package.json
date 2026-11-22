@@ -8,7 +8,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node tests/run-tests.js",
+    "test": "node -e \"process.env.NODE_ENV='test'; import('./tests/run-tests.js');\"",
     "test:backend": "cd backend && npm test",
     "backend:start": "cd backend && npm start",
     "test:governance": "node tests/governance-verification.test.js",

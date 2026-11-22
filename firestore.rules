@@ -448,6 +448,32 @@ service cloud.firestore {
              (!('updatedAt' in data) || data.updatedAt == null || data.updatedAt is timestamp || data.updatedAt is string);
     }
 
+    // Spectral Scan Validator (farms/{farmId}/spectralScans/{scanId})
+    // Deliberately loose: the real payload shape (rawCounts, darkCounts,
+    // whiteCounts, chemometrics, wavelengths, reflectance, hardware,
+    // calibrationRef, syncStatus...) evolves frequently as the mobile
+    // client's scan flow changes, and an exhaustive hasOnly() allowlist here
+    // would silently re-break writes on the next added field the same way
+    // the leafScans/spectralScans split already did. Authorization still
+    // comes from isFarmOperator(farmId); this just sanity-checks the shape.
+    function isValidSpectralScan(data) {
+      return data is map &&
+             data.keys().hasAny(['scanId', 'id', 'plantNumber', 'timestamp']);
+    }
+
+    // App Event Log Validator (appEvents/{eventId}) - login/logout/signup/scan audit trail
+    function isValidAppEvent(data) {
+      return data.keys().hasAll(['eventType']) &&
+             data.keys().hasOnly(['eventType', 'uid', 'email', 'farmId', 'details', 'createdAt', 'clientTimestamp', 'userAgent']) &&
+             data.eventType is string && data.eventType.size() >= 1 && data.eventType.size() <= 50 &&
+             (!('uid' in data) || data.uid == null || (data.uid is string && data.uid.size() <= 128)) &&
+             (!('email' in data) || data.email == null || (data.email is string && data.email.size() <= 254)) &&
+             (!('farmId' in data) || data.farmId == null || (data.farmId is string && data.farmId.size() <= 100)) &&
+             (!('details' in data) || data.details == null || data.details is map) &&
+             (!('clientTimestamp' in data) || data.clientTimestamp is string) &&
+             (!('userAgent' in data) || data.userAgent is string && data.userAgent.size() <= 500);
+    }
+
     // Helper for validating registration self-creation
     function isValidUserRegistration(userId, data) {
       return userId is string &&
@@ -464,6 +490,19 @@ service cloud.firestore {
     // Default deny all unhandled collections
     match /{document=**} {
       allow read, write: if false;
+    }
+
+    // -------------------------------------------------------------
+    // App Event Log: appEvents/{eventId} (login/logout/signup/scan audit trail)
+    // Append-only; a user may log their own event but only admins can read
+    // the full cross-user log.
+    // -------------------------------------------------------------
+    match /appEvents/{eventId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated() &&
+                       isValidAppEvent(request.resource.data) &&
+                       (!('uid' in request.resource.data) || request.resource.data.uid == null || request.resource.data.uid == request.auth.uid);
+      allow update, delete: if false;
     }
 
     // -------------------------------------------------------------
@@ -595,6 +634,22 @@ service cloud.firestore {
         allow update: if isFarmManager(farmId) &&
                          isValidLeafScan(request.resource.data) &&
                          areImmutableFieldsUnchanged(['plotId', 'scannedAt']);
+
+        allow delete: if isFarmManager(farmId);
+      }
+
+      // -----------------------------------------------------------
+      // Spectral Scans: farms/{farmId}/spectralScans/{scanId}
+      // (richer successor to leafScans - see isValidSpectralScan comment)
+      // -----------------------------------------------------------
+      match /spectralScans/{scanId} {
+        allow read: if isFarmMember(farmId);
+
+        allow create: if isFarmOperator(farmId) &&
+                         isValidSpectralScan(request.resource.data);
+
+        allow update: if isFarmOperator(farmId) &&
+                         isValidSpectralScan(request.resource.data);
 
         allow delete: if isFarmManager(farmId);
       }
