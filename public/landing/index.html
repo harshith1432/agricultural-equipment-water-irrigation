@@ -51,9 +51,8 @@
       </a>
       <div class="nav-desktop">
         <a href="#how-it-works" class="nav-item-link">How It Works</a>
-        <a href="#spectroscopy" class="nav-item-link">Spectroscopy</a>
-        <a href="#irrigation" class="nav-item-link">Irrigation</a>
-        <a href="#tech" class="nav-item-link">Technology</a>
+        <a href="#how-it-works" class="nav-item-link">Hardware Products</a>
+        <a href="#technology" class="nav-item-link">Field Engineering</a>
         <a href="#faq" class="nav-item-link">FAQ</a>
       </div>
       <div class="nav-actions">
@@ -67,9 +66,8 @@
   <div class="mobile-nav-drawer" id="mobileNavDrawer">
     <div class="mobile-nav-links">
       <a href="#how-it-works">How It Works</a>
-      <a href="#spectroscopy">Spectroscopy</a>
-      <a href="#irrigation">Irrigation</a>
-      <a href="#tech">Technology</a>
+      <a href="#how-it-works">Hardware Products</a>
+      <a href="#technology">Field Engineering</a>
       <a href="#faq">FAQ</a>
     </div>
     <a href="#download" class="btn btn-primary btn-lg" style="width:100%;">Download the App</a>
@@ -140,136 +138,80 @@
     </div>
   </section>
 
-  <!-- HOW IT WORKS -->
+  <!-- HOW IT WORKS & COMPLETE 4-PRODUCT HARDWARE SUITE -->
   <section class="section-wrapper" id="how-it-works">
     <div class="container">
       <div class="section-header-wrap">
-        <span class="section-eyebrow">How It Works</span>
-        <h2 class="section-title">From leaf to valve, in three steps</h2>
-        <p class="section-desc">No cloud dependency in the field. The spectroscope talks to your phone over Bluetooth Low Energy; your phone syncs to the cloud whenever it has a connection.</p>
+        <span class="section-eyebrow">Agricultural Hardware Suite</span>
+        <h2 class="section-title">Four Precision Instruments. One Agricultural Ecosystem.</h2>
+        <p class="section-desc">AgriSpectra Flow &amp; Field integrates four specialized agricultural instruments into a unified workflow. Explore how our active leaf spectroscope and upcoming drip valve, soil probe, and microclimate sensors work in the field.</p>
       </div>
-      <div class="workflow-steps-grid">
-        <div class="workflow-step-card">
-          <div class="step-num-badge">01</div>
-          <h3 class="step-title">Calibrate &amp; Scan</h3>
-          <p class="step-desc">Run a dark-current and white-reference calibration, then clip the sensor onto a leaf. The AS7265x captures 18 channels across visible and near-infrared light.</p>
-        </div>
-        <div class="workflow-step-card">
-          <div class="step-num-badge">02</div>
-          <h3 class="step-title">On-Device Chemometrics</h3>
-          <p class="step-desc">The app computes NDVI, NDRE, water band index, chlorophyll index and a vitality score directly from the raw spectrum — no server round-trip required to see a result.</p>
-        </div>
-        <div class="workflow-step-card">
-          <div class="step-num-badge">03</div>
-          <h3 class="step-title">Sync &amp; Irrigate</h3>
-          <p class="step-desc">Scans queue locally if you're offline and sync automatically once connected. Vitality and water-stress signals feed the 6-zone irrigation controller's recommendations.</p>
-        </div>
+
+      <!-- 4-Product Interactive Switcher Tabs -->
+      <div class="product-tabs-nav" role="tablist" aria-label="Agricultural Products">
+        <button class="product-tab-btn active" data-product="spectroscope" role="tab" aria-selected="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+          <span>Leaf Spectroscope</span>
+          <span class="product-tab-badge status-active">Active</span>
+        </button>
+        <button class="product-tab-btn" data-product="valve" role="tab" aria-selected="false">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4.5 8-11.8A8 8 0 0 0 4 10.2C4 17.5 12 22 12 22z"/></svg>
+          <span>Drip Irrigation Valve</span>
+          <span class="product-tab-badge">Hardware Lineup</span>
+        </button>
+        <button class="product-tab-btn" data-product="soil" role="tab" aria-selected="false">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          <span>Soil Moisture Sensor</span>
+          <span class="product-tab-badge">Hardware Lineup</span>
+        </button>
+        <button class="product-tab-btn" data-product="climate" role="tab" aria-selected="false">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+          <span>Microclimate Sensor</span>
+          <span class="product-tab-badge">Hardware Lineup</span>
+        </button>
+      </div>
+
+      <!-- Dynamic Product Container (Updated by app.js) -->
+      <div id="product-details-container">
+        <!-- Rendered dynamically by app.js with specifications and interactive simulator -->
       </div>
     </div>
   </section>
 
-  <!-- SPECTROSCOPY -->
-  <section class="section-wrapper bg-alt" id="spectroscopy">
-    <div class="container">
-      <div class="solutions-grid">
-        <div class="solution-card">
-          <span class="solution-badge">Hardware</span>
-          <h3 class="solution-title">AS7265x Handheld Leaf-Clip Spectroscope</h3>
-          <div class="solution-breakdown">
-            <div class="solution-row"><span class="solution-label">Sensor</span><span class="solution-text">18-channel AS7265x (AS72651 / AS72652 / AS72653) across 410–940nm</span></div>
-            <div class="solution-row"><span class="solution-label">MCU</span><span class="solution-text">STM32L475VGT6, BlueNRG-MS BLE module</span></div>
-            <div class="solution-row"><span class="solution-label">Storage</span><span class="solution-text">On-board SD card logging of every raw scan (CSV &amp; JSON)</span></div>
-            <div class="solution-row"><span class="solution-label">Connectivity</span><span class="solution-text highlight">Bluetooth Low Energy — auto-reconnects to your phone once paired</span></div>
-          </div>
-        </div>
-        <div class="solution-card">
-          <span class="solution-badge">Software</span>
-          <h3 class="solution-title">Real Chemometrics, Computed On-Device</h3>
-          <div class="solution-breakdown">
-            <div class="solution-row"><span class="solution-label">Indices</span><span class="solution-text">NDVI, NDRE, Water Band Index, Chlorophyll (CIre), vitality score</span></div>
-            <div class="solution-row"><span class="solution-label">Calibration</span><span class="solution-text">Dark-current and 99% PTFE white-reference baseline, required before every scan</span></div>
-            <div class="solution-row"><span class="solution-label">Data</span><span class="solution-text highlight">Computed from your sensor's actual readings — never a simulated or placeholder value</span></div>
-            <div class="solution-row"><span class="solution-label">Export</span><span class="solution-text">View every scan as a spreadsheet in-app, or export/share as CSV</span></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- IRRIGATION -->
-  <section class="section-wrapper" id="irrigation">
+  <!-- FIELD ENGINEERING & RELIABILITY -->
+  <section class="section-wrapper bg-dark" id="technology">
     <div class="container">
       <div class="section-header-wrap">
-        <span class="section-eyebrow">Irrigation</span>
-        <h2 class="section-title">Closed-loop watering across 6 zones</h2>
-        <p class="section-desc">Soil moisture, temperature and salinity telemetry from each zone, with bi-stable solenoid valves you can trigger manually, on a schedule, or from spectroscopy-driven recommendations.</p>
-      </div>
-      <div class="tech-spec-grid">
-        <div class="tech-spec-card">
-          <div class="tech-icon-wrap">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-          </div>
-          <h4 class="tech-card-title">6 Independent Zones</h4>
-          <p class="tech-card-desc">Each zone has its own soil sensor cluster and solenoid gate, managed from one dashboard.</p>
-        </div>
-        <div class="tech-spec-card">
-          <div class="tech-icon-wrap">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4.5 8-11.8A8 8 0 0 0 4 10.2C4 17.5 12 22 12 22z"/></svg>
-          </div>
-          <h4 class="tech-card-title">Bi-Stable Solenoid Valves</h4>
-          <p class="tech-card-desc">Low-power latching valves hold their open/closed state without continuous current draw.</p>
-        </div>
-        <div class="tech-spec-card">
-          <div class="tech-icon-wrap">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
-          </div>
-          <h4 class="tech-card-title">Emergency Killswitch</h4>
-          <p class="tech-card-desc">One tap closes every valve across all 6 zones immediately — and locally, even without a network connection.</p>
-        </div>
-        <div class="tech-spec-card">
-          <div class="tech-icon-wrap">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10M18 20V4M6 20v-6"/></svg>
-          </div>
-          <h4 class="tech-card-title">Offline Failsafe</h4>
-          <p class="tech-card-desc">If the network drops mid-irrigation, zones fail safe to closed locally rather than waiting on the cloud.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- TECHNOLOGY / SECURITY -->
-  <section class="section-wrapper bg-dark" id="tech">
-    <div class="container">
-      <div class="section-header-wrap">
-        <span class="section-eyebrow">Technology</span>
-        <h2 class="section-title">Built offline-first, synced securely</h2>
-        <p class="section-desc">Every scan is stored locally the moment it's captured, then synced to Cloud Firestore automatically once your phone has a connection — with no scan ever lost to a dropped signal.</p>
+        <span class="section-eyebrow">Field Engineering</span>
+        <h2 class="section-title">Engineered for agriculture, built offline-first</h2>
+        <p class="section-desc">Designed for remote farm acreage — zero cell tower reliance, battery-conserving bistable hydraulics, and local language support for field teams.</p>
       </div>
       <div class="live-cap-layout">
         <div class="terminal-console-wrap">
           <div class="terminal-top-bar">
             <div class="terminal-dots"><span class="terminal-dot red"></span><span class="terminal-dot yellow"></span><span class="terminal-dot green"></span></div>
-            <span class="terminal-title">sync engine — illustrative</span>
+            <span class="terminal-title">field telemetry feed</span>
           </div>
           <div class="terminal-content">
-            <div class="terminal-line"><span class="t-ts">[12:04:02]</span> <span class="t-tag">[BLE]</span> leaf scan captured → <span class="t-ok">PENDING_SYNC</span></div>
-            <div class="terminal-line"><span class="t-ts">[12:04:02]</span> <span class="t-tag">[DB]</span> saved to offline spectral database</div>
-            <div class="terminal-line"><span class="t-ts">[12:04:03]</span> <span class="t-tag">[NET]</span> connection restored, syncing queue...</div>
-            <div class="terminal-line"><span class="t-ts">[12:04:04]</span> <span class="t-tag">[CLOUD]</span> scan confirmed → <span class="t-ok">SYNCED</span> <span class="t-val">cloudDocumentId</span></div>
+            <div class="terminal-line"><span class="t-ts">[12:04:01]</span> <span class="t-tag">[BLE]</span> leaf clip connected: 18 spectral channels active</div>
+            <div class="terminal-line"><span class="t-ts">[12:04:02]</span> <span class="t-tag">[CAL]</span> dark current &amp; 99% PTFE reference baseline validated</div>
+            <div class="terminal-line"><span class="t-ts">[12:04:03]</span> <span class="t-tag">[NDVI]</span> <span class="t-ok">0.87 (Healthy Canopy)</span> | Chlorophyll CIre: 2.34</div>
+            <div class="terminal-line"><span class="t-ts">[12:04:04]</span> <span class="t-tag">[VALVE]</span> Zone 1 bi-stable latch triggered: <span class="t-val">+12V DC (30ms pulse)</span></div>
+            <div class="terminal-line"><span class="t-ts">[12:04:05]</span> <span class="t-tag">[SOIL]</span> volumetric water content at 20cm depth: <span class="t-ok">38.4% VWC</span></div>
           </div>
         </div>
         <div class="live-features-column">
           <div class="live-feat-item">
-            <div class="live-feat-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-4z"/></svg></div>
-            <div class="live-feat-content"><h4>Cloud Firestore Backed</h4><p>Scans, app events, and user activity are written to Firestore with per-farm security rules.</p></div>
+            <div class="live-feat-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+            <div class="live-feat-content"><h4>100% Offline-First Agronomy</h4><p>Scans, valve timing, and crop calculations execute directly on-device with zero cell tower requirement.</p></div>
           </div>
           <div class="live-feat-item">
-            <div class="live-feat-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></div>
-            <div class="live-feat-content"><h4>Role-Based Access Control</h4><p>Farm owners, agronomists and field operators each see only what their role permits.</p></div>
+            <div class="live-feat-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg></div>
+            <div class="live-feat-content"><h4>Bi-Stable Power Conservation</h4><p>Magnetic latching solenoids consume power only during 30ms pulses, running an entire season on solar battery rigs.</p></div>
           </div>
           <div class="live-feat-item">
             <div class="live-feat-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12a8 8 0 0116 0M4 12v6a2 2 0 002 2h2v-6H4zm16 0v6a2 2 0 01-2 2h-2v-6h4z"/></svg></div>
-            <div class="live-feat-content"><h4>7 Languages, One App</h4><p>English, Hindi, Kannada, Telugu, Tamil, Malayalam and Marathi, switchable in-app.</p></div>
+            <div class="live-feat-content"><h4>7 Indian Vernacular Languages</h4><p>Native in-app support for English, हिन्दी, ಕನ್ನಡ, తెలుగు, தமிழ், മലയാളം, and मराठी.</p></div>
           </div>
         </div>
       </div>
@@ -302,8 +244,8 @@
           <div class="faq-body-content"><p>Yes — every stored scan can be viewed in a spreadsheet-style table inside the app, and exported/shared as a CSV file at any time.</p></div>
         </div>
         <div class="faq-accordion-item">
-          <button class="faq-header-btn">Is my data private?<svg class="faq-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></button>
-          <div class="faq-body-content"><p>Scan and farm data is isolated per-farm with Firestore security rules enforcing role-based access — field operators, agronomists, and farm owners only see what their role is scoped to.</p></div>
+          <button class="faq-header-btn">Which hardware products are currently available?<svg class="faq-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></button>
+          <div class="faq-body-content"><p>The AS7265x Handheld Leaf Spectroscope is our currently active and functional product, paired directly with the mobile application. The Bi-Stable Solenoid Drip Valve, Multi-Depth Soil Moisture Probe, and Canopy Microclimate Station form our upcoming hardware lineup for closed-loop farm automation.</p></div>
         </div>
       </div>
     </div>
