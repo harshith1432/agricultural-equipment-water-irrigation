@@ -825,11 +825,16 @@ class SchemaManager {
         return { valid: false, error: "Validation Error: 'specimen' metadata is required." };
       }
 
-      // 3. location
+      // 3. location (the mobile app identifies the scan location by irrigation
+      // "Zone" (Zone 1-6) + plot/pot number rather than plotId/farmId - accept
+      // that shape too instead of rejecting every real-world app payload)
       const hasLocation = Boolean(
         (scanData.location && (typeof scanData.location === 'string' || (typeof scanData.location === 'object' && Object.keys(scanData.location).length > 0))) ||
         scanData.plotId ||
-        scanData.farmId
+        scanData.farmId ||
+        scanData.zone ||
+        scanData.plotNumber != null ||
+        scanData.potNumber
       );
       if (!hasLocation) {
         return { valid: false, error: "Validation Error: 'location' metadata is required." };
@@ -845,11 +850,14 @@ class SchemaManager {
         return { valid: false, error: "Validation Error: 'timestamps' is required." };
       }
 
-      // 5. rawData
+      // 5. rawData (the mobile app's field is named "reflectance", and also
+      // sends the AS7265x pre-conversion counts as rawCounts - accept either)
       const hasRawData = Boolean(
         (scanData.rawData && (Array.isArray(scanData.rawData) || (typeof scanData.rawData === 'object' && Object.keys(scanData.rawData).length > 0))) ||
         (Array.isArray(scanData.rawReflectance) && scanData.rawReflectance.length > 0) ||
-        (Array.isArray(scanData.rawIntensities) && scanData.rawIntensities.length > 0)
+        (Array.isArray(scanData.rawIntensities) && scanData.rawIntensities.length > 0) ||
+        (Array.isArray(scanData.reflectance) && scanData.reflectance.length > 0) ||
+        (Array.isArray(scanData.rawCounts) && scanData.rawCounts.length > 0)
       );
       if (!hasRawData) {
         return { valid: false, error: "Validation Error: 'rawData' is required." };
@@ -894,15 +902,22 @@ class SchemaManager {
     if (!specimen.plantName && scanData.plantName) specimen.plantName = String(scanData.plantName);
     const crop = String(specimen.crop || scanData.crop || "tomato");
 
-    // Location normalization
+    // Location normalization. The mobile app identifies where a scan was taken
+    // by irrigation Zone (Zone 1-6) + pot/row number rather than plotId/farmId,
+    // so derive plotId from zone when no explicit plotId was sent.
+    const zoneDerivedPlotId = scanData.zone
+      ? `zone-${(String(scanData.zone).match(/\d+/) || ['1'])[0]}`
+      : null;
     const location = typeof scanData.location === 'object' && scanData.location !== null
       ? { ...scanData.location }
       : {
-          plotId: String(scanData.location || scanData.plotId || "plot-1"),
+          plotId: String(scanData.location || scanData.plotId || zoneDerivedPlotId || "plot-1"),
           farmId: String(scanData.farmId || "farm-valley-1")
         };
     if (!location.farmId) location.farmId = String(scanData.farmId || "farm-valley-1");
-    if (!location.plotId) location.plotId = String(scanData.plotId || "plot-1");
+    if (!location.plotId) location.plotId = String(scanData.plotId || zoneDerivedPlotId || "plot-1");
+    if (!location.zone && scanData.zone) location.zone = String(scanData.zone);
+    if (!location.potNumber && scanData.potNumber) location.potNumber = String(scanData.potNumber);
     const farmId = String(location.farmId);
     const plotId = String(location.plotId);
     const plotNumber = Number(scanData.plotNumber || location.plotNumber || (plotId.match(/\d+/) ? parseInt(plotId.match(/\d+/)[0], 10) : 1));
@@ -931,6 +946,8 @@ class SchemaManager {
         rawReflectance = scanData.rawReflectance.map(v => Number(Number(v).toFixed(4)));
       } else if (Array.isArray(scanData.rawIntensities) && scanData.rawIntensities.length > 0) {
         rawReflectance = scanData.rawIntensities.map(v => Number(Number(v).toFixed(4)));
+      } else if (Array.isArray(scanData.reflectance) && scanData.reflectance.length > 0) {
+        rawReflectance = scanData.reflectance.map(v => Number(Number(v).toFixed(4)));
       } else {
         rawReflectance = Array.from({ length: 76 }, (_, i) => Number((0.05 + 0.6 * Math.sin((i / 75) * Math.PI)).toFixed(4)));
       }
@@ -939,6 +956,12 @@ class SchemaManager {
     const rawData = (typeof scanData.rawData === 'object' && !Array.isArray(scanData.rawData) && scanData.rawData !== null)
       ? { ...scanData.rawData, intensities: rawReflectance, bandCount: rawReflectance.length }
       : { intensities: rawReflectance, bandCount: rawReflectance.length };
+    // Preserve the real AS7265x 18-channel sensor counts alongside the derived
+    // 76-band reflectance curve, for full traceability back to the raw instrument reading.
+    if (Array.isArray(scanData.rawCounts) && scanData.rawCounts.length > 0) rawData.channelCounts = scanData.rawCounts;
+    if (Array.isArray(scanData.darkCounts) && scanData.darkCounts.length > 0) rawData.darkCounts = scanData.darkCounts;
+    if (Array.isArray(scanData.whiteCounts) && scanData.whiteCounts.length > 0) rawData.whiteCounts = scanData.whiteCounts;
+    if (scanData.environmental) rawData.environmental = scanData.environmental;
 
     // Processed data & chemometrics normalization
     const proc = scanData.processedData || scanData.chemometrics || scanData.indices || {};

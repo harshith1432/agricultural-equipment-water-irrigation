@@ -152,6 +152,12 @@ class AgriSpectraApp {
     this.bleState.connected = leafClipDevice.isConnected;
     this.bleState.simulated = leafClipDevice.isSimulated;
 
+    // Silently reconnect to a previously-paired spectroscope (like Bluetooth
+    // headphones auto-reconnecting) instead of requiring a manual "Scan & Connect"
+    // tap every time the app is opened. Runs in the background; failures are
+    // expected (device off/out of range) and are not surfaced to the user.
+    leafClipDevice.attemptAutoReconnect().catch(() => {});
+
     if (this.currentUser) {
       // 2. Initial analysis for selected plot (Plot 2 default)
       const initialSpectrum = generateSpectralSignature({

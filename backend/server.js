@@ -7,6 +7,7 @@
 
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -34,6 +35,11 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const app = express();
 const PORT = parseInt(process.env.PORT || process.env.BACKEND_PORT || "5050", 10);
+
+// OWASP A05:2021 Security Misconfiguration - standard hardened HTTP response
+// headers (HSTS, X-Content-Type-Options, X-Frame-Options, no X-Powered-By, etc).
+// CSP is disabled since this server serves a JSON API, not HTML pages.
+app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 
 // Hardened Security & CORS Middleware
 const allowedOrigins = process.env.CORS_ORIGIN

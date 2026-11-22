@@ -12,6 +12,8 @@
 #include <string.h>
 #include <stdio.h>
 
+static SPI_HandleTypeDef hspi1;
+
 /* Internal Static State ----------------------------------------------------*/
 static SD_CardInfo_t s_cardInfo = {
   .cardType        = SD_CARD_TYPE_UNKNOWN,
@@ -51,29 +53,64 @@ static uint8_t SD_CalculateCRC7(const uint8_t *data, uint8_t length) {
 /* Low-Level GPIO and SPI Primitive Abstractions ----------------------------*/
 
 static void SD_CS_Assert(void) {
-  /* Set PB1 LOW (Arduino D4) - Active Low Chip Select */
-  /* Direct register access or HAL GPIO output write */
-#ifdef SD_CS_PORT
-  /* GPIOB->BSRR = (1U << (1 + 16)); */
-#endif
+  HAL_GPIO_WritePin(SD_CS_PORT, SD_CS_PIN, GPIO_PIN_RESET);
 }
 
 static void SD_CS_Deassert(void) {
-  /* Set PB1 HIGH (Arduino D4) */
-#ifdef SD_CS_PORT
-  /* GPIOB->BSRR = (1U << 1); */
-#endif
+  HAL_GPIO_WritePin(SD_CS_PORT, SD_CS_PIN, GPIO_PIN_SET);
 }
 
 static uint8_t SD_SPI_TransferByte(uint8_t txByte) {
-  /* In real hardware, transmit via SPI1->DR and wait for RXNE flag */
-  /* Here we simulate robust SPI transfer logic matching physical card behavior */
-  static uint8_t simulatedCardBusy = 0;
-  if (simulatedCardBusy > 0) {
-    simulatedCardBusy--;
-    return 0x00; /* Busy token (programming) */
-  }
-  return txByte;
+  uint8_t rxByte = 0xFF;
+  HAL_SPI_TransmitReceive(&hspi1, &txByte, &rxByte, 1, 100);
+  return rxByte;
+}
+
+static bool SD_SPI1_Init(void) {
+  GPIO_InitTypeDef gpio = {0};
+
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_SPI1_CLK_ENABLE();
+
+  gpio.Mode = GPIO_MODE_AF_PP;
+  gpio.Pull = GPIO_NOPULL;
+  gpio.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+  gpio.Alternate = GPIO_AF5_SPI1;
+
+  gpio.Pin = GPIO_PIN_5;
+  HAL_GPIO_Init(SD_SPI_SCK_PORT, &gpio);
+  gpio.Pin = GPIO_PIN_6;
+  HAL_GPIO_Init(SD_SPI_MISO_PORT, &gpio);
+  gpio.Pin = GPIO_PIN_7;
+  HAL_GPIO_Init(SD_SPI_MOSI_PORT, &gpio);
+
+  gpio.Pin = GPIO_PIN_1;
+  gpio.Mode = GPIO_MODE_OUTPUT_PP;
+  gpio.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(SD_CS_PORT, &gpio);
+  HAL_GPIO_WritePin(SD_CS_PORT, SD_CS_PIN, GPIO_PIN_SET);
+
+  gpio.Pin = GPIO_PIN_2;
+  gpio.Mode = GPIO_MODE_INPUT;
+  gpio.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(SD_CD_PORT, &gpio);
+
+  hspi1.Instance = SD_SPI_INSTANCE;
+  hspi1.Init.Mode = SPI_MODE_MASTER;
+  hspi1.Init.Direction = SPI_DIRECTION_2LINES;
+  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
+  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
+  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi1.Init.NSS = SPI_NSS_SOFT;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
+  hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
+  hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
+  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+  hspi1.Init.CRCPolynomial = 7;
+
+  return (HAL_SPI_Init(&hspi1) == HAL_OK);
 }
 
 static void SD_SPI_SendBytes(const uint8_t *data, uint16_t length) {
@@ -154,8 +191,12 @@ bool SD_Driver_Init(void) {
 
   VCP_Print("[SD Driver] Initializing SPI1 on PA5(SCK), PA6(MISO), PA7(MOSI), CS=PB1, CD=PC2...\r\n");
 
-  /* Note regarding PA5 sharing with User LED1: */
-  VCP_Print("[SD Driver] Note: PA5 is shared with Green User LED1 (Arduino D13).\r\n");
+  if (!SD_SPI1_Init()) {
+    s_cardInfo.lastErrorCode = SD_ERR_TIMEOUT;
+    strncpy(s_cardInfo.lastErrorStr, "SPI1_INIT_FAIL", sizeof(s_cardInfo.lastErrorStr));
+    VCP_Print("[SD Driver] SPI1 peripheral initialization failed.\r\n");
+    return false;
+  }
 
   /* Check physical card presence */
   s_cardInfo.isInserted = SD_Driver_IsCardDetected();
@@ -180,25 +221,27 @@ void SD_Driver_DeInit(void) {
 }
 
 bool SD_Driver_IsCardDetected(void) {
-  /* PC2 Card Detect pin has pull-up; card inserted pulls PC2 to GND (Active Low) */
-  /* In hardware, read GPIOC->IDR bit 2. Here we implement software debounce */
-  uint32_t now = HAL_GetTick();
-  if (now - s_lastDebounceTick >= SD_DEBOUNCE_MS) {
-    s_lastDebounceTick = now;
-    /* Simulate persistent card presence on B-L475E-IOT01A2 header */
-    s_lastRawCdState = true; 
-  }
+  /* Many microSD breakout modules used with this board's Arduino header do not
+     wire a card-detect line at all, leaving PC2 floating. Presence is instead
+     confirmed by the actual SPI protocol handshake in SD_Driver_CardInitialize();
+     this function stays permissive so a floating CD pin can't mask a working card. */
+  (void)SD_CD_PORT;
+  (void)SD_CD_PIN;
+  s_lastRawCdState = true;
   return s_lastRawCdState;
 }
 
 void SD_Driver_SetHighSpeed(bool enableHighSpeed) {
   s_spiHighSpeed = enableHighSpeed;
+
+  HAL_SPI_DeInit(&hspi1);
+  hspi1.Init.BaudRatePrescaler = enableHighSpeed ? SPI_BAUDRATEPRESCALER_2 : SPI_BAUDRATEPRESCALER_16;
+  HAL_SPI_Init(&hspi1);
+
   if (enableHighSpeed) {
-    /* Set SPI1 Prescaler to 4 (80MHz / 4 = 20 MHz) */
-    VCP_Print("[SD Driver] SPI1 switched to High-Speed Mode (20.0 MHz).\r\n");
+    VCP_Print("[SD Driver] SPI1 switched to High-Speed Mode.\r\n");
   } else {
-    /* Set SPI1 Prescaler to 256 (80MHz / 256 = 312.5 kHz) */
-    VCP_Print("[SD Driver] SPI1 switched to Identification Low-Speed (312.5 kHz).\r\n");
+    VCP_Print("[SD Driver] SPI1 switched to Identification Low-Speed.\r\n");
   }
 }
 

@@ -18,6 +18,70 @@ import { PacketChunkAccumulator, PACKET_TYPES, SdChunkReassembler, computeCrc32 
 import { sanitizeText } from '../utils/sanitizer.js';
 import { ensureBleInitialized } from './bleInitializer.js';
 
+/**
+ * Parse the real CSV/JSON scan file content written by the firmware's
+ * sd_storage_manager.c (SD_Storage_FormatCsvHeader / FormatJsonHeader) into
+ * the specimen/channel fields the SD card viewer UI displays.
+ */
+function parseRealScanFileContent(text, format) {
+  const result = {
+    scanId: '', plantName: '', plantNumber: '', potNumber: '',
+    leafSpot: '', zone: '', cropVariety: '',
+    rawChannels: [], wavelengths: WAVELENGTHS,
+    calibration: { darkBaseline: 'UNKNOWN', whiteReference: 'UNKNOWN' }
+  };
+
+  if (format === 'JSON') {
+    try {
+      const obj = JSON.parse(text);
+      result.scanId = obj.scanId || '';
+      result.plantName = obj.specimen?.plantName || '';
+      result.plantNumber = obj.specimen?.plantNumber || '';
+      result.potNumber = obj.specimen?.potNumber || '';
+      result.leafSpot = obj.specimen?.leafSpot || '';
+      result.zone = obj.specimen?.zone || '';
+      result.cropVariety = obj.specimen?.cropVariety || '';
+      result.rawChannels = Array.isArray(obj.channels) ? obj.channels : [];
+      result.calibration = {
+        darkBaseline: obj.calibration?.darkBaselineLocked ? 'LOCKED' : 'NOT_DONE',
+        whiteReference: obj.calibration?.whiteReferenceLocked ? 'VERIFIED' : 'NOT_DONE'
+      };
+    } catch (_) {}
+    return result;
+  }
+
+  const lines = text.split(/\r?\n/);
+  for (const line of lines) {
+    const m = line.match(/^#\s*(\w+):\s*(.*)$/);
+    if (!m) continue;
+    const key = m[1].toLowerCase();
+    const val = m[2].trim();
+    if (key === 'scanid') result.scanId = val;
+    else if (key === 'plantname') result.plantName = val;
+    else if (key === 'plantnumber') result.plantNumber = val;
+    else if (key === 'potnumber') result.potNumber = val;
+    else if (key === 'leafspot') result.leafSpot = val;
+    else if (key === 'zone') result.zone = val;
+    else if (key === 'variety') result.cropVariety = val;
+    else if (key === 'calibration') {
+      const darkMatch = val.match(/DARK=(\w+)/);
+      const whiteMatch = val.match(/WHITE=(\w+)/);
+      result.calibration = {
+        darkBaseline: darkMatch?.[1] === 'OK' ? 'LOCKED' : 'NOT_DONE',
+        whiteReference: whiteMatch?.[1] === 'OK' ? 'VERIFIED' : 'NOT_DONE'
+      };
+    }
+  }
+
+  const dataLines = lines.filter(l => l && !l.startsWith('#'));
+  if (dataLines.length >= 2) {
+    const cols = dataLines[1].split(',');
+    result.rawChannels = cols.slice(4).map(Number).filter(n => !isNaN(n));
+  }
+
+  return result;
+}
+
 export class SpectroscopeDisconnectedError extends Error {
   constructor(message = "Spectroscope Bluetooth connection lost or disconnected.") {
     super(message);
@@ -1208,6 +1272,48 @@ export class LeafClipBluetoothDevice {
    * Connect to a specific chosen deviceId (Capacitor BLE, Web Bluetooth, or Simulation)
    * Requests MTU (247), binds NUS or fallback notifications, and emits connectionChange.
    */
+  /**
+   * Silently reconnect to the last-paired spectroscope on app launch, without
+   * requiring the farmer to tap "Scan & Connect" every time - same pattern as
+   * Bluetooth headphones auto-reconnecting once a device has been paired once.
+   * Safe to call unconditionally: no-ops if already connected, if there's no
+   * remembered device, or if BLE isn't available/enabled right now.
+   */
+  async attemptAutoReconnect() {
+    if (this.isConnected || this.isSimulated) return false;
+
+    let savedDeviceId = null;
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const savedRaw = localStorage.getItem('agri_last_spectro_device');
+        if (savedRaw) {
+          const savedDev = JSON.parse(savedRaw);
+          savedDeviceId = savedDev?.deviceId || savedDev?.id || null;
+        }
+      }
+    } catch (_) {}
+    if (!savedDeviceId) return false;
+
+    try {
+      const BleClient = await this._resolveCapacitorBle();
+      const isNativePlatform = typeof window !== 'undefined' &&
+        (window.Capacitor?.isNativePlatform?.() || window.Capacitor?.getPlatform?.() === 'android');
+      if (!BleClient || !isNativePlatform) return false;
+
+      const isEnabled = await BleClient.isEnabled().catch(() => false);
+      if (!isEnabled) return false;
+
+      console.log(`[BLE] Auto-reconnect: attempting silent connect to last-paired spectroscope ${savedDeviceId}`);
+      await this.connectToDevice(savedDeviceId);
+      return true;
+    } catch (err) {
+      // Device out of range / powered off / not advertising - this is the
+      // expected common case, not an error worth surfacing to the farmer.
+      console.log(`[BLE] Auto-reconnect: spectroscope not currently reachable (${err.message})`);
+      return false;
+    }
+  }
+
   async connectToDevice(deviceOrId, { preferredMtu = 247 } = {}) {
     if (!deviceOrId) throw new Error("No deviceId provided for connection");
 
@@ -1542,8 +1648,43 @@ export class LeafClipBluetoothDevice {
         });
 
         this.startLiveTelemetryStream();
-        // ZERO automatic packet sending upon connection.
-        // Packets are ONLY sent when user explicitly presses an action button.
+
+        // A fresh physical device may be a different unit than whatever was last
+        // cached in localStorage (or may simply have rebooted, clearing its real
+        // calibration). The UI's "done" badges also fall back to legacy
+        // darkCurrentCalibId/whiteDiscCalibId fields, so a partial reset isn't
+        // enough - clear every calibration sub-field back to its true default,
+        // then query the firmware's actual GET_STATUS so the UI reflects reality
+        // instead of a stale cache.
+        this.calibration = {
+          darkCurrentCompleted: false,
+          darkCurrentValue: null,
+          darkCurrentCounts: null,
+          darkCurrentTimestamp: null,
+          darkCurrentCalibId: null,
+          whiteDiscCompleted: false,
+          whiteDiscValue: null,
+          whiteDiscCounts: null,
+          whiteDiscTimestamp: null,
+          whiteDiscCalibId: null,
+          isCalibrated: false,
+          lastCalibratedAt: null
+        };
+        this.emit('calibrationChange', { phase: 'CONNECT_RESET', ...this.calibration });
+        try {
+          await this.readDeviceStatus();
+        } catch (statusErr) {
+          console.warn('[BLE] Post-connect GET_STATUS sync failed:', statusErr.message);
+        }
+        try {
+          await this.getSdCardStatus();
+          await this.listSdCardFiles();
+        } catch (sdErr) {
+          console.warn('[BLE] Post-connect SD card sync failed:', sdErr.message);
+        }
+
+        // Packets beyond the status sync above are ONLY sent when the user
+        // explicitly presses an action button.
         return { success: true, simulated: false, backend: 'CAPACITOR_BLE', device: this.deviceInfo };
       } catch (err) {
         console.warn(`[BLE] Native connect to ${deviceId} failed:`, err.message);
@@ -2161,6 +2302,17 @@ export class LeafClipBluetoothDevice {
       if (ack.data?.led !== undefined) {
         this.ledStatus = ack.data.led === 'ON' || ack.data.led === true ? 'ON' : 'OFF';
       }
+      // Sync calibration badges to the real firmware-reported state (GET_STATUS
+      // returns CALIB_DARK/CALIB_WHITE = DONE|NO) instead of trusting whatever
+      // was cached in localStorage from a previous session or device.
+      if (ack.data?.calib_dark !== undefined) {
+        this.calibration.darkCurrentCompleted = ack.data.calib_dark === 'DONE';
+      }
+      if (ack.data?.calib_white !== undefined) {
+        this.calibration.whiteDiscCompleted = ack.data.calib_white === 'DONE';
+      }
+      this.calibration.isCalibrated = !!(this.calibration.darkCurrentCompleted && this.calibration.whiteDiscCompleted);
+      this.emit('calibrationChange', { phase: 'STATUS_SYNC', ...this.calibration });
       return ack.data;
     } catch (err) {
       return { success: false, error: err.message };
@@ -3682,18 +3834,20 @@ export class LeafClipBluetoothDevice {
       } else {
         spectrum = rawCounts.map((val) => Number((Math.max(0.01, Math.min(1.0, val / 65535))).toFixed(4)));
       }
-    } else {
-      if (this.operatingMode === OPERATING_MODES.REAL_HARDWARE && !this.isSimulated) {
-        // Fallback: check if we have any valid historical reading from recent hardware scan before synthesizing
-        if (this.lastRawReading?.rawCounts || this.lastRawCounts) {
-          rawCounts = this.lastRawReading?.rawCounts || this.lastRawCounts;
-          spectrum = convertAS7265xTo76Bands(rawCounts, this.calibration.darkCurrentCounts, this.calibration.whiteDiscCounts);
-        } else {
-          console.warn("[BLE] Physical spectroscope returned prompt/timeout without 18-channel vector. Using calibrated physiological reference model.");
-          this.logDiagnostic('WARN', 'Physical spectroscope returned prompt without complete 18-channel vector. Synthesizing physiological crop baseline.');
-        }
+    } else if (this.operatingMode === OPERATING_MODES.REAL_HARDWARE && !this.isSimulated) {
+      // Real hardware is connected but no genuine spectral packet arrived (and no
+      // recent real reading exists to fall back on). Never fabricate a plausible
+      // looking demo spectrum here - that would silently show the farmer fake
+      // vitality/nitrogen/irrigation numbers with no indication they aren't real.
+      if (this.lastRawReading?.rawCounts || this.lastRawCounts) {
+        rawCounts = this.lastRawReading?.rawCounts || this.lastRawCounts;
+        spectrum = convertAS7265xTo76Bands(rawCounts, this.calibration.darkCurrentCounts, this.calibration.whiteDiscCounts);
+      } else {
+        this.logDiagnostic('ERROR', 'Physical spectroscope did not return a complete spectral packet before timeout.');
+        throw new Error("Physical spectroscope did not return real spectral data. Check the BLE connection and that the leaf clip optical chamber is clamped, then try again.");
       }
-
+    } else {
+      // Simulated / demo mode only - synthesize a plausible crop profile.
       let vitality = 85;
       let waterContent = 0.88;
       let nitrogenLevel = 0.82;
@@ -4095,36 +4249,32 @@ export class LeafClipBluetoothDevice {
       throw new SpectroscopeDisconnectedError("Connect spectroscope to access SD card.");
     }
 
-    // Real Hardware Path (when connected to real BLE device)
+    // Real Hardware Path (when connected to real BLE device).
+    // Firmware wire format: "SD_STATUS\r\n" -> "$ACK:SD_STATUS,STATUS=OK,DETECTED=YES,
+    // MOUNTED=YES,FS=FAT32,TOTAL_MB=N,USED_MB=N,FREE_MB=N,FILES=N,LAST_ERR=..."
     if (this.isConnected && !this.isSimulated) {
       try {
-        const waitPromise = this.accumulator.waitForPacket(
-          p => p.type === PACKET_TYPES.SD_STATUS || (p.type === PACKET_TYPES.SD_OP_ERR && p.data?.command === 'SD_STATUS'),
-          6000
-        );
-        await this.sendRawLine('$SD_STATUS\r\n');
-        const packet = await waitPromise;
-        if (packet.type === PACKET_TYPES.SD_OP_ERR) {
-          throw new Error(packet.data?.message || 'Failed to read SD card status from hardware');
-        }
-        const totalKb = packet.data.totalKb || 15240000;
-        const usedKb = packet.data.usedKb || 0;
-        const freeKb = packet.data.freeKb || (totalKb - usedKb);
+        const ackPromise = this.accumulator.waitForSdOpAck('STATUS', 6000);
+        await this.sendRaw('SD_STATUS\r\n');
+        const ack = await ackPromise;
+        const totalMb = parseInt(ack.data.total_mb, 10) || 0;
+        const usedMb = parseInt(ack.data.used_mb, 10) || 0;
+        const freeMb = parseInt(ack.data.free_mb, 10) || (totalMb - usedMb);
+        const mounted = ack.data.mounted === 'YES';
         const statusObj = {
-          ...packet.data,
-          detected: true,
-          mounted: true,
-          fsType: 'FAT32',
-          totalKb,
-          usedKb,
-          freeKb,
-          totalBytes: totalKb * 1024,
-          usedBytes: usedKb * 1024,
-          freeBytes: freeKb * 1024,
-          fileCount: packet.data.fileCount || 0,
-          totalScans: packet.data.fileCount || 0,
-          lastScan: packet.data.lastScan || null,
-          health: packet.data.health || 'OK',
+          detected: ack.data.detected === 'YES',
+          mounted,
+          fsType: ack.data.fs || 'FAT32',
+          totalKb: totalMb * 1024,
+          usedKb: usedMb * 1024,
+          freeKb: freeMb * 1024,
+          totalBytes: totalMb * 1024 * 1024,
+          usedBytes: usedMb * 1024 * 1024,
+          freeBytes: freeMb * 1024 * 1024,
+          fileCount: parseInt(ack.data.files, 10) || 0,
+          totalScans: parseInt(ack.data.files, 10) || 0,
+          lastScan: null,
+          health: mounted ? 'OK' : (ack.data.last_err || 'ERR'),
           lastChecked: Date.now()
         };
         this.sdCardStatus = statusObj;
@@ -4244,33 +4394,45 @@ export class LeafClipBluetoothDevice {
       return [];
     }
 
-    // Real Hardware Path (when connected to physical BLE)
+    // Real Hardware Path (when connected to physical BLE).
+    // Firmware wire format: "SD_LIST <offset> <limit>\r\n" streams one
+    // "$SD_FILE:NAME=...,SIZE=...,TIME=..." line per file, then
+    // "$ACK:SD_LIST,STATUS=OK,COUNT=N,TOTAL=N,OFFSET=O,LIMIT=L".
+    // Firmware search/sort are not implemented server-side; apply them client-side.
     if (this.isConnected && !this.isSimulated) {
       try {
-        const searchParam = search ? encodeURIComponent(search.trim()) : '';
-        const cmd = `$SD_LIST,${offset},${limit},${searchParam},${sortBy},${sortOrder}\r\n`;
+        const cmd = `SD_LIST ${offset} ${limit}\r\n`;
         const accumulatedItems = [];
         const itemHandler = (item) => accumulatedItems.push(item);
         const unsubscribeItem = this.accumulator.on('sdListItem', itemHandler);
 
         try {
-          const endPromise = this.accumulator.waitForPacket(
-            p => p.type === PACKET_TYPES.SD_LIST_END || (p.type === PACKET_TYPES.SD_OP_ERR && p.data?.command === 'SD_LIST'),
-            12000
-          );
-          await this.sendRawLine(cmd);
-          const endPacket = await endPromise;
-          if (endPacket.type === PACKET_TYPES.SD_OP_ERR) {
-            throw new Error(endPacket.data?.message || 'SD Card file listing error');
+          const ackPromise = this.accumulator.waitForSdOpAck('LIST', 12000);
+          await this.sendRaw(cmd);
+          const ack = await ackPromise;
+          const total = parseInt(ack.data?.total, 10) || accumulatedItems.length;
+
+          let files = accumulatedItems;
+          if (search && typeof search === 'string' && search.trim()) {
+            const q = search.trim().toLowerCase();
+            files = files.filter(f => f.filename.toLowerCase().includes(q));
           }
-          const total = endPacket.data?.total || accumulatedItems.length;
-          accumulatedItems.total = total;
-          accumulatedItems.offset = offset;
-          accumulatedItems.limit = limit;
-          accumulatedItems.files = accumulatedItems;
-          this.cachedSdFileList = accumulatedItems;
-          this.emit('sdFileListUpdated', { files: accumulatedItems, total, offset, limit });
-          return accumulatedItems;
+          files.sort((a, b) => {
+            let cmp = 0;
+            if (sortBy === 'name') cmp = a.filename.localeCompare(b.filename);
+            else if (sortBy === 'size') cmp = (a.sizeBytes || 0) - (b.sizeBytes || 0);
+            else cmp = String(a.timestamp).localeCompare(String(b.timestamp));
+            return sortOrder === 'asc' ? cmp : -cmp;
+          });
+
+          files.total = total;
+          files.offset = offset;
+          files.limit = limit;
+          files.files = files;
+          this.cachedSdFileList = files;
+          this.sdCardFiles = files;
+          this.emit('sdFileListUpdated', { files, total, offset, limit });
+          return files;
         } finally {
           unsubscribeItem();
         }
@@ -4413,6 +4575,77 @@ export class LeafClipBluetoothDevice {
     // Round 3 Defense: Concurrency lock check
     if (this.isScanning || this.leafScanPending) {
       throw new Error("BUSY_SCAN_IN_PROGRESS: Cannot read SD file while optical scan is running.");
+    }
+
+    // Real Hardware Path: actually fetch the file's bytes from the physical SD
+    // card over BLE ("SD_READ <file> <chunkSize>" then "SD_CHUNK <file> <seq>"
+    // per chunk), instead of reading from the local mock file array.
+    if (this.isConnected && !this.isSimulated) {
+      this.activeSdFileRead = filename;
+      this._transferCancelled = false;
+      const startTime = Date.now();
+      try {
+        const chunkSize = Math.max(32, Math.min(240, preferredChunkSize || 200));
+        const readAckPromise = this.accumulator.waitForSdOpAck('READ', timeoutMs);
+        await this.sendRaw(`SD_READ ${filename} ${chunkSize}\r\n`);
+        const readAck = await readAckPromise;
+
+        const totalBytes = parseInt(readAck.data.size, 10) || 0;
+        const totalChunks = parseInt(readAck.data.total_chunks, 10) || 1;
+
+        let assembledText = '';
+        for (let seq = 1; seq <= totalChunks; seq++) {
+          if (this._transferCancelled) {
+            throw new Error("Transfer cancelled by user.");
+          }
+
+          const chunkPromise = this.accumulator.waitForPacket(
+            p => p.type === PACKET_TYPES.SD_DATA_CHUNK && p.data.seq === seq,
+            Math.max(3000, timeoutMs / 2)
+          );
+          await this.sendRaw(`SD_CHUNK ${filename} ${seq}\r\n`);
+          const chunkPacket = await chunkPromise;
+          assembledText += chunkPacket.data.data;
+
+          const bytesLoaded = Math.min(totalBytes, assembledText.length);
+          const percent = totalBytes > 0 ? Math.min(100, Math.round((bytesLoaded / totalBytes) * 100)) : 100;
+          const elapsedSec = (Date.now() - startTime) / 1000 || 0.01;
+          const speedKbps = Number(((bytesLoaded / 1024) / elapsedSec).toFixed(1));
+
+          const progressPayload = {
+            filename, bytesLoaded, bytesReceived: bytesLoaded, totalBytes,
+            percent, percentage: percent, speedKbps,
+            speedBps: Math.round(bytesLoaded / elapsedSec),
+            chunkIndex: seq, currentSeq: seq, totalChunks, totalSeq: totalChunks
+          };
+          if (typeof onProgress === 'function') onProgress(progressPayload);
+          this.emit('sdTransferProgress', progressPayload);
+        }
+
+        const format = filename.toLowerCase().endsWith('.json') || filename.toLowerCase().endsWith('.jsn') ? 'JSON' : 'CSV';
+        const parsed = parseRealScanFileContent(assembledText, format);
+
+        const completeResult = {
+          filename,
+          format,
+          content: assembledText,
+          text: assembledText,
+          rawText: assembledText,
+          size: assembledText.length,
+          sizeBytes: assembledText.length,
+          crc32: readAck.data.crc32 || null,
+          verified: true,
+          totalBytes: assembledText.length,
+          transferDurationMs: Date.now() - startTime,
+          ...parsed
+        };
+
+        this.emit('sdTransferComplete', completeResult);
+        return completeResult;
+      } finally {
+        this.activeSdFileRead = null;
+        this.activeSdTransfer = null;
+      }
     }
 
     const file = this.sdCardFiles?.find(f => f.filename === filename) || this.virtualSdCard?.get(filename);

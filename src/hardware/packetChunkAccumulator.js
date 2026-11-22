@@ -557,7 +557,14 @@ export class PacketChunkAccumulator {
       rawParams.split(',').forEach(p => {
         const eqIdx = p.indexOf('=');
         if (eqIdx !== -1) {
-          params[p.slice(0, eqIdx).trim().toLowerCase()] = p.slice(eqIdx + 1).trim();
+          const key = p.slice(0, eqIdx).trim().toLowerCase();
+          const rawValue = p.slice(eqIdx + 1).trim();
+          // Coerce plain numeric ACK params (OFFSET=0, PEAK=16, ...) to real
+          // JS numbers. Without this, every `typeof x === 'number'` check
+          // downstream silently fails against these always-string values,
+          // falling back to hardcoded placeholder numbers instead of the
+          // genuine hardware reading the firmware just reported.
+          params[key] = /^-?\d+(\.\d+)?$/.test(rawValue) ? Number(rawValue) : rawValue;
         } else if (p.trim()) {
           if (!params.status) {
             params.status = p.trim();
@@ -613,122 +620,49 @@ export class PacketChunkAccumulator {
       };
     }
 
-    // 1d. SD Card Explorer: $SD_STATUS,...
-    if (line.startsWith('$SD_STATUS') || line.startsWith('SD_STATUS:')) {
-      const cleanLine = line.replace(/^(?:\$SD_STATUS|SD_STATUS:)[\s,]*/i, '');
+    // 1d. Real firmware streaming file listing: $SD_FILE:NAME=...,SIZE=...,TIME=...
+    if (/^\$SD_FILE:/i.test(line)) {
       const params = {};
-      cleanLine.split(',').forEach(p => {
+      line.replace(/^\$SD_FILE:/i, '').split(',').forEach(p => {
         const eqIdx = p.indexOf('=');
         if (eqIdx !== -1) {
           params[p.slice(0, eqIdx).trim().toLowerCase()] = p.slice(eqIdx + 1).trim();
-        } else if (p.trim()) {
-          params[p.trim().toLowerCase()] = true;
         }
       });
-      const mounted = params.mounted === '1' || params.mounted === 'true' || params.mounted === true || params.status === 'OK';
+      const filename = params.name || '';
+      const size = parseInt(params.size, 10) || 0;
       return {
-        format: 'SD_STATUS',
-        type: PACKET_TYPES.SD_STATUS,
-        data: {
-          ...params,
-          mounted,
-          totalKb: parseInt(params.totalkb || params.total || 0, 10),
-          usedKb: parseInt(params.usedkb || params.used || 0, 10),
-          freeKb: parseInt(params.freekb || params.free || 0, 10),
-          fileCount: parseInt(params.filecount || params.files || 0, 10),
-          lastScan: params.lastscan || params.last_scan || null,
-          health: params.health || (mounted ? 'OK' : 'ERR')
-        },
-        rawText: line,
-        timestamp: Date.now()
-      };
-    }
-
-    // 1e. SD Card Explorer: $SD_LIST_ITEM,<filename>,<size_bytes>,<timestamp>,<scan_id>,<plant_name>,<records_count>
-    if (line.startsWith('$SD_LIST_ITEM') || line.startsWith('SD_LIST_ITEM:')) {
-      const parts = line.replace(/^(?:\$SD_LIST_ITEM|SD_LIST_ITEM:)[\s,]*/i, '').split(',');
-      const filename = parts[0]?.trim() || '';
-      return {
-        format: 'SD_LIST_ITEM',
+        format: 'SD_FILE',
         type: PACKET_TYPES.SD_LIST_ITEM,
         data: {
           filename,
-          size: parseInt(parts[1], 10) || 0,
-          timestamp: parts[2]?.trim() || '',
-          scanId: parts[3]?.trim() || '',
-          plantName: parts[4]?.trim() || '',
-          recordsCount: parseInt(parts[5], 10) || 0
-        },
-        rawText: line,
-        timestamp: Date.now()
-      };
-    }
-
-    // 1f. SD Card Explorer: $SD_LIST_END,<total_items>,<returned_items>
-    if (line.startsWith('$SD_LIST_END') || line.startsWith('SD_LIST_END:')) {
-      const parts = line.replace(/^(?:\$SD_LIST_END|SD_LIST_END:)[\s,]*/i, '').split(',');
-      return {
-        format: 'SD_LIST_END',
-        type: PACKET_TYPES.SD_LIST_END,
-        data: {
-          total: parseInt(parts[0], 10) || 0,
-          returned: parseInt(parts[1], 10) || 0
-        },
-        rawText: line,
-        timestamp: Date.now()
-      };
-    }
-
-    // 1g. SD Card Explorer: $SD_FILE_INFO,<filename>,<size_bytes>,<crc32_hex>,<timestamp>,<scan_id>,<plant_name>,<records_count>,<file_type>
-    if (line.startsWith('$SD_FILE_INFO') || line.startsWith('SD_FILE_INFO:')) {
-      const parts = line.replace(/^(?:\$SD_FILE_INFO|SD_FILE_INFO:)[\s,]*/i, '').split(',');
-      const filename = parts[0]?.trim() || '';
-      const size = parseInt(parts[1], 10) || 0;
-      const crc32 = parts[2]?.trim() || '';
-      const timestamp = parts[3]?.trim() || '';
-      const scanId = parts[4]?.trim() || '';
-      const plantName = parts[5]?.trim() || '';
-      const recordsCount = parseInt(parts[6], 10) || 0;
-      const fileType = parts[7]?.trim() || (filename.toLowerCase().endsWith('.json') ? 'JSON' : 'CSV');
-      return {
-        format: 'SD_FILE_INFO',
-        type: PACKET_TYPES.SD_FILE_INFO,
-        data: {
-          filename,
           size,
-          crc32,
-          timestamp,
-          scanId,
-          plantName,
-          recordsCount,
-          fileType
+          sizeBytes: size,
+          timestamp: params.time || '',
+          fileType: filename.toLowerCase().endsWith('.json') || filename.toLowerCase().endsWith('.jsn') ? 'JSON' : 'CSV'
         },
         rawText: line,
         timestamp: Date.now()
       };
     }
 
-    // 1h. SD Card Explorer: $SD_CHUNK,<seq>,<total_seq>,<chunk_len>,<chunk_crc32>,<data>
-    if (line.startsWith('$SD_CHUNK') || line.startsWith('SD_CHUNK:')) {
-      const parts = line.replace(/^(?:\$SD_CHUNK|SD_CHUNK:)[\s,]*/i, '').split(',');
-      const seq = parseInt(parts[0], 10) || 0;
-      const totalSeq = parseInt(parts[1], 10) || 1;
-      const chunkLen = parseInt(parts[2], 10) || 0;
-      const crc32 = parts[3]?.trim() || '';
-      const data = parts.slice(4).join(',');
-      return {
-        format: 'SD_CHUNK',
-        type: PACKET_TYPES.SD_DATA_CHUNK,
-        data: {
-          seq,
-          totalSeq,
-          chunkLen,
-          crc32,
-          data
-        },
-        rawText: line,
-        timestamp: Date.now()
-      };
+    // 1h. Real firmware chunk data: $SD_CHUNK:SEQ=<n>,LEN=<n>,CRC32=0x<hex>,DATA=<raw bytes...>
+    {
+      const chunkMatch = line.match(/^\$SD_CHUNK:SEQ=(\d+),LEN=(\d+),CRC32=(0x[0-9A-Fa-f]+),DATA=([\s\S]*)$/i);
+      if (chunkMatch) {
+        return {
+          format: 'SD_CHUNK',
+          type: PACKET_TYPES.SD_DATA_CHUNK,
+          data: {
+            seq: parseInt(chunkMatch[1], 10) || 0,
+            len: parseInt(chunkMatch[2], 10) || 0,
+            crc32: chunkMatch[3],
+            data: chunkMatch[4]
+          },
+          rawText: line,
+          timestamp: Date.now()
+        };
+      }
     }
 
     // 1i. SD Card Explorer: $SD_DIAG_REPORT,...

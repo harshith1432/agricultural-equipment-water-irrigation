@@ -20,6 +20,9 @@ extern "C" {
 #include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
+#include "stm32l4xx_hal.h"
+
+extern I2C_HandleTypeDef hi2c1;
 
 /* Board Pin Definitions -----------------------------------------------------*/
 
@@ -58,12 +61,14 @@ extern "C" {
 #define VCP_RX_PORT                    GPIOB
 #define VCP_RX_PIN                     (1U << 7)   /* PB7 */
 
-/* AS7265x Spectrometer I2C2 Interface */
-#define SENSORS_I2C                    I2C2
+/* AS7265x Spectrometer: external breakout wired to the Arduino header's
+   dedicated I2C1 pins (PB8/PB9), NOT the board's internal I2C2 sensor bus
+   (which is already used by the onboard HTS221/LPS22HB env. sensors). */
+#define SENSORS_I2C                    I2C1
 #define SENSORS_I2C_SCL_PORT           GPIOB
-#define SENSORS_I2C_SCL_PIN            (1U << 10)  /* PB10 */
+#define SENSORS_I2C_SCL_PIN            (1U << 8)   /* PB8 - Arduino D15/SCL */
 #define SENSORS_I2C_SDA_PORT           GPIOB
-#define SENSORS_I2C_SDA_PIN            (1U << 11)  /* PB11 */
+#define SENSORS_I2C_SDA_PIN            (1U << 9)   /* PB9 - Arduino D14/SDA */
 
 /* External SPI SD Card Module (Arduino Uno Expansion Header) */
 #define SD_SPI_INSTANCE                SPI1

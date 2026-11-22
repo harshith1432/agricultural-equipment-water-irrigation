@@ -60,6 +60,12 @@ LedState_t LED_Driver_GetState(void);
   */
 void LED_Driver_Watchdog_Tick(void);
 
+/**
+  * @brief  Drive the PB14 onboard status LED to reflect live BLE activity
+  *         (ON while a central is connected, OFF while advertising).
+  */
+void LED_Status_SetBleActive(bool active);
+
 #ifdef __cplusplus
 }
 #endif

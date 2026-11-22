@@ -1501,6 +1501,47 @@ export class FirestoreDataService {
       };
     }
   }
+  // =========================================================================
+  // App / Auth Event Log: appEvents/{eventId} (append-only audit trail)
+  // =========================================================================
+
+  /**
+   * Record an app-level event (login, logout, signup, error) as an append-only
+   * document so there is a real audit trail, not just a single overwritten
+   * "lastLoginAt" field. Never throws - logging must not block the UI action
+   * it's describing.
+   */
+  async logAppEvent(eventType, details = {}) {
+    const now = new Date();
+    const event = {
+      eventType,
+      uid: details.uid || null,
+      email: details.email || null,
+      farmId: details.farmId || this.currentFarmId,
+      details,
+      createdAt: this.useLive ? serverTimestamp() : now.toISOString(),
+      clientTimestamp: now.toISOString(),
+      userAgent: (typeof navigator !== 'undefined' && navigator.userAgent) || 'unknown'
+    };
+
+    if (this.useLive) {
+      this._dispatchCloudMutation(async () => {
+        const eventsCol = collection(this.db, "appEvents");
+        await addDoc(eventsCol, event);
+      }, `logAppEvent (${eventType})`);
+    }
+
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const key = 'agrispectra_app_event_log';
+        const existing = JSON.parse(localStorage.getItem(key) || '[]');
+        existing.push(event);
+        localStorage.setItem(key, JSON.stringify(existing.slice(-200)));
+      }
+    } catch (_) {}
+
+    return event;
+  }
 }
 
 export const firestoreService = new FirestoreDataService();

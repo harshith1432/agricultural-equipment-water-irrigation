@@ -244,7 +244,12 @@ export function createSpectroscopyAnalysisView({
 
   // Floating Toast Notification System (Fixed at top of screen for immediate mobile feedback)
   let toastTimer = null;
-  function showSpectroToast({ title, message, type = 'success', duration = 4500 }) {
+  function showSpectroToast({ title, message, type = 'success', duration = 2500 }) {
+    // Compact top-right auto-dismissing toast (like a normal app notification),
+    // not a full-width panel the farmer has to scroll to see or manually close.
+    // Every caller's requested duration is capped at 3s per product requirement.
+    const cappedDuration = Math.min(duration || 2500, 3000);
+
     if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
       try {
         if (type === 'error') navigator.vibrate([40, 80, 40]);
@@ -257,7 +262,7 @@ export function createSpectroscopyAnalysisView({
     if (!toastEl) {
       toastEl = document.createElement('div');
       toastEl.id = 'spectro-floating-toast';
-      toastEl.className = 'fixed top-4 left-4 right-4 z-[9999] max-w-md mx-auto transition-all duration-300 ease-out pointer-events-auto';
+      toastEl.className = 'fixed top-3 right-3 z-[9999] max-w-[260px] transition-all duration-300 ease-out pointer-events-auto';
       document.body.appendChild(toastEl);
     }
 
@@ -267,50 +272,36 @@ export function createSpectroscopyAnalysisView({
     const isError = type === 'error';
     const isWarning = type === 'warning';
 
-    const bgClass = isSuccess 
-      ? 'bg-[#1b4332] text-white border-[#52b788]/60 shadow-emerald-950/60' 
-      : (isError 
-          ? 'bg-rose-950 text-white border-rose-500/60 shadow-rose-950/60' 
-          : (isWarning 
-              ? 'bg-amber-950 text-white border-amber-500/60 shadow-amber-950/60' 
-              : 'bg-slate-900 text-white border-sky-500/60 shadow-slate-950/60'));
+    const bgClass = isSuccess
+      ? 'bg-[#1b4332] text-white'
+      : (isError
+          ? 'bg-rose-950 text-white'
+          : (isWarning
+              ? 'bg-amber-950 text-white'
+              : 'bg-slate-900 text-white'));
 
     const iconHtml = isSuccess
-      ? `<svg class="w-5 h-5 text-[#52b788] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>`
+      ? `<svg class="w-4 h-4 text-[#52b788] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`
       : (isError
-          ? `<svg class="w-5 h-5 text-rose-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`
+          ? `<svg class="w-4 h-4 text-rose-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`
           : (isWarning
-              ? `<svg class="w-5 h-5 text-amber-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`
-              : `<svg class="w-5 h-5 text-sky-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`));
+              ? `<svg class="w-4 h-4 text-amber-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`
+              : `<svg class="w-4 h-4 text-sky-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`));
 
     toastEl.innerHTML = `
-      <div class="flex items-start gap-3 p-3.5 rounded-2xl border ${bgClass} shadow-2xl backdrop-blur-md">
-        <div class="mt-0.5">${iconHtml}</div>
-        <div class="flex-1 min-w-0 pr-1">
-          <div class="flex items-center justify-between gap-2">
-            <h5 class="text-xs font-extrabold tracking-tight truncate">${escapeHtml(title || 'Notification')}</h5>
-            <span class="text-[10px] font-mono opacity-60">${new Date().toLocaleTimeString()}</span>
-          </div>
-          ${message ? `<p class="text-[11px] font-medium leading-relaxed mt-0.5 opacity-90 break-words">${escapeHtml(message)}</p>` : ''}
-        </div>
-        <button type="button" id="btn-close-spectro-toast" class="p-1 -mr-1 -mt-1 text-white/70 hover:text-white rounded-lg transition cursor-pointer" aria-label="Dismiss">
-          ✕
-        </button>
+      <div class="flex items-center gap-2 py-2 px-3 rounded-xl ${bgClass} shadow-lg">
+        ${iconHtml}
+        <span class="text-[11px] font-bold truncate">${escapeHtml(title || 'Notification')}</span>
       </div>
     `;
 
-    toastEl.classList.remove('opacity-0', '-translate-y-4', 'hidden');
+    toastEl.classList.remove('opacity-0', '-translate-y-2', 'hidden');
     toastEl.classList.add('opacity-100', 'translate-y-0');
 
-    toastEl.querySelector('#btn-close-spectro-toast')?.addEventListener('click', () => {
-      toastEl.classList.add('opacity-0', '-translate-y-4');
-      setTimeout(() => { toastEl.classList.add('hidden'); }, 300);
-    });
-
     toastTimer = setTimeout(() => {
-      toastEl.classList.add('opacity-0', '-translate-y-4');
+      toastEl.classList.add('opacity-0', '-translate-y-2');
       setTimeout(() => { toastEl.classList.add('hidden'); }, 300);
-    }, duration);
+    }, cappedDuration);
   }
 
   let specimenData = {
@@ -910,74 +901,46 @@ export function createSpectroscopyAnalysisView({
         </div>
 
         ${studioTab === 'diagnostics' ? renderHardwareDiagnosticsScreen() : `
-        <!-- SYNCHRONIZATION METRICS HEADER & CLOUD OFFLINE RESILIENCE WIDGET -->
-        <div id="spectral-sync-metrics-widget" class="bg-gradient-to-br from-[#1b4332] via-[#2d6a4f] to-slate-900 text-white rounded-3xl p-4 sm:p-5 shadow-lg border border-[#52b788]/30 space-y-3.5">
-          <div class="flex items-center justify-between flex-wrap gap-2">
-            <div class="flex items-center gap-2.5">
-              <div class="w-9 h-9 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-[#52b788] border border-white/15">
-                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/><path d="m12 13 3-3 3 3"/><path d="M15 10v6"/></svg>
-              </div>
-              <div>
-                <div class="flex items-center gap-2">
-                  <h3 class="text-xs sm:text-sm font-extrabold tracking-tight text-white">
-                    Spectral Synchronization Metrics
-                  </h3>
-                  <span id="sync-network-status-badge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${spectralSyncEngine.isOnline() ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/40' : 'bg-amber-500/20 text-amber-300 border border-amber-400/40'}">
-                    <span class="w-1.5 h-1.5 rounded-full ${spectralSyncEngine.isOnline() ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}"></span>
-                    <span>${spectralSyncEngine.isOnline() ? 'Online • Render Cloud' : 'Offline Mode'}</span>
-                  </span>
-                </div>
-                <p class="text-[10px] sm:text-[11px] text-emerald-200/80">
-                  Render Backend • /api/spectroscopy/sync • Offline IndexedDB Queue
-                </p>
-              </div>
-            </div>
-
-            <!-- "Sync Now" Button with Spinner -->
+        <!-- SYNC STATUS: compact single-line bar (was a large multi-metric card) -->
+        <div id="spectral-sync-metrics-widget" class="bg-white dark:bg-slate-900 rounded-2xl px-4 py-2.5 shadow-sm border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 text-xs">
+          <div class="flex items-center gap-2 min-w-0">
+            <span id="sync-network-status-badge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${spectralSyncEngine.isOnline() ? 'bg-emerald-100 text-[#1b4332] dark:bg-emerald-950/60 dark:text-[#52b788]' : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'}">
+              <span class="w-1.5 h-1.5 rounded-full ${spectralSyncEngine.isOnline() ? 'bg-emerald-500' : 'bg-amber-500'}"></span>
+              <span>${spectralSyncEngine.isOnline() ? 'Online' : 'Offline'}</span>
+            </span>
+            <span class="text-slate-500 dark:text-slate-400 truncate">
+              <span id="metric-locally-stored" class="font-bold text-slate-800 dark:text-white">${syncMetrics.locallyStored}</span> scans saved on this phone
+              ${syncMetrics.pendingSync > 0 ? ` • <span id="metric-pending-sync" class="font-bold text-amber-600 dark:text-amber-400">${syncMetrics.pendingSync}</span> waiting to upload` : ''}
+            </span>
+            <span id="metric-total-scans" class="hidden">${syncMetrics.totalScans}</span>
+            <span id="metric-synced-cloud" class="hidden">${syncMetrics.syncedToCloud}</span>
+            <span id="metric-sync-failed" class="hidden">${syncMetrics.syncFailed}</span>
+            <span id="metric-last-sync" class="hidden">${syncMetrics.lastSyncTimestamp || ''}</span>
+          </div>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              id="btn-export-all-scans-csv"
+              class="min-h-[32px] px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-[11px] flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
+              title="Download every scan on this phone as a spreadsheet (CSV)"
+            >
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span>Export All (CSV)</span>
+            </button>
             <button
               type="button"
               id="btn-sync-now"
-              class="min-h-[38px] px-4 py-2 rounded-xl ${isSyncing ? 'bg-emerald-900/80 cursor-wait' : 'bg-[#52b788] hover:bg-emerald-400 text-slate-950 cursor-pointer'} font-extrabold text-xs flex items-center gap-2 transition active:scale-95 shadow-md shadow-emerald-950/40"
+              class="min-h-[32px] px-3 py-1.5 rounded-lg ${isSyncing ? 'bg-slate-100 dark:bg-slate-800 cursor-wait' : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 cursor-pointer'} text-slate-700 dark:text-slate-200 font-bold text-[11px] flex items-center gap-1.5 transition active:scale-95"
               ${isSyncing ? 'disabled' : ''}
             >
               ${isSyncing ? `
-                <svg class="animate-spin w-4 h-4 text-white" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>
-                <span>Syncing Scans...</span>
+                <svg class="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>
+                <span>Syncing...</span>
               ` : `
-                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
-                <span>Sync Now</span>
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+                <span>Sync</span>
               `}
             </button>
-          </div>
-
-          <!-- 6 Metrics Counters Grid -->
-          <div class="grid grid-cols-3 sm:grid-cols-6 gap-2 text-center text-xs">
-            <div class="p-2 rounded-xl bg-black/25 border border-white/10 flex flex-col justify-between">
-              <span class="text-[10px] text-slate-300 font-medium">Total Scans</span>
-              <span id="metric-total-scans" class="text-sm sm:text-base font-black font-mono text-white">${syncMetrics.totalScans}</span>
-            </div>
-            <div class="p-2 rounded-xl bg-black/25 border border-white/10 flex flex-col justify-between">
-              <span class="text-[10px] text-slate-300 font-medium">Locally Stored</span>
-              <span id="metric-locally-stored" class="text-sm sm:text-base font-black font-mono text-emerald-300">${syncMetrics.locallyStored}</span>
-            </div>
-            <div class="p-2 rounded-xl bg-black/25 border border-white/10 flex flex-col justify-between">
-              <span class="text-[10px] text-amber-300 font-medium">Pending Sync</span>
-              <span id="metric-pending-sync" class="text-sm sm:text-base font-black font-mono text-amber-300">${syncMetrics.pendingSync}</span>
-            </div>
-            <div class="p-2 rounded-xl bg-black/25 border border-white/10 flex flex-col justify-between">
-              <span class="text-[10px] text-emerald-300 font-medium">Synced Cloud</span>
-              <span id="metric-synced-cloud" class="text-sm sm:text-base font-black font-mono text-emerald-400">${syncMetrics.syncedToCloud}</span>
-            </div>
-            <div class="p-2 rounded-xl bg-black/25 border border-white/10 flex flex-col justify-between">
-              <span class="text-[10px] text-rose-300 font-medium">Sync Failed</span>
-              <span id="metric-sync-failed" class="text-sm sm:text-base font-black font-mono ${syncMetrics.syncFailed > 0 ? 'text-rose-400' : 'text-slate-400'}">${syncMetrics.syncFailed}</span>
-            </div>
-            <div class="p-2 rounded-xl bg-black/25 border border-white/10 flex flex-col justify-between col-span-3 sm:col-span-1">
-              <span class="text-[10px] text-slate-300 font-medium">Last Synced</span>
-              <span id="metric-last-sync" class="text-[11px] font-bold font-mono text-emerald-200 truncate" title="${syncMetrics.lastSyncTimestamp || 'None'}">
-                ${syncMetrics.lastSyncTimestamp ? new Date(syncMetrics.lastSyncTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Never'}
-              </span>
-            </div>
           </div>
         </div>
 
@@ -1049,63 +1012,18 @@ export function createSpectroscopyAnalysisView({
           `}
         </div>
 
-        <!-- LIVE BLUETOOTH DATA STREAM & HARDWARE LINK HUD -->
-        <div class="bg-slate-900 text-white rounded-3xl p-4 sm:p-5 shadow-sm border border-slate-800 space-y-3">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <span class="w-2.5 h-2.5 rounded-full ${isBleConnected ? 'bg-[#52b788] animate-pulse' : 'bg-slate-500'}"></span>
-              <h4 class="text-xs font-bold text-white tracking-wide uppercase">
-                Live Bluetooth Data Stream
-              </h4>
-            </div>
-            <button 
-              type="button" 
-              id="btn-ble-ping"
-              class="min-h-[36px] px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
-              title="Send test heartbeat ping to spectroscope"
-            >
-              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-              <span>Ping / Test Link</span>
-            </button>
-          </div>
-
-          <!-- Metrics grid: TX vs RX -->
-          <div class="grid grid-cols-2 gap-2 text-xs">
-            <div class="p-2.5 rounded-xl bg-slate-800/80 border border-slate-700/60 space-y-1">
-              <div class="flex items-center justify-between text-[10px] text-slate-400">
-                <span class="font-bold text-emerald-400">TX (Sent to Sensor)</span>
-                <span id="hud-tx-count" class="font-mono text-emerald-300 font-semibold">${leafClipDevice.txPacketCount || 0} pkts</span>
-              </div>
-              <div id="hud-last-tx" class="font-mono text-[11px] text-emerald-300 truncate" title="${escapeHtml(leafClipDevice.lastTxMessage || 'None')}">
-                ${escapeHtml(leafClipDevice.lastTxMessage || 'Ready to transmit...')}
-              </div>
-            </div>
-
-            <div class="p-2.5 rounded-xl bg-slate-800/80 border border-slate-700/60 space-y-1">
-              <div class="flex items-center justify-between text-[10px] text-slate-400">
-                <span class="font-bold text-sky-400">RX (From Sensor)</span>
-                <span id="hud-rx-count" class="font-mono text-sky-300 font-semibold">${leafClipDevice.rxPacketCount || 0} pkts</span>
-              </div>
-              <div id="hud-last-rx" class="font-mono text-[11px] text-sky-300 truncate" title="${escapeHtml(leafClipDevice.lastRxMessage || 'None')}">
-                ${escapeHtml(leafClipDevice.lastRxMessage || (isBleConnected ? 'Listening on BLE...' : 'Offline'))}
-              </div>
-            </div>
-          </div>
-
-          <!-- Real-time status / link indicator -->
-          <div class="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-800">
-            <div class="flex items-center gap-1.5">
-              <span>Device:</span>
-              <span class="font-semibold text-slate-200">${escapeHtml(leafClipDevice.deviceInfo?.model || 'BlueNRG_Chat')}</span>
-            </div>
-            <div id="hud-link-latency" class="font-mono text-emerald-400 font-medium">
-              ${isBleConnected ? 'BLE Link Active' : 'Spectroscope Disconnected'}
-            </div>
-          </div>
-        </div>
-
-        <!-- PHYSICAL SPECTROSCOPE INTERACTIVE DIALOGUE & LIVE PROMPT CONSOLE -->
-        ${renderInteractivePromptSection(isBleConnected)}
+        <!-- Live Bluetooth Data Stream HUD (TX/RX packet counters) and the redundant
+             "Physical Spectroscope Online" status bar were removed - Step 1 above
+             already shows Connected/Disconnected clearly, and raw packet counts are
+             engineering debug info with no value to a farmer using this screen.
+             Kept hidden spans so any existing id-based lookups elsewhere don't break. -->
+        <span id="btn-ble-ping" class="hidden"></span>
+        <span id="hud-tx-count" class="hidden">${leafClipDevice.txPacketCount || 0}</span>
+        <span id="hud-rx-count" class="hidden">${leafClipDevice.rxPacketCount || 0}</span>
+        <span id="hud-last-tx" class="hidden">${escapeHtml(leafClipDevice.lastTxMessage || '')}</span>
+        <span id="hud-last-rx" class="hidden">${escapeHtml(leafClipDevice.lastRxMessage || '')}</span>
+        <span id="hud-link-latency" class="hidden">${isBleConnected ? 'BLE Link Active' : 'Spectroscope Disconnected'}</span>
+        ${isBleConnected ? '' : renderInteractivePromptSection(isBleConnected)}
 
         <!-- STEP 2: SPECIMEN SETUP & SCAN PREPARATION -->
         <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-5 shadow-sm border ${specimenSaved ? 'border-emerald-500/40' : 'border-slate-200 dark:border-slate-800'} space-y-3.5">
@@ -1370,40 +1288,29 @@ export function createSpectroscopyAnalysisView({
         </div>
 
         <!-- STEP 3: DARK BASELINE CALIBRATION (0% NULL) -->
-        <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-5 shadow-sm border ${!isDarkDone ? 'border-2 border-emerald-500/80 dark:border-emerald-500/70 shadow-lg shadow-emerald-500/10' : 'border-emerald-500/40'} space-y-3">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-3.5 shadow-sm border ${!isDarkDone ? 'border-2 border-emerald-500/80 dark:border-emerald-500/70' : 'border-emerald-500/40'} space-y-2.5">
           <div class="flex items-center justify-between flex-wrap gap-2">
             <div class="flex items-center gap-2.5">
               <div class="w-8 h-8 rounded-xl ${isDarkDone ? 'bg-emerald-100 dark:bg-emerald-950/60 text-[#1b4332] dark:text-[#52b788]' : 'bg-slate-800 text-white'} flex items-center justify-center shrink-0 font-bold text-xs">
                 3
               </div>
               <div>
-                <div class="flex items-center gap-2 flex-wrap">
-                  <h3 class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
-                    Step 3: Dark Baseline Calibration (0% Null)
-                  </h3>
-                  ${!isDarkDone ? `
-                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500 text-slate-950 uppercase tracking-wider animate-pulse">
-                      NEXT ACTION
-                    </span>
-                  ` : ''}
-                </div>
+                <h3 class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                  Step 3: Cover the clip (Dark Baseline)
+                </h3>
                 <p class="text-[10px] sm:text-[11px] text-slate-500">
-                  Measure thermal CMOS detector offset without illumination
+                  Snap the leaf clip shut with no light inside, then tap the button below.
                 </p>
               </div>
             </div>
             ${isDarkDone ? `
               <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-[#1b4332] dark:bg-emerald-950/60 dark:text-[#52b788] border border-emerald-500/20">
-                ✓ 0% Dark Baseline Verified${leafClipDevice.calibration?.darkCurrentCalibId ? ` (#${leafClipDevice.calibration.darkCurrentCalibId})` : ''} (${(leafClipDevice.calibration?.darkCurrentValue != null ? leafClipDevice.calibration.darkCurrentValue * 1000 : 20).toFixed(0)} mAU)
+                ✓ Done
               </span>
             ` : ''}
           </div>
 
-          <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300">
-            <span class="font-bold text-slate-800 dark:text-slate-200">Guidance:</span> Cover optical aperture or snap leaf clip shut with zero light. <span class="text-slate-400 dark:text-slate-400 block mt-0.5">(Note: Spectroscope illumination LED stays OFF during Dark Null, and turns ON in Step 4 & 5)</span>
-          </div>
-
-          <button 
+          <button
             type="button" 
             id="btn-step-dark-calib"
             class="w-full min-h-[44px] py-3 px-4 rounded-2xl ${isDarkDone ? 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200' : 'bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white ring-2 ring-emerald-500/50 shadow-md'} font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer active:scale-[0.99] ${!isBleConnected ? 'opacity-70' : ''}"
@@ -1416,40 +1323,29 @@ export function createSpectroscopyAnalysisView({
         </div>
 
         <!-- STEP 4: WHITE REFERENCE STANDARD (100% NORMALIZATION) -->
-        <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-5 shadow-sm border ${isDarkDone && !isWhiteDone ? 'border-2 border-amber-500/80 dark:border-amber-500/70 shadow-lg shadow-amber-500/10' : (isWhiteDone ? 'border-amber-500/40' : 'border-slate-200 dark:border-slate-800')} space-y-3">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-3.5 shadow-sm border ${isDarkDone && !isWhiteDone ? 'border-2 border-amber-500/80 dark:border-amber-500/70' : (isWhiteDone ? 'border-amber-500/40' : 'border-slate-200 dark:border-slate-800')} space-y-2.5">
           <div class="flex items-center justify-between flex-wrap gap-2">
             <div class="flex items-center gap-2.5">
               <div class="w-8 h-8 rounded-xl ${isWhiteDone ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'} flex items-center justify-center shrink-0 font-bold text-xs">
                 4
               </div>
               <div>
-                <div class="flex items-center gap-2 flex-wrap">
-                  <h3 class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
-                    Step 4: White Reference Standard (100% Normalization)
-                  </h3>
-                  ${isDarkDone && !isWhiteDone ? `
-                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-400 text-slate-950 uppercase tracking-wider animate-pulse">
-                      NEXT ACTION
-                    </span>
-                  ` : ''}
-                </div>
+                <h3 class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                  Step 4: Insert the white disc
+                </h3>
                 <p class="text-[10px] sm:text-[11px] text-slate-500">
-                  Lamp illumination & 99% diffuse PTFE standard normalization
+                  Put the white reference disc in the clip, then tap the button below.
                 </p>
               </div>
             </div>
             ${isWhiteDone ? `
               <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-500/30">
-                ✓ 100% White Reference Normalized (${Math.round((leafClipDevice.calibration?.whiteDiscValue != null ? leafClipDevice.calibration.whiteDiscValue : 0.985) * 65535).toLocaleString()} counts)
+                ✓ Done
               </span>
             ` : ''}
           </div>
 
-          <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300">
-            <span class="font-bold text-slate-800 dark:text-slate-200">Guidance:</span> Insert 99% diffuse PTFE white reference standard disc.
-          </div>
-
-          <button 
+          <button
             type="button" 
             id="btn-step-white-calib"
             class="w-full min-h-[44px] py-3 px-4 rounded-2xl ${isWhiteDone ? 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200' : 'bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold ring-2 ring-amber-500/50 shadow-md'} font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer active:scale-[0.99] ${(!isBleConnected || !isDarkDone) ? 'opacity-70' : ''}"
@@ -1462,40 +1358,29 @@ export function createSpectroscopyAnalysisView({
         </div>
 
         <!-- STEP 5: PLANT LEAF REFLECTANCE SCAN -->
-        <div id="step-5-container" class="bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-5 shadow-sm border ${isDarkDone && isWhiteDone && (!isLeafScanDone || !currentScan) ? 'border-2 border-emerald-500/80 dark:border-emerald-500/70 shadow-lg shadow-emerald-500/15' : (isLeafScanDone && currentScan ? 'border-emerald-500/40' : 'border-slate-200 dark:border-slate-800')} space-y-3">
+        <div id="step-5-container" class="bg-white dark:bg-slate-900 rounded-2xl p-3.5 shadow-sm border ${isDarkDone && isWhiteDone && (!isLeafScanDone || !currentScan) ? 'border-2 border-emerald-500/80 dark:border-emerald-500/70' : (isLeafScanDone && currentScan ? 'border-emerald-500/40' : 'border-slate-200 dark:border-slate-800')} space-y-2.5">
           <div class="flex items-center justify-between flex-wrap gap-2">
             <div class="flex items-center gap-2.5">
               <div class="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-[#1b4332] dark:text-[#52b788] flex items-center justify-center shrink-0 font-bold text-xs">
                 5
               </div>
               <div>
-                <div class="flex items-center gap-2 flex-wrap">
-                  <h3 class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
-                    Step 5: Plant Leaf Reflectance Scan
-                  </h3>
-                  ${isDarkDone && isWhiteDone && (!isLeafScanDone || !currentScan) ? `
-                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-400 text-slate-950 uppercase tracking-wider animate-pulse">
-                      READY FOR LEAF SCAN
-                    </span>
-                  ` : ''}
-                </div>
+                <h3 class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                  Step 5: Clamp the leaf (${escapeHtml(specimenData.leafSpot || 'Leaf 1')})
+                </h3>
                 <p class="text-[10px] sm:text-[11px] text-slate-500">
-                  Pulse broadband leaf illumination and record 76-band spectral curve
+                  Clip the leaf securely, then tap Scan Plant Leaf.
                 </p>
               </div>
             </div>
             ${isLeafScanDone && currentScan ? `
               <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-[#1b4332] dark:bg-emerald-950/60 dark:text-[#52b788] border border-emerald-500/20">
-                ✓ Leaf Scan Captured
+                ✓ Done
               </span>
             ` : ''}
           </div>
 
-          <div class="p-3 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-500/20 text-xs text-slate-700 dark:text-emerald-200">
-            <span class="font-bold text-[#1b4332] dark:text-[#52b788]">Guidance:</span> Clamp target leaf tissue (${escapeHtml(specimenData.leafSpot || 'Leaf 1')}) securely into optical leaf clip.
-          </div>
-
-          <button 
+          <button
             type="button" 
             id="btn-step-leaf-scan"
             class="w-full min-h-[44px] py-3.5 px-4 rounded-2xl bg-[#1b4332] hover:bg-[#2d6a4f] text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer active:scale-[0.99] shadow-md shadow-[#1b4332]/30 ring-2 ring-emerald-400/50 ${(!isWhiteDone || !isDarkDone) ? 'opacity-80' : ''}"
@@ -1531,168 +1416,15 @@ export function createSpectroscopyAnalysisView({
             </div>
           </div>
 
-          <!-- Section 7.C: Results View Two Tabs (Processed Results vs Raw Spectrum) -->
-          <div class="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-            <div class="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-              <button 
-                type="button" 
-                id="tab-btn-processed-results"
-                class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${resultsTab === 'processed' ? 'bg-[#1b4332] text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'}"
-              >
-                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-                <span>Processed Results</span>
-              </button>
-              <button 
-                type="button" 
-                id="tab-btn-raw-spectrum"
-                class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${resultsTab === 'raw' ? 'bg-[#1b4332] text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'}"
-              >
-                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
-                <span>Raw Spectrum (18-Ch AS7265x)</span>
-              </button>
-            </div>
-
-            ${resultsTab === 'processed' ? `
-              <!-- Simple vs Advanced Chemometrics Toggle -->
-              <div class="flex items-center bg-slate-100 dark:bg-slate-800 rounded-full p-0.5 border border-slate-200 dark:border-slate-700">
-                <button 
-                  type="button" 
-                  id="toggle-view-simple"
-                  class="px-3 py-1 rounded-full text-xs font-semibold transition ${
-                    viewMode === 'simple' 
-                      ? 'bg-white dark:bg-slate-700 text-[#1b4332] dark:text-[#52b788] shadow-sm' 
-                      : 'text-slate-500'
-                  }"
-                >
-                  ${t('spectro_view_simple', 'Farmer Display')}
-                </button>
-                <button 
-                  type="button" 
-                  id="toggle-view-advanced"
-                  class="px-3 py-1 rounded-full text-xs font-semibold transition ${
-                    viewMode === 'advanced' 
-                      ? 'bg-white dark:bg-slate-700 text-[#1b4332] dark:text-[#52b788] shadow-sm' 
-                      : 'text-slate-500'
-                  }"
-                >
-                  ${t('spectro_view_advanced', 'Technical Chemometrics')}
-                </button>
-              </div>
-            ` : ''}
-          </div>
-
-          <!-- TAB CONTENT: RAW SPECTRUM (18-CHANNELS, ENVIRONMENT, DOWNLOADS) -->
-          ${resultsTab === 'raw' ? `
-            <div id="raw-spectrum-section" class="space-y-3.5 animate-in fade-in duration-200">
-              <!-- Environmental Readings Grid -->
-              <div class="grid grid-cols-3 gap-2 text-center text-xs">
-                <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                  <div class="text-[10px] text-slate-500 font-medium">Sensor Temperature</div>
-                  <div class="text-sm font-bold font-mono text-slate-800 dark:text-white">
-                    ${isLeafScanDone && currentScan ? `${(currentScan.environmental?.temperature ?? 24.5).toFixed(1)} °C` : '--'}
-                  </div>
-                </div>
-                <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                  <div class="text-[10px] text-slate-500 font-medium">Relative Humidity</div>
-                  <div class="text-sm font-bold font-mono text-slate-800 dark:text-white">
-                    ${isLeafScanDone && currentScan ? `${(currentScan.environmental?.humidity ?? 55.0).toFixed(1)} %` : '--'}
-                  </div>
-                </div>
-                <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                  <div class="text-[10px] text-slate-500 font-medium">Barometric Pressure</div>
-                  <div class="text-sm font-bold font-mono text-slate-800 dark:text-white">
-                    ${isLeafScanDone && currentScan ? `${(currentScan.environmental?.pressure ?? 1013.25).toFixed(1)} hPa` : '--'}
-                  </div>
-                </div>
-              </div>
-
-              <!-- Download Toolbar -->
-              <div class="flex items-center justify-between flex-wrap gap-2 pt-1">
-                <div class="flex items-center gap-2">
-                  <button 
-                    type="button" 
-                    id="btn-download-raw-csv"
-                    class="min-h-[36px] px-3.5 py-1.5 rounded-xl bg-[#1b4332] hover:bg-[#2d6a4f] text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm"
-                  >
-                    <svg class="w-3.5 h-3.5 text-[#52b788]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                    <span>Download 18-Channel CSV</span>
-                  </button>
-                  <button 
-                    type="button" 
-                    id="btn-download-raw-json"
-                    class="min-h-[36px] px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <svg class="w-3.5 h-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                    <span>Download JSON Scan Record</span>
-                  </button>
-                </div>
-                <span class="text-[10px] font-mono text-slate-400">AMS AS7265x Tri-Pack Sensor Array</span>
-              </div>
-
-              <!-- Real Hardware Sensor Readings Table OR Real Status If Pending -->
-              ${!isLeafScanDone || !currentScan ? `
-                <div class="p-6 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 text-center space-y-2">
-                  <div class="w-10 h-10 mx-auto rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                  </div>
-                  <h4 class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">Real Sensor Status: Awaiting Measurement</h4>
-                  <p class="text-[11px] text-slate-500 max-w-md mx-auto leading-relaxed">
-                    ${leafClipDevice.isConnected ? `Hardware Link: ${leafClipDevice.deviceInfo?.model || 'BlueNRG_Chat'} Connected. No raw sensor counts recorded yet.` : 'Physical spectroscope disconnected. Complete Steps 1-5 to acquire real physical spectrum.'}
-                  </p>
-                  <p class="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
-                    Policy: ABSOLUTELY NO FAKE DATA • True hardware measurements only
-                  </p>
-                </div>
-              ` : `
-                <div class="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-750">
-                  <table class="w-full text-left text-xs">
-                    <thead class="bg-slate-50 dark:bg-slate-800/80 text-[10px] uppercase font-bold text-slate-500 border-b border-slate-200 dark:border-slate-700">
-                      <tr>
-                        <th class="py-2.5 px-3">Ch</th>
-                        <th class="py-2.5 px-3">Wavelength</th>
-                        <th class="py-2.5 px-3">Sensor IC</th>
-                        <th class="py-2.5 px-3">Spectral Band</th>
-                        <th class="py-2.5 px-3 text-right">Raw Counts</th>
-                        <th class="py-2.5 px-3 text-right">Dark Baseline</th>
-                        <th class="py-2.5 px-3 text-right">White Standard</th>
-                        <th class="py-2.5 px-3 text-right">Reflectance</th>
-                      </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-mono text-[11px]">
-                      ${AS7265X_CHANNELS.map((ch, idx) => {
-                        const rawCounts = currentScan?.rawCounts || currentScan?.rawData?.rawCounts || leafClipDevice.lastRawCounts || [];
-                        const darkCounts = currentScan?.darkCounts || currentScan?.rawData?.darkCounts || leafClipDevice.calibration?.darkCounts || [];
-                        const whiteCounts = currentScan?.whiteCounts || currentScan?.rawData?.whiteCounts || leafClipDevice.calibration?.whiteCounts || [];
-                        const rawVal = rawCounts[idx] != null ? rawCounts[idx] : (currentScan?.reflectance?.[idx] != null ? Math.round(currentScan.reflectance[idx] * 45000) : '--');
-                        const darkVal = darkCounts[idx] != null ? darkCounts[idx] : 180;
-                        const whiteVal = whiteCounts[idx] != null ? whiteCounts[idx] : 52000;
-                        let refPct = '--';
-                        if (typeof rawVal === 'number' && typeof darkVal === 'number' && typeof whiteVal === 'number' && whiteVal > darkVal) {
-                          refPct = `${Math.max(0, ((rawVal - darkVal) / (whiteVal - darkVal)) * 100).toFixed(2)}%`;
-                        } else if (currentScan?.reflectance?.[idx] != null) {
-                          refPct = `${(currentScan.reflectance[idx] * 100).toFixed(2)}%`;
-                        }
-                        return `
-                          <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
-                            <td class="py-2 px-3 font-bold text-slate-900 dark:text-white font-sans">${ch.channel}</td>
-                            <td class="py-2 px-3 font-bold text-emerald-600 dark:text-[#52b788]">${ch.wavelength} nm</td>
-                            <td class="py-2 px-3 text-slate-500 font-sans">${ch.sensor}</td>
-                            <td class="py-2 px-3 text-slate-600 dark:text-slate-300 font-sans">${ch.band}</td>
-                            <td class="py-2 px-3 text-right text-slate-800 dark:text-slate-200 font-semibold">${rawVal}</td>
-                            <td class="py-2 px-3 text-right text-slate-500">${darkVal}</td>
-                            <td class="py-2 px-3 text-right text-slate-500">${whiteVal}</td>
-                            <td class="py-2 px-3 text-right font-bold text-[#1b4332] dark:text-[#52b788]">${refPct}</td>
-                          </tr>
-                        `;
-                      }).join('')}
-                    </tbody>
-                  </table>
-                </div>
-              `}
-            </div>
-          ` : `
-            <!-- TAB CONTENT: PROCESSED RESULTS -->
-            <div id="processed-results-section" class="space-y-4 animate-in fade-in duration-200">
+          <!-- TAB CONTENT: PROCESSED RESULTS (raw-spectrum tab, farmer/technical toggle, and
+               the advanced indices matrix were removed - a farmer only needs the curve,
+               the plain-language numbers below, and the 5 decision cards) -->
+          <div id="processed-results-section" class="space-y-4 animate-in fade-in duration-200 pt-2 border-t border-slate-100 dark:border-slate-800">
+            <span id="tab-btn-processed-results" class="hidden"></span>
+            <span id="tab-btn-raw-spectrum" class="hidden"></span>
+            <span id="toggle-view-simple" class="hidden"></span>
+            <span id="toggle-view-advanced" class="hidden"></span>
+            <span id="raw-spectrum-section" class="hidden"></span>
               <!-- Awaiting Leaf Scan Clean Placeholder Banner -->
               ${!isLeafScanDone ? `
                 <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 text-center space-y-1.5">
@@ -1761,92 +1493,12 @@ export function createSpectroscopyAnalysisView({
                 </div>
               </div>
 
-              <!-- Section 7.C: Human-Readable Calculated Indices Matrix (Methods, Units, Validity) -->
-              <div class="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
-                <h4 class="text-xs font-black uppercase tracking-wider text-slate-500 px-1">
-                  Human-Readable Calculated Indices & Decision Basis
-                </h4>
-                <div class="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-750">
-                  <table class="w-full text-left text-xs">
-                    <thead class="bg-slate-50 dark:bg-slate-800/80 text-[10px] uppercase font-bold text-slate-500 border-b border-slate-200 dark:border-slate-700">
-                      <tr>
-                        <th class="py-2 px-3">Agronomic Index</th>
-                        <th class="py-2 px-3">Calculated Value</th>
-                        <th class="py-2 px-3">Calculation Method / Formula</th>
-                        <th class="py-2 px-3">Units</th>
-                        <th class="py-2 px-3">Validity</th>
-                      </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-mono text-[11px]">
-                      <tr>
-                        <td class="py-2 px-3 font-bold font-sans text-slate-900 dark:text-white">NDVI (Canopy Vigor)</td>
-                        <td class="py-2 px-3 font-bold text-[#1b4332] dark:text-[#52b788]">${isLeafScanDone && che?.indices?.ndvi != null ? che.indices.ndvi.toFixed(3) : '--'}</td>
-                        <td class="py-2 px-3 text-slate-500 font-sans">(R810 - R680) / (R810 + R680)</td>
-                        <td class="py-2 px-3 text-slate-500 font-sans">Unitless [-1.0, 1.0]</td>
-                        <td class="py-2 px-3 font-sans">${isLeafScanDone ? '<span class="text-emerald-500 font-bold">✓ VALID (Conf 96%)</span>' : '<span class="text-slate-400">Awaiting Scan</span>'}</td>
-                      </tr>
-                      <tr>
-                        <td class="py-2 px-3 font-bold font-sans text-slate-900 dark:text-white">NDRE (Nitrogen Level)</td>
-                        <td class="py-2 px-3 font-bold text-[#1b4332] dark:text-[#52b788]">${isLeafScanDone && che?.indices?.ndre != null ? che.indices.ndre.toFixed(3) : '--'}</td>
-                        <td class="py-2 px-3 text-slate-500 font-sans">(R790 - R720) / (R790 + R720)</td>
-                        <td class="py-2 px-3 text-slate-500 font-sans">Unitless [-1.0, 1.0]</td>
-                        <td class="py-2 px-3 font-sans">${isLeafScanDone ? '<span class="text-emerald-500 font-bold">✓ VALID (Conf 92%)</span>' : '<span class="text-slate-400">Awaiting Scan</span>'}</td>
-                      </tr>
-                      <tr>
-                        <td class="py-2 px-3 font-bold font-sans text-slate-900 dark:text-white">WBI / LWI (Leaf Water)</td>
-                        <td class="py-2 px-3 font-bold text-sky-600 dark:text-sky-400">${isLeafScanDone && che?.indices?.wbi != null ? che.indices.wbi.toFixed(3) : '--'}</td>
-                        <td class="py-2 px-3 text-slate-500 font-sans">R900 / R970 (970nm Water Absorption)</td>
-                        <td class="py-2 px-3 text-slate-500 font-sans">Ratio</td>
-                        <td class="py-2 px-3 font-sans">${isLeafScanDone ? '<span class="text-emerald-500 font-bold">✓ VALID (Conf 94%)</span>' : '<span class="text-slate-400">Awaiting Scan</span>'}</td>
-                      </tr>
-                      <tr>
-                        <td class="py-2 px-3 font-bold font-sans text-slate-900 dark:text-white">Crop Vitality Score</td>
-                        <td class="py-2 px-3 font-bold text-emerald-600 dark:text-emerald-400">${isLeafScanDone && che?.vitalityScore != null ? `${che.vitalityScore}%` : '--'}</td>
-                        <td class="py-2 px-3 text-slate-500 font-sans">Weighted Foliar Matrix (NDVI + NDRE + Chl)</td>
-                        <td class="py-2 px-3 text-slate-500 font-sans">% [0, 100]</td>
-                        <td class="py-2 px-3 font-sans">${isLeafScanDone ? '<span class="text-emerald-500 font-bold">✓ VALID</span>' : '<span class="text-slate-400">Awaiting Scan</span>'}</td>
-                      </tr>
-                      <tr>
-                        <td class="py-2 px-3 font-bold font-sans text-slate-900 dark:text-white">Urea / Nitrogen Prescription</td>
-                        <td class="py-2 px-3 font-bold text-amber-600 dark:text-amber-400">${isLeafScanDone && che?.nitrogenPrescriptionKg != null ? `${che.nitrogenPrescriptionKg} kg/acre` : '--'}</td>
-                        <td class="py-2 px-3 text-slate-500 font-sans">Target Yield Nitrogen Deficit Modeling vs NDRE</td>
-                        <td class="py-2 px-3 text-slate-500 font-sans">kg / acre</td>
-                        <td class="py-2 px-3 font-sans">${isLeafScanDone ? '<span class="text-emerald-500 font-bold">✓ VALID</span>' : '<span class="text-slate-400">Awaiting Scan</span>'}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <!-- Advanced Chemometrics Indices Matrix (Visible if advanced mode) -->
-              ${viewMode === 'advanced' ? `
-                <div class="pt-2 border-t border-slate-100 dark:border-slate-800">
-                  <h4 class="text-xs font-bold text-slate-800 dark:text-white mb-2">${t('vegetation_indices_matrix', 'Vegetation Indices Matrix')}</h4>
-                  <div class="grid grid-cols-2 gap-2 text-xs">
-                    <div class="p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex justify-between">
-                      <span class="text-slate-500">NDVI (Canopy Vigor):</span>
-                      <span class="font-mono font-bold text-slate-900 dark:text-white">${isLeafScanDone && che?.indices?.ndvi != null ? che.indices.ndvi.toFixed(3) : '--'}</span>
-                    </div>
-                    <div class="p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex justify-between">
-                      <span class="text-slate-500">NDRE (Chlorophyll/N):</span>
-                      <span class="font-mono font-bold text-slate-900 dark:text-white">${isLeafScanDone && che?.indices?.ndre != null ? che.indices.ndre.toFixed(3) : '--'}</span>
-                    </div>
-                    <div class="p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex justify-between">
-                      <span class="text-slate-500">WBI / LWI (Leaf Water):</span>
-                      <span class="font-mono font-bold text-slate-900 dark:text-white">${isLeafScanDone && che?.indices?.wbi != null ? che.indices.wbi.toFixed(3) : '--'}</span>
-                    </div>
-                    <div class="p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex justify-between">
-                      <span class="text-slate-500">CIre (Red Edge Index):</span>
-                      <span class="font-mono font-bold text-slate-900 dark:text-white">${isLeafScanDone && che?.indices?.cire != null ? che.indices.cire.toFixed(2) : '--'}</span>
-                    </div>
-                  </div>
-                </div>
-              ` : ''}
-
-              <!-- 5 Precision Agronomic Decision Cards -->
+              <!-- 5 Precision Agronomic Decision Cards (the formula/units/validity table and the
+                   advanced vegetation-indices matrix were removed - a farmer needs the plain-
+                   language recommendation below, not the raw remote-sensing formula) -->
               <div class="space-y-2.5 pt-2">
                 <h4 class="text-xs font-black uppercase tracking-wider text-slate-500 px-1">
-                  ${t('decision_cards_title', '5 Agronomic Precision Decision Cards')}
+                  What this scan means
                 </h4>
 
                 <!-- Decision 1: Crop Vitality Score -->
@@ -1858,7 +1510,6 @@ export function createSpectroscopyAnalysisView({
                     <div>
                       <div class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                         <span>${t('decision_vitality', 'Crop Vitality Score')}</span>
-                        ${isLeafScanDone ? '<span class="text-[10px] text-[#2d6a4f] dark:text-[#52b788] font-mono font-bold">(96% conf)</span>' : '<span class="text-[10px] text-slate-400 font-mono font-bold">(--)</span>'}
                       </div>
                       <div class="text-[11px] text-slate-500 mt-0.5">
                         ${isLeafScanDone ? t('decision_vitality_desc', 'Cellular mesophyll turgor & photosynthetic health') : 'Pending Scan Data'}
@@ -1884,7 +1535,6 @@ export function createSpectroscopyAnalysisView({
                     <div>
                       <div class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                         <span>${t('decision_nitrogen', 'Canopy Nitrogen & Prescription')}</span>
-                        ${isLeafScanDone ? '<span class="text-[10px] text-amber-600 font-mono font-bold">(92% conf)</span>' : '<span class="text-[10px] text-slate-400 font-mono font-bold">(--)</span>'}
                       </div>
                       <div class="text-[11px] text-slate-500 mt-0.5">
                         ${isLeafScanDone 
@@ -1911,8 +1561,7 @@ export function createSpectroscopyAnalysisView({
                     </div>
                     <div>
                       <div class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                        <span>${t('decision_irrigation', 'Leaf Water Stress (970 nm NIR band) & Irrigation Need')}</span>
-                        ${isLeafScanDone ? '<span class="text-[10px] text-blue-600 font-mono font-bold">(94% conf)</span>' : '<span class="text-[10px] text-slate-400 font-mono font-bold">(--)</span>'}
+                        <span>${t('decision_irrigation', 'Irrigation Need')}</span>
                       </div>
                       <div class="text-[11px] text-slate-500 mt-0.5">
                         ${isLeafScanDone ? t('decision_irrigation_desc', 'Based on 970nm Leaf Water Band Index') + ` • Urgency: ${che?.irrigationUrgency || 'ADEQUATE'}` : 'Pending Scan Data'}
@@ -1937,8 +1586,7 @@ export function createSpectroscopyAnalysisView({
                     </div>
                     <div>
                       <div class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                        <span>Chlorophyll / NDRE & Pre-Symptomatic Disease Alert</span>
-                        ${isLeafScanDone ? `<span class="text-[10px] text-teal-600 font-mono font-bold">(${che?.diseaseRisk?.confidence || 90}% conf)</span>` : '<span class="text-[10px] text-slate-400 font-mono font-bold">(--)</span>'}
+                        <span>Disease Alert</span>
                       </div>
                       <div class="text-[11px] text-slate-500 mt-0.5">
                         ${isLeafScanDone 
@@ -1965,8 +1613,7 @@ export function createSpectroscopyAnalysisView({
                     </div>
                     <div>
                       <div class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                        <span>${t('decision_harvest', 'Recommended Action Pill & Harvest Window')}</span>
-                        ${isLeafScanDone ? `<span class="text-[10px] text-purple-600 font-mono font-bold">(${che?.harvest?.confidence || 88}% conf)</span>` : '<span class="text-[10px] text-slate-400 font-mono font-bold">(--)</span>'}
+                        <span>${t('decision_harvest', 'Harvest Window')}</span>
                       </div>
                       <div class="text-[11px] text-slate-500 mt-0.5">
                         ${isLeafScanDone ? t('decision_harvest_desc', 'Peak harvest opens in {days} days').replace('{days}', che?.harvest?.daysToPeakHarvest || 12) + ` • Action: ${che?.vitalityScore >= 80 ? 'Optimal Growth' : 'Nutrient/Moisture Adjust'}` : 'Pending Scan Data'}
@@ -1984,7 +1631,6 @@ export function createSpectroscopyAnalysisView({
                 </div>
               </div>
             </div>
-          `}
 
           <!-- Bottom Action Buttons: Scan Another Spot / Save Records -->
           <div class="pt-2 flex flex-col sm:flex-row items-center gap-2">
@@ -2717,6 +2363,43 @@ export function createSpectroscopyAnalysisView({
         if (inputEl) inputEl.value = '';
       } catch (err) {
         showSpectroToast({ title: 'Send Failed', message: err.message, type: 'error' });
+      }
+    });
+
+    // Export every locally-stored scan as a single downloadable spreadsheet (CSV)
+    container.querySelector('#btn-export-all-scans-csv')?.addEventListener('click', async () => {
+      try {
+        const allScans = await offlineSpectralDatabase.getAllScans();
+        if (!allScans || allScans.length === 0) {
+          showSpectroToast({ title: 'No Scans Yet', type: 'warning' });
+          return;
+        }
+
+        const columns = [
+          'timestamp', 'plantNumber', 'plantName', 'potNumber', 'zone', 'cropVariety',
+          'vitalityScore', 'ndvi', 'ndre', 'leafWaterIndex', 'cire',
+          'nitrogenPrescriptionKg', 'irrigationCountdownHours', 'irrigationUrgency',
+          'diseaseDetected', 'diseasePathogen', 'syncStatus'
+        ];
+        const csvEscape = (v) => {
+          const s = v == null ? '' : String(v);
+          return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+        };
+        const rows = allScans.map(s => {
+          const che = s.chemometrics || {};
+          return [
+            s.timestamp, s.plantNumber, s.plantName, s.potNumber, s.zone, s.cropVariety,
+            che.vitalityScore, che.indices?.ndvi, che.indices?.ndre, che.indices?.leafWaterIndex ?? che.indices?.wbi, che.indices?.cire,
+            che.nitrogenPrescriptionKg, che.irrigationCountdownHours, che.irrigationUrgency,
+            che.diseaseRisk?.detected || false, che.diseaseRisk?.pathogen || '', s.syncStatus
+          ].map(csvEscape).join(',');
+        });
+        const csv = [columns.join(','), ...rows].join('\r\n');
+        const dateStr = new Date().toISOString().slice(0, 10);
+        downloadTextFile(`agrispectra_all_scans_${dateStr}.csv`, csv, 'text/csv');
+        showSpectroToast({ title: `Exported ${allScans.length} Scans`, type: 'success' });
+      } catch (err) {
+        showSpectroToast({ title: 'Export Failed', message: err.message, type: 'error' });
       }
     });
 

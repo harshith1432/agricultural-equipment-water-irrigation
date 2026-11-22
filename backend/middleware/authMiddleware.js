@@ -62,38 +62,47 @@ export async function authenticate(req, res, next) {
     }
 
     // 2. Bearer Token Check (Firebase ID Token or Enterprise Token)
+    // Guessable stub tokens (operator-token, farmer-*, any "*id-token*"/"*mobile-token*"
+    // substring, unsigned base64 self-assigned roles) are dev/test-harness-only
+    // conveniences. Accepting them in production is an authentication bypass
+    // (OWASP A07:2021) - anyone who sends "Bearer xxx-mobile-token" would get
+    // farm_owner access to every farm ('*'). They are only honored when
+    // NODE_ENV !== 'production', so the existing test suite keeps working.
+    const allowDevStubTokens = process.env.NODE_ENV !== 'production';
+
     if (!authenticatedUser && authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7).trim();
 
-      if (safeCompare(token, enterpriseSecret) || safeCompare(token, apiSecret) || token === 'admin-token' || token === 'superadmin-token') {
+      if (safeCompare(token, enterpriseSecret) || safeCompare(token, apiSecret) ||
+          (allowDevStubTokens && (token === 'admin-token' || token === 'superadmin-token'))) {
         authenticatedUser = {
           uid: 'usr_exec_001',
           role: 'superadmin',
           title: 'Executive CEO & Chief Architect',
           assignedFarms: ['*']
         };
-      } else if (token === 'operator-token' || token.startsWith('operator-')) {
+      } else if (allowDevStubTokens && (token === 'operator-token' || token.startsWith('operator-'))) {
         authenticatedUser = {
           uid: 'usr_oper_004',
           role: 'field_operator',
           title: 'Lead Solenoid Field Operator',
           assignedFarms: ['farm-valley-1']
         };
-      } else if (token === 'farmer-token' || token.startsWith('farmer-')) {
+      } else if (allowDevStubTokens && (token === 'farmer-token' || token.startsWith('farmer-'))) {
         authenticatedUser = {
           uid: 'usr_farm_002',
           role: 'farm_owner',
           title: 'Principal Proprietor',
           assignedFarms: ['farm-valley-1']
         };
-      } else if (token === 'agronomist-token' || token.startsWith('agronomist-')) {
+      } else if (allowDevStubTokens && (token === 'agronomist-token' || token.startsWith('agronomist-'))) {
         authenticatedUser = {
           uid: 'usr_agro_003',
           role: 'agronomist',
           title: 'Senior Agronomy Scientist',
           assignedFarms: ['farm-valley-1']
         };
-      } else if (token.includes('id-token') || token.includes('mobile-token') || token === 'valid-user-id-token') {
+      } else if (allowDevStubTokens && (token.includes('id-token') || token.includes('mobile-token') || token === 'valid-user-id-token')) {
         authenticatedUser = {
           uid: 'usr_mobile_001',
           role: 'farm_owner',
@@ -123,7 +132,8 @@ export async function authenticate(req, res, next) {
         }
 
         // Support signed Base64 JSON token simulations for non-admin roles
-        if (!authenticatedUser) {
+        // (dev/test-harness only - see allowDevStubTokens note above)
+        if (!authenticatedUser && allowDevStubTokens) {
           try {
             const decoded = JSON.parse(Buffer.from(token, 'base64').toString('utf8'));
             if (decoded && decoded.role && VALID_ROLES.includes(decoded.role.toLowerCase())) {

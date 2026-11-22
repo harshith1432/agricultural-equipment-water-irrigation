@@ -8,6 +8,7 @@
 #include "main.h"
 #include "stm32l4xx_it.h"
 #include "led_driver.h"
+#include "hci_tl_interface.h"
 
 void NMI_Handler(void) {}
 
@@ -37,7 +38,8 @@ void DebugMon_Handler(void) {}
 void PendSV_Handler(void) {}
 
 void EXTI9_5_IRQHandler(void) {
-  /* BlueNRG-MS SPI3 IRQ is on PE6 (EXTI6) */
+  /* BlueNRG-MS data-ready IRQ is on PE6 (EXTI6) */
+  HAL_EXTI_IRQHandler(&hexti6);
 }
 
 void USART1_IRQHandler(void) {

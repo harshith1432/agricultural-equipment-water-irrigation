@@ -15,8 +15,17 @@
 extern "C" {
 #endif
 
-/* Maximum BLE notification chunk size (Standard BLE MTU payload) */
-#define BLE_MAX_PAYLOAD_LEN            244U
+/* Maximum BLE notification chunk size. This firmware never performs an ATT
+   MTU exchange (no aci_gatt_exchange_config / MTU event handling in
+   app_ble.c), so every connection stays at the BLE default ATT_MTU of 23
+   bytes => 20 usable bytes per Handle Value Notification. Chunking at the
+   GATT characteristic's declared max length (244) instead of this real,
+   negotiated-MTU-independent limit caused aci_gatt_update_char_value to
+   silently truncate any ack/response longer than ~20 bytes mid-string with
+   no trailing newline, which made the mobile app's line reassembly wait
+   forever for a terminator that was never coming (e.g. every calibration
+   step hung ~35s then reported failure). */
+#define BLE_MAX_PAYLOAD_LEN            20U
 
 typedef enum {
   BLE_STATE_INITIALIZING = 0,

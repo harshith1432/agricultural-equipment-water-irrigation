@@ -763,6 +763,10 @@ class AuthService {
         firestoreService.setActiveUser(this.currentUser);
       } catch (e) {}
 
+      try {
+        firestoreService.logAppEvent('LOGIN', { uid: targetUid, email: cleanEmail, farmId: targetFarmId });
+      } catch (e) {}
+
       // Fast-sync profile: allow up to 300ms for instant Firestore retrieval; if it takes longer, continue in background!
       const syncPromise = this.syncUserProfile(user, {
         displayName: targetDisplayName,
@@ -1058,6 +1062,10 @@ class AuthService {
         firestoreService.setActiveUser(this.currentUser);
       } catch (e) {}
 
+      try {
+        firestoreService.logAppEvent('SIGNUP', { uid: targetUid, email: cleanEmail, farmId: userFarmId, role });
+      } catch (e) {}
+
       // Non-blocking Firestore profile creation (isNewUser: true skips any queries)
       const profilePromise = this.syncUserProfile(user, {
         displayName: formattedName,
@@ -1282,6 +1290,7 @@ class AuthService {
    */
   async signOut() {
     console.log("[AuthService] Signing out current user...");
+    const outgoingUser = this.currentUser;
     try {
       if (this.auth && this.currentUser && !this.isOfflineSession) {
         await firebaseSignOut(this.auth);
@@ -1293,6 +1302,11 @@ class AuthService {
       this.currentUserProfile = null;
       this.isOfflineSession = false;
       this._clearCachedSession();
+      try {
+        if (outgoingUser) {
+          firestoreService.logAppEvent('LOGOUT', { uid: outgoingUser.uid, email: outgoingUser.email, farmId: outgoingUser.farmId });
+        }
+      } catch (e) {}
       try {
         firestoreService.setActiveUser(null);
       } catch (e) {}
