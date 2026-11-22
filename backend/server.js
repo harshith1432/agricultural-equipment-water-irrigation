@@ -108,6 +108,13 @@ app.use(cors({
         ) {
           isAllowed = true;
         }
+        // Allow the Firebase-Hosted marketing website & admin dashboard
+        else if (
+          host.endsWith('.web.app') ||
+          host.endsWith('.firebaseapp.com')
+        ) {
+          isAllowed = true;
+        }
       } catch {
         // Invalid origin URL format
       }
@@ -150,6 +157,11 @@ app.use((req, res, next) => {
 
 // Enforce 500kb request payload limit to defend against memory exhaustion DoS attacks
 app.use(express.json({ limit: '500kb' }));
+
+// Public APK download. Firebase Hosting's free Spark plan rejects .apk files
+// outright ("Executable files are forbidden"), so the installable app is
+// served from here instead and linked to from the marketing website.
+app.use('/downloads', express.static(path.join(__dirname, 'public', 'downloads')));
 
 // Request Logging Middleware
 app.use((req, res, next) => {

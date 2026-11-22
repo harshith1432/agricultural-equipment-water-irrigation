@@ -7,6 +7,18 @@
 <meta name="description" content="AgriSpectra Flow & Field pairs a handheld AS7265x leaf spectroscope with a closed-loop 6-zone irrigation system — real NDVI/NDRE vitality readings and automated watering, from a single Android app.">
 <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/landing/style.css">
+<script>
+  // This domain previously served the Android app's own web build, which
+  // registered a PWA service worker (sw.js) caching the old app shell.
+  // Clean that up for returning visitors so they see this marketing page,
+  // not a stale cached copy of the app.
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
+  }
+  if ('caches' in window) {
+    caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+  }
+</script>
 <style>
   /* Page-specific additions not in the shared stylesheet */
   .badge-dot-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
@@ -45,7 +57,7 @@
 <header class="site-header">
   <div class="container">
     <nav class="nav-wrapper">
-      <a href="/landing/" class="brand-link">
+      <a href="/" class="brand-link">
         <img src="/icons/icon.svg" alt="AgriSpectra logo" class="brand-logo-img" style="border-radius:10px;">
         <span class="brand-name">AgriSpectra</span>
       </a>
@@ -278,7 +290,7 @@
   <div class="container">
     <div class="footer-top-grid">
       <div class="footer-brand-col">
-        <a href="/landing/" class="brand-link">
+        <a href="/" class="brand-link">
           <img src="/icons/icon.svg" alt="AgriSpectra logo" class="brand-logo-img" style="width:36px;height:36px;border-radius:8px;">
           <span class="brand-name" style="font-size:1.4rem;color:var(--white);">AgriSpectra</span>
         </a>
@@ -296,7 +308,7 @@
         <h5 class="footer-heading">Company</h5>
         <div class="footer-links-list">
           <a href="#faq">FAQ</a>
-          <a href="/" class="admin-footer-link">Web Portal</a>
+          <a href="/landing/admin.html" class="admin-footer-link">Admin Portal</a>
         </div>
       </div>
     </div>

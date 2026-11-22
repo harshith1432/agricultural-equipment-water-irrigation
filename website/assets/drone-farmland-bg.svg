@@ -1,0 +1,130 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1200" width="800" height="1200" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <!-- Soil and Field Gradients -->
+    <linearGradient id="fieldGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#14301d" />
+      <stop offset="40%" stop-color="#1f4d2f" />
+      <stop offset="70%" stop-color="#1a4227" />
+      <stop offset="100%" stop-color="#0e2315" />
+    </linearGradient>
+
+    <linearGradient id="fieldGrad2" x1="20%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#235332" />
+      <stop offset="50%" stop-color="#2e6d42" />
+      <stop offset="100%" stop-color="#183b24" />
+    </linearGradient>
+
+    <linearGradient id="soilPathGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#3d2f21" />
+      <stop offset="50%" stop-color="#544332" />
+      <stop offset="100%" stop-color="#33271b" />
+    </linearGradient>
+
+    <!-- Crop Rows Pattern 1 (Horizontal / Slight Angle) -->
+    <pattern id="cropRowsDiagonal" width="24" height="24" patternTransform="rotate(28 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="24" stroke="#2c663f" stroke-width="4" stroke-opacity="0.8" />
+      <line x1="6" y1="0" x2="6" y2="24" stroke="#1c472a" stroke-width="3" stroke-opacity="0.9" />
+      <line x1="12" y1="0" x2="12" y2="24" stroke="#357a4c" stroke-width="5" stroke-opacity="0.75" />
+      <line x1="18" y1="0" x2="18" y2="24" stroke="#163721" stroke-width="3" stroke-opacity="0.9" />
+    </pattern>
+
+    <!-- Crop Rows Pattern 2 (Dense Green Rows) -->
+    <pattern id="cropRowsVertical" width="16" height="16" patternTransform="rotate(-15 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="16" stroke="#255a36" stroke-width="4" stroke-opacity="0.7" />
+      <line x1="4" y1="0" x2="4" y2="16" stroke="#3da05e" stroke-width="3" stroke-opacity="0.8" />
+      <line x1="8" y1="0" x2="8" y2="16" stroke="#1c4529" stroke-width="3" stroke-opacity="0.9" />
+      <line x1="12" y1="0" x2="12" y2="16" stroke="#327c49" stroke-width="3.5" stroke-opacity="0.8" />
+    </pattern>
+
+    <!-- Crop Rows Pattern 3 (Tractor wheel lines) -->
+    <pattern id="cropRowsWavy" width="30" height="30" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="30" stroke="#1d4229" stroke-width="5" stroke-opacity="0.6" />
+      <line x1="10" y1="0" x2="10" y2="30" stroke="#3a7e50" stroke-width="6" stroke-opacity="0.8" />
+      <line x1="20" y1="0" x2="20" y2="30" stroke="#2a5f3b" stroke-width="4" stroke-opacity="0.7" />
+    </pattern>
+
+    <!-- Vignette / Lighting Overlay -->
+    <radialGradient id="droneVignette" cx="50%" cy="45%" r="75%">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0.1" />
+      <stop offset="60%" stop-color="#000000" stop-opacity="0.45" />
+      <stop offset="100%" stop-color="#030805" stop-opacity="0.82" />
+    </radialGradient>
+
+    <!-- Sunlight Beam -->
+    <linearGradient id="sunbeam" x1="0%" y1="0%" x2="100%" y2="80%">
+      <stop offset="0%" stop-color="#bbf7d0" stop-opacity="0.12" />
+      <stop offset="35%" stop-color="#86efac" stop-opacity="0.05" />
+      <stop offset="70%" stop-color="#000000" stop-opacity="0" />
+    </linearGradient>
+  </defs>
+
+  <!-- Deep Soil Base -->
+  <rect width="800" height="1200" fill="#0d2415" />
+
+  <!-- Field Parcel A (Top Left Farmland) -->
+  <polygon points="0,0 480,0 420,380 0,310" fill="url(#fieldGrad2)" />
+  <polygon points="0,0 480,0 420,380 0,310" fill="url(#cropRowsDiagonal)" />
+
+  <!-- Field Parcel B (Top Right Farmland) -->
+  <polygon points="480,0 800,0 800,440 430,370" fill="#1b4528" />
+  <polygon points="480,0 800,0 800,440 430,370" fill="url(#cropRowsVertical)" />
+
+  <!-- Field Parcel C (Center Large Parcel - The Potato Field) -->
+  <polygon points="0,310 420,380 340,780 0,720" fill="url(#fieldGrad1)" />
+  <polygon points="0,310 420,380 340,780 0,720" fill="url(#cropRowsDiagonal)" />
+
+  <!-- Field Parcel D (Center-Right Farmland with Hedgerows) -->
+  <polygon points="420,380 800,440 800,860 350,770" fill="#204d2e" />
+  <polygon points="420,380 800,440 800,860 350,770" fill="url(#cropRowsWavy)" />
+
+  <!-- Field Parcel E (Bottom Left Farmland) -->
+  <polygon points="0,720 340,780 280,1200 0,1200" fill="#183d24" />
+  <polygon points="0,720 340,780 280,1200 0,1200" fill="url(#cropRowsVertical)" />
+
+  <!-- Field Parcel F (Bottom Right Farmland) -->
+  <polygon points="340,780 800,860 800,1200 280,1200" fill="url(#fieldGrad2)" />
+  <polygon points="340,780 800,860 800,1200 280,1200" fill="url(#cropRowsDiagonal)" />
+
+  <!-- Natural Dirt Roads & Farm Tracks -->
+  <path d="M 0,310 Q 210,345 420,380 T 800,440" stroke="url(#soilPathGrad)" stroke-width="14" fill="none" stroke-linecap="round" />
+  <path d="M 420,0 Q 425,190 420,380 T 340,780 T 280,1200" stroke="url(#soilPathGrad)" stroke-width="12" fill="none" stroke-linecap="round" />
+  <path d="M 340,780 Q 560,820 800,860" stroke="url(#soilPathGrad)" stroke-width="10" fill="none" stroke-linecap="round" />
+
+  <!-- Irrigation Canal / Secondary Ditch Line -->
+  <path d="M 2,315 Q 212,350 422,385" stroke="#254d32" stroke-width="4" fill="none" opacity="0.6" />
+  <path d="M 425,5 Q 430,195 425,385" stroke="#163420" stroke-width="3" fill="none" opacity="0.7" />
+
+  <!-- Farm Tree Clusters & Hedgerows along borders -->
+  <g fill="#0b2413" opacity="0.85">
+    <!-- Tree cluster 1 -->
+    <circle cx="430" cy="385" r="16" fill="#184323" />
+    <circle cx="445" cy="392" r="14" fill="#20552d" />
+    <circle cx="420" cy="395" r="12" fill="#12351c" />
+    <circle cx="438" cy="378" r="13" fill="#296b39" />
+
+    <!-- Tree cluster 2 -->
+    <circle cx="345" cy="785" r="18" fill="#1a4525" />
+    <circle cx="360" cy="792" r="15" fill="#265e34" />
+    <circle cx="330" cy="795" r="13" fill="#10321a" />
+    
+    <!-- Tree cluster 3 (top right) -->
+    <circle cx="780" cy="210" r="15" fill="#153e20" />
+    <circle cx="792" cy="225" r="17" fill="#21592e" />
+
+    <!-- Tree cluster 4 (farmland corner) -->
+    <circle cx="680" cy="620" r="22" fill="#1f4f2a" />
+    <circle cx="698" cy="635" r="18" fill="#2a6838" />
+    <circle cx="665" cy="640" r="15" fill="#14391e" />
+  </g>
+
+  <!-- Tractor Turnaround Arcs at Field Edges -->
+  <path d="M 20,40 Q 60,20 100,50" stroke="#33271b" stroke-width="2" fill="none" opacity="0.5" />
+  <path d="M 120,45 Q 160,25 200,55" stroke="#33271b" stroke-width="2" fill="none" opacity="0.5" />
+  <path d="M 50,750 Q 90,730 130,760" stroke="#33271b" stroke-width="2" fill="none" opacity="0.4" />
+
+  <!-- Sunlight & Atmospheric Flare -->
+  <polygon points="0,0 800,0 800,1200 0,1200" fill="url(#sunbeam)" />
+
+  <!-- Drone Altitude Shadow Vignette -->
+  <rect width="800" height="1200" fill="url(#droneVignette)" />
+</svg>

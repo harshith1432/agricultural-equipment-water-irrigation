@@ -290,8 +290,10 @@ async function runAudit() {
   const fbPath = path.join(ROOT_DIR, 'firebase.json');
   assert(fs.existsSync(fbPath), "firebase.json exists");
   const fbConfig = JSON.parse(fs.readFileSync(fbPath, 'utf-8'));
-  assert(fbConfig.hosting.public === "dist", "Firebase Hosting public directory points to 'dist'");
-  assert(fbConfig.hosting.rewrites.some(r => r.source === "**" && r.destination === "/index.html"), "Firebase Hosting includes SPA rewrite fallback for deep links");
+  assert(fbConfig.hosting.public === "website", "Firebase Hosting public directory points to the marketing site's 'website' folder, not the app bundle");
+  assert(fs.existsSync(path.join(ROOT_DIR, 'website', 'index.html')), "Marketing landing page exists at website/index.html (website root, not the app)");
+  assert(fs.existsSync(path.join(ROOT_DIR, 'website', 'landing', 'admin.html')), "Admin dashboard exists at website/landing/admin.html");
+  assert(!fs.existsSync(path.join(ROOT_DIR, 'public', 'landing')), "Marketing site is NOT nested inside public/ (would get bundled into the Capacitor APK)");
 
   // Verify production bundle
   let distHtmlPath = path.join(ROOT_DIR, 'dist', 'index.html');
