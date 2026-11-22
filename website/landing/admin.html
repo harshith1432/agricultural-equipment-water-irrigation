@@ -32,23 +32,40 @@
     border: 1px solid #fecaca; border-radius: var(--radius-sm); font-size: 0.85rem; display: none;
   }
 
-  .admin-main { flex: 1; padding: 32px; display: none; }
+  .admin-main { flex: 1; display: none; }
   .admin-main.active { display: block; }
+  .admin-loading { text-align: center; padding: 60px 0; color: var(--slate-500); }
+
+  /* Tab Navigation */
+  .admin-tabs-nav {
+    display: flex; gap: 4px; background: var(--white); border-bottom: 1px solid var(--slate-200);
+    padding: 0 28px; overflow-x: auto;
+  }
+  .admin-tab-btn {
+    background: none; border: none; padding: 16px 18px; font-size: 0.86rem; font-weight: 700;
+    color: var(--slate-500); cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap;
+    transition: all 0.15s ease;
+  }
+  .admin-tab-btn:hover { color: var(--slate-800); }
+  .admin-tab-btn.active { color: var(--emerald-700); border-bottom-color: var(--emerald-600); }
+  .admin-tab-panel { display: none; padding: 28px; }
+  .admin-tab-panel.active { display: block; }
+
   .kpi-grid {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 18px; margin-bottom: 32px;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 18px; margin-bottom: 28px;
   }
   .kpi-card {
     background: var(--white); border: 1px solid var(--slate-200); border-radius: var(--radius-lg); padding: 20px;
   }
   .kpi-label { font-size: 0.74rem; font-weight: 700; color: var(--slate-500); text-transform: uppercase; letter-spacing: 0.04em; }
   .kpi-value { font-size: 1.9rem; font-weight: 800; color: var(--slate-900); margin-top: 6px; font-family: var(--font-mono); }
-  .kpi-sub { font-size: 0.78rem; color: var(--slate-500); margin-top: 4px; }
 
   .admin-panel {
     background: var(--white); border: 1px solid var(--slate-200); border-radius: var(--radius-lg);
     padding: 24px; margin-bottom: 24px;
   }
-  .admin-panel h2 { font-size: 1.05rem; font-weight: 700; color: var(--slate-900); margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+  .admin-panel h2 { font-size: 1.05rem; font-weight: 700; color: var(--slate-900); margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+  .admin-panel .panel-note { font-size: 0.78rem; color: var(--slate-500); margin-top: -8px; margin-bottom: 14px; }
   .admin-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
   .admin-table th, .admin-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--slate-100); }
   .admin-table th { color: var(--slate-500); font-weight: 700; text-transform: uppercase; font-size: 0.7rem; }
@@ -59,7 +76,41 @@
     font-size: 0.74rem; font-weight: 700; background: var(--slate-100); color: var(--slate-700);
     padding: 3px 9px; border-radius: var(--radius-full);
   }
-  .admin-loading { text-align: center; padding: 60px 0; color: var(--slate-500); }
+
+  .role-badge { font-size: 0.7rem; font-weight: 800; padding: 2px 9px; border-radius: var(--radius-full); text-transform: uppercase; }
+  .role-badge.superadmin { background: #f3e8ff; color: #7e22ce; }
+  .role-badge.farm_owner { background: var(--emerald-100); color: var(--emerald-800); }
+  .role-badge.agronomist { background: #dbeafe; color: #1e40af; }
+  .role-badge.field_operator { background: #fef3c7; color: #92400e; }
+  .role-badge.unknown { background: var(--slate-100); color: var(--slate-600); }
+
+  .search-input { width: 100%; max-width: 320px; padding: 8px 12px; border: 1px solid var(--slate-300); border-radius: var(--radius-sm); font-size: 0.85rem; }
+
+  .zone-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+  .zone-card { background: var(--slate-50); border: 1px solid var(--slate-200); border-radius: var(--radius-md); padding: 16px; }
+  .zone-card h4 { font-size: 0.92rem; font-weight: 700; color: var(--slate-900); margin-bottom: 8px; }
+  .valve-state-badge { font-size: 0.72rem; font-weight: 800; padding: 3px 10px; border-radius: var(--radius-full); }
+  .valve-state-badge.OPEN { background: #dcfce7; color: #166534; }
+  .valve-state-badge.CLOSED { background: var(--slate-200); color: var(--slate-600); }
+
+  .killswitch-wrap { text-align: center; padding: 32px 0; }
+  #killswitchBtn {
+    background: #dc2626; color: white; border: none; border-radius: 50%; width: 140px; height: 140px;
+    font-size: 0.95rem; font-weight: 800; text-transform: uppercase; cursor: pointer; box-shadow: 0 8px 24px rgba(220,38,38,0.4);
+    transition: transform 0.15s ease;
+  }
+  #killswitchBtn:hover { transform: scale(1.04); }
+  #killswitchBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.6); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
+  .modal-overlay.open { display: flex; }
+  .modal-box { background: white; border-radius: var(--radius-lg); padding: 28px; max-width: 420px; width: 100%; }
+  .modal-box h3 { font-size: 1.1rem; font-weight: 800; margin-bottom: 12px; color: var(--slate-900); }
+  .modal-box p { font-size: 0.88rem; color: var(--slate-600); margin-bottom: 20px; line-height: 1.5; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+  .commercial-placeholder { text-align: center; padding: 60px 24px; color: var(--slate-500); }
+  .commercial-placeholder svg { margin: 0 auto 16px auto; display: block; }
 </style>
 </head>
 <body>
@@ -97,45 +148,136 @@
 
   <div class="admin-main" id="adminMain">
     <div class="admin-loading" id="adminLoading">Loading platform data…</div>
+
     <div id="adminContent" style="display:none;">
+      <nav class="admin-tabs-nav">
+        <button class="admin-tab-btn active" data-tab="identity">Identity & RBAC</button>
+        <button class="admin-tab-btn" data-tab="fleet">Hardware Fleet</button>
+        <button class="admin-tab-btn" data-tab="hydraulic">Hydraulic Safety</button>
+        <button class="admin-tab-btn" data-tab="commercial">Commercial</button>
+      </nav>
 
-      <div class="kpi-grid">
-        <div class="kpi-card"><div class="kpi-label">Total APK Downloads</div><div class="kpi-value" id="kpiDownloads">—</div></div>
-        <div class="kpi-card"><div class="kpi-label">Registered Users</div><div class="kpi-value" id="kpiUsers">—</div></div>
-        <div class="kpi-card"><div class="kpi-label">Farmers</div><div class="kpi-value" id="kpiFarmers">—</div></div>
-        <div class="kpi-card"><div class="kpi-label">Total Scans</div><div class="kpi-value" id="kpiScans">—</div></div>
-        <div class="kpi-card"><div class="kpi-label">App Events Logged</div><div class="kpi-value" id="kpiEvents">—</div></div>
+      <!-- TAB 1: IDENTITY & RBAC -->
+      <div class="admin-tab-panel active" id="tab-identity">
+        <div class="kpi-grid">
+          <div class="kpi-card"><div class="kpi-label">Total APK Downloads</div><div class="kpi-value" id="kpiDownloads">—</div></div>
+          <div class="kpi-card"><div class="kpi-label">Registered Users</div><div class="kpi-value" id="kpiUsers">—</div></div>
+          <div class="kpi-card"><div class="kpi-label">Farmers</div><div class="kpi-value" id="kpiFarmers">—</div></div>
+          <div class="kpi-card"><div class="kpi-label">Total Scans</div><div class="kpi-value" id="kpiScans">—</div></div>
+          <div class="kpi-card"><div class="kpi-label">App Events Logged</div><div class="kpi-value" id="kpiEvents">—</div></div>
+        </div>
+
+        <div class="admin-panel">
+          <h2>Users by Role <span class="badge-breakdown" id="roleBreakdown"></span></h2>
+        </div>
+
+        <div class="admin-panel">
+          <h2>
+            User Directory
+            <input type="text" class="search-input" id="userSearchInput" placeholder="Search by name or email...">
+          </h2>
+          <table class="admin-table">
+            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Assigned Farms</th><th>Last Active</th><th>Action</th></tr></thead>
+            <tbody id="userDirectoryBody"></tbody>
+          </table>
+        </div>
+
+        <div class="admin-panel">
+          <h2>Recent App Events (Login / Logout / Signup)</h2>
+          <table class="admin-table">
+            <thead><tr><th>Event</th><th>Email</th><th>Timestamp</th></tr></thead>
+            <tbody id="recentEventsBody"></tbody>
+          </table>
+        </div>
       </div>
 
-      <div class="admin-panel">
-        <h2>Users by Role</h2>
-        <div class="badge-breakdown" id="roleBreakdown"></div>
+      <!-- TAB 2: HARDWARE FLEET -->
+      <div class="admin-tab-panel" id="tab-fleet">
+        <div class="admin-panel">
+          <h2>Leaf Spectroscope Fleet <span class="badge-breakdown" id="scanSourceBreakdown"></span></h2>
+          <p class="panel-note">Real scan counts from Cloud Firestore - the AS7265x spectroscope is the only hardware line currently streaming live data into this backend.</p>
+          <table class="admin-table">
+            <thead><tr><th>Scan ID</th><th>Farm</th><th>Plant</th><th>Timestamp</th><th>Vitality</th></tr></thead>
+            <tbody id="recentScansBody"></tbody>
+          </table>
+        </div>
+
+        <div class="admin-panel">
+          <h2>
+            Scan Reports
+            <button id="downloadCsvBtn" class="btn btn-primary btn-sm">Download CSV</button>
+          </h2>
+          <p class="panel-note">Downloads every stored spectral scan record as a CSV file.</p>
+        </div>
+
+        <div class="admin-panel">
+          <h2>Irrigation Zone / Valve Control</h2>
+          <p class="panel-note">Valve state here is real and controllable - the Hydraulic Safety tab's killswitch writes through to this exact data. Soil moisture and crop values are seed configuration pending real probe/microclimate hardware integration, not a live sensor feed.</p>
+          <div class="zone-grid" id="zoneGrid"></div>
+        </div>
       </div>
 
-      <div class="admin-panel">
-        <h2>Scans by Source <span class="badge-breakdown" id="scanSourceBreakdown"></span></h2>
-        <table class="admin-table">
-          <thead><tr><th>Scan ID</th><th>Farm</th><th>Plant</th><th>Timestamp</th><th>Vitality</th></tr></thead>
-          <tbody id="recentScansBody"></tbody>
-        </table>
+      <!-- TAB 3: HYDRAULIC SAFETY -->
+      <div class="admin-tab-panel" id="tab-hydraulic">
+        <div class="admin-panel killswitch-wrap">
+          <button id="killswitchBtn">Emergency<br>Killswitch</button>
+          <p style="margin-top:16px;font-size:0.84rem;color:var(--slate-500);">Instantly closes all 6 hydraulic valve zones with a reverse -12V latching pulse.</p>
+          <p style="font-size:0.78rem;color:var(--slate-400);" id="lastKillswitchInfo"></p>
+        </div>
+
+        <div class="admin-panel">
+          <h2>Immutable Audit Trail</h2>
+          <p class="panel-note">Persisted to Firestore (audit_logs) - survives server restarts, not just an in-memory log.</p>
+          <table class="admin-table">
+            <thead><tr><th>Severity</th><th>Category</th><th>Action</th><th>Actor</th><th>Timestamp</th></tr></thead>
+            <tbody id="auditLogBody"></tbody>
+          </table>
+        </div>
       </div>
 
-      <div class="admin-panel">
-        <h2>
-          Scan Reports
-          <button id="downloadCsvBtn" class="btn btn-primary btn-sm">Download CSV</button>
-        </h2>
-        <p style="font-size:0.82rem;color:var(--slate-500);">Downloads every stored spectral scan record as a CSV file.</p>
+      <!-- TAB 4: COMMERCIAL -->
+      <div class="admin-tab-panel" id="tab-commercial">
+        <div class="admin-panel">
+          <div class="commercial-placeholder">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/></svg>
+            <h3 style="font-size:1.05rem;font-weight:700;color:var(--slate-700);margin-bottom:8px;">Not Yet Implemented</h3>
+            <p style="max-width:460px;margin:0 auto;">Device serial provisioning, subscription tier management, and support ticket triage require real infrastructure (a hardware registry, payment processing, a ticketing backend) that doesn't exist in this project yet. Rather than show fabricated data here, this tab is left honest and empty until that's actually built.</p>
+          </div>
+        </div>
       </div>
+    </div>
+  </div>
+</div>
 
-      <div class="admin-panel">
-        <h2>Recent App Events (Login / Logout / Signup)</h2>
-        <table class="admin-table">
-          <thead><tr><th>Event</th><th>Email</th><th>Timestamp</th></tr></thead>
-          <tbody id="recentEventsBody"></tbody>
-        </table>
-      </div>
+<!-- Role Change Modal -->
+<div class="modal-overlay" id="roleModalOverlay">
+  <div class="modal-box">
+    <h3>Change User Role</h3>
+    <p id="roleModalUserLabel"></p>
+    <div class="form-field">
+      <label class="form-label">New Role</label>
+      <select class="form-select" id="roleModalSelect" style="width:100%;">
+        <option value="superadmin">Superadmin</option>
+        <option value="farm_owner">Farm Owner</option>
+        <option value="agronomist">Agronomist</option>
+        <option value="field_operator">Field Operator</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" id="roleModalCancelBtn">Cancel</button>
+      <button class="btn btn-primary" id="roleModalConfirmBtn">Confirm Change</button>
+    </div>
+  </div>
+</div>
 
+<!-- Killswitch Confirmation Modal -->
+<div class="modal-overlay" id="killswitchModalOverlay">
+  <div class="modal-box">
+    <h3>Confirm Emergency Killswitch</h3>
+    <p>This will immediately close all 6 hydraulic valve zones across all farms. This action is logged and cannot be undone remotely - valves must be reopened manually afterward. Continue?</p>
+    <div class="modal-actions">
+      <button class="btn btn-outline" id="killswitchModalCancelBtn">Cancel</button>
+      <button class="btn btn-primary" id="killswitchModalConfirmBtn" style="background:#dc2626;border-color:#dc2626;">Confirm Shutdown</button>
     </div>
   </div>
 </div>

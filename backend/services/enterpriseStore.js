@@ -259,14 +259,19 @@ class EnterpriseStore {
 
   /**
    * User Management: Update User Role
+   * Persists the role change to Firestore (not just the in-memory copy) -
+   * RBAC state must survive a redeploy, which happens on every push in
+   * this project's workflow. If the durable write fails, this throws
+   * rather than reporting success on a change that will silently revert
+   * on the next restart.
    */
-  updateUserRole({ userId, email, newRole, updatedBy = "superadmin_console" }) {
+  async updateUserRole({ userId, email, newRole, updatedBy = "superadmin_console" }) {
     if (!VALID_ROLES.includes(newRole)) {
       throw new Error(`Invalid role '${newRole}'. Allowed roles: ${VALID_ROLES.join(', ')}`);
     }
 
     const user = this.users.find(u =>
-      (userId && u.id === userId) || (email && u.email.toLowerCase() === email.toLowerCase())
+      (userId && (u.id === userId || u.uid === userId)) || (email && u.email.toLowerCase() === email.toLowerCase())
     );
 
     if (!user) {
@@ -278,7 +283,20 @@ class EnterpriseStore {
     user.permissions = ROLE_PERMISSIONS[newRole];
     user.lastActive = new Date().toISOString();
 
-    // Audit log entry
+    const docId = user.uid || user.id;
+    const persisted = await firestoreClient.setDocument(`users/${docId}`, {
+      role: newRole,
+      lastActive: user.lastActive
+    }, { merge: true });
+
+    if (!persisted) {
+      // Roll back the in-memory change so the UI doesn't show a role that
+      // isn't actually durable.
+      user.role = previousRole;
+      user.permissions = ROLE_PERMISSIONS[previousRole];
+      throw new Error('Role change could not be persisted to Firestore - no change applied.');
+    }
+
     this.addAuditLog({
       category: "ROLE_UPDATE",
       severity: "WARN",
@@ -292,8 +310,10 @@ class EnterpriseStore {
 
   /**
    * User Management: Create User
+   * Persists to Firestore (users/{id}) in addition to the in-memory copy,
+   * same durability rationale as updateUserRole above.
    */
-  createUser({ name, email, role, title, organization, assignedFarms = ["farm-valley-1"] }) {
+  async createUser({ name, email, role, title, organization, assignedFarms = ["farm-valley-1"] }) {
     if (!name || !email) {
       throw new Error("User name and email are required.");
     }
@@ -319,6 +339,11 @@ class EnterpriseStore {
       permissions: ROLE_PERMISSIONS[roleToSet]
     };
 
+    const persisted = await firestoreClient.setDocument(`users/${newUser.id}`, newUser, { merge: false });
+    if (!persisted) {
+      throw new Error('New user could not be persisted to Firestore - account not created.');
+    }
+
     this.users.push(newUser);
 
     this.addAuditLog({
@@ -335,6 +360,11 @@ class EnterpriseStore {
   /**
    * Enterprise Emergency Hydraulic Killswitch
    * Instantly closes all 6 bi-stable latching solenoid valves across all farming parcels.
+   * The physical/in-memory action completes synchronously and is never
+   * blocked on a database round-trip (this is a safety-critical path);
+   * the durable valve-state write to Firestore happens fire-and-forget
+   * immediately after, so a redeploy right after a killswitch doesn't
+   * revert to a stale "OPEN" state that was never persisted.
    */
   emergencyKillswitch({ operatorId = "usr_exec_001", reason = "ENTERPRISE_COMMAND_SHUTDOWN" } = {}) {
     const now = new Date().toISOString();
@@ -353,6 +383,13 @@ class EnterpriseStore {
         priorState,
         newState: "CLOSED",
         polarity: "-12V latch pulse applied"
+      });
+
+      firestoreClient.setDocument(`farms/farm-valley-1/plots/${plot.id}`, {
+        valve: plot.valve,
+        updatedAt: now
+      }, { merge: true }).then((ok) => {
+        if (!ok) console.warn(`[EnterpriseStore] Killswitch valve state for plot ${plot.id} was NOT persisted to Firestore.`);
       });
     }
 
@@ -400,6 +437,14 @@ class EnterpriseStore {
       this.totalWaterDeliveredLiters += (plot.valve.flowRateLph / 60) * durationMinutes;
       plot.totalLitersDelivered += (plot.valve.flowRateLph / 60) * durationMinutes;
     }
+
+    firestoreClient.setDocument(`farms/farm-valley-1/plots/${plot.id}`, {
+      valve: plot.valve,
+      totalLitersDelivered: plot.totalLitersDelivered,
+      updatedAt: plot.valve.lastActuatedAt
+    }, { merge: true }).then((ok) => {
+      if (!ok) console.warn(`[EnterpriseStore] Valve state for plot ${plot.id} was NOT persisted to Firestore.`);
+    });
 
     this.addAuditLog({
       category: "VALVE_CONTROL",
@@ -522,16 +567,41 @@ class EnterpriseStore {
     if (this.auditLogs.length > 500) {
       this.auditLogs.pop();
     }
+
+    // Durable copy: this is meant to be an append-only audit ledger
+    // (KILLSWITCH, ROLE_UPDATE, SECURITY events), not just a ring buffer
+    // that's silently wiped on the next restart. Fire-and-forget so a
+    // critical in-the-moment action (killswitch) is never blocked on a
+    // database round-trip.
+    firestoreClient.setDocument(`audit_logs/${log.id}`, log, { merge: false }).then((ok) => {
+      if (!ok) console.warn(`[EnterpriseStore] Audit log ${log.id} ("${log.action}") was NOT persisted to Firestore.`);
+    });
+
     return log;
   }
 
-  getAuditLogs(filters = {}) {
-    let logs = [...this.auditLogs];
+  /**
+   * Merges the in-memory ring buffer (guaranteed fresh - a log added this
+   * millisecond is in here immediately) with the durable Firestore ledger
+   * (survives restarts, but writes are fire-and-forget so a log added a
+   * moment ago may not have landed yet). Reading from Firestore alone
+   * would miss the most recent entries in exactly the case callers care
+   * about most - checking the audit trail right after triggering an
+   * action like the killswitch.
+   */
+  async getAuditLogs(filters = {}) {
+    const firestoreLogs = await firestoreClient.getCollection('audit_logs').catch(() => []);
+    const merged = new Map();
+    for (const log of (firestoreLogs || [])) merged.set(log.id, log);
+    for (const log of this.auditLogs) merged.set(log.id, log); // in-memory wins on id collision (freshest)
+
+    let logs = Array.from(merged.values()).sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+
     if (filters.category) {
-      logs = logs.filter(l => l.category.toLowerCase() === filters.category.toLowerCase());
+      logs = logs.filter(l => (l.category || '').toLowerCase() === filters.category.toLowerCase());
     }
     if (filters.severity) {
-      logs = logs.filter(l => l.severity.toLowerCase() === filters.severity.toLowerCase());
+      logs = logs.filter(l => (l.severity || '').toLowerCase() === filters.severity.toLowerCase());
     }
     const limit = Number(filters.limit) || 50;
     return logs.slice(0, limit);

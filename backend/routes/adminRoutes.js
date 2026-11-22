@@ -65,6 +65,36 @@ router.get('/admin/metrics', requireAdmin, (req, res) => {
 });
 
 /**
+ * GET /api/admin/fleet
+ * Hydraulic zone/valve control state for the Hardware Fleet tab. The
+ * valve state itself is real and controllable (killswitch/actuate write
+ * through to this exact data, now persisted to Firestore) - but the
+ * starting soilSensors/crop values are seed configuration, not a live
+ * sensor feed, since no soil/microclimate hardware is currently streaming
+ * telemetry into this backend. isLiveTelemetry flags that honestly so the
+ * dashboard never implies a fabricated reading is a real one.
+ * Requires: Admin or Superadmin
+ */
+router.get('/admin/fleet', requireAdmin, (req, res) => {
+  try {
+    const zones = enterpriseStore.plots.map(plot => ({
+      plotId: plot.id,
+      zoneName: plot.name,
+      valve: plot.valve,
+      totalLitersDelivered: plot.totalLitersDelivered,
+      isLiveTelemetry: false
+    }));
+    res.status(200).json({
+      success: true,
+      timestamp: new Date().toISOString(),
+      data: { zones }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
  * GET /api/admin/users
  * Enterprise user directory with tenant scoping, filtering and statistics
  * Requires: Admin, Superadmin, or Farm Owner (scoped to their farm)
@@ -103,13 +133,13 @@ router.get('/admin/users', requireRole(['superadmin', 'admin', 'farm_owner']), (
  * Register/provision a new user with input sanitization
  * Requires: Superadmin
  */
-router.post('/admin/users', requireAdmin, sanitizeUserInput, (req, res) => {
+router.post('/admin/users', requireAdmin, sanitizeUserInput, async (req, res) => {
   try {
     const { name, email, role, title, organization, assignedFarms } = req.body;
     if (!name || !email) {
       return res.status(400).json({ success: false, error: "Fields 'name' and 'email' are mandatory." });
     }
-    const newUser = enterpriseStore.createUser({ name, email, role, title, organization, assignedFarms });
+    const newUser = await enterpriseStore.createUser({ name, email, role, title, organization, assignedFarms });
     res.status(201).json({ success: true, message: "User provisioned successfully", data: newUser });
   } catch (error) {
     res.status(400).json({ success: false, error: error.message });
@@ -121,7 +151,7 @@ router.post('/admin/users', requireAdmin, sanitizeUserInput, (req, res) => {
  * Update user permissions/role with strict RBAC privilege escalation defense
  * Requires: Superadmin
  */
-router.post('/admin/users/role', requireAdmin, sanitizeUserInput, (req, res) => {
+router.post('/admin/users/role', requireAdmin, sanitizeUserInput, async (req, res) => {
   try {
     const { userId, email, role, newRole, updatedBy } = req.body;
     const targetRole = newRole || role;
@@ -140,7 +170,7 @@ router.post('/admin/users/role', requireAdmin, sanitizeUserInput, (req, res) => 
       });
     }
 
-    const updatedUser = enterpriseStore.updateUserRole({
+    const updatedUser = await enterpriseStore.updateUserRole({
       userId,
       email,
       newRole: targetRole,
@@ -185,10 +215,10 @@ router.post('/admin/emergency-killswitch', requireAdmin, (req, res) => {
  * Enterprise audit trail (logins, valve actuations, leaf scans, killswitches)
  * Requires: Superadmin
  */
-router.get('/admin/audit-logs', requireAdmin, (req, res) => {
+router.get('/admin/audit-logs', requireAdmin, async (req, res) => {
   try {
     const { category, severity, limit } = req.query;
-    const logs = enterpriseStore.getAuditLogs({ category, severity, limit });
+    const logs = await enterpriseStore.getAuditLogs({ category, severity, limit });
     res.status(200).json({
       success: true,
       count: logs.length,
