@@ -2990,3 +2990,94 @@ button, input, select, textarea {
   .hero-section.cinematic-hero { min-height: auto; padding: 100px 0 56px 0; }
   .scroll-cue { display: none; }
 }
+
+/* ==========================================================================
+   PRODUCT DIAGRAM ILLUSTRATIONS & RICH SIMULATOR INTERACTIONS
+   ========================================================================== */
+.product-illustration-card {
+  height: 180px;
+}
+.product-illustration-card svg {
+  width: 100%;
+  height: 100%;
+}
+
+.spectral-bar-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 90px;
+  background: #0d1a12;
+  border-radius: var(--radius-sm);
+  padding: 8px 10px 0 10px;
+  margin-top: 10px;
+}
+.spectral-bar {
+  flex: 1;
+  background: linear-gradient(180deg, #6ee7b7, #10b981);
+  border-radius: 2px 2px 0 0;
+  min-height: 4px;
+  transition: height 0.3s ease;
+}
+.spectral-bar-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.64rem;
+  color: #64748b;
+  margin-top: 4px;
+  font-family: var(--font-mono);
+}
+
+.valve-zone-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.valve-zone-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  background: #0d1a12;
+  border: 1px solid #1c3826;
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  cursor: pointer;
+  color: #e2e8f0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+.valve-zone-btn:hover { border-color: #34d399; }
+.valve-zone-btn.open { background: rgba(16, 185, 129, 0.12); border-color: #34d399; }
+.valve-zone-badge {
+  font-size: 0.68rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: #64748b;
+}
+.valve-zone-btn.open .valve-zone-badge { color: #34d399; }
+
+.depth-tab-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.depth-tab-btn {
+  background: #0d1a12;
+  border: 1px solid #1c3826;
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.depth-tab-btn.active { background: #10b981; border-color: #10b981; color: #022c22; }
+.depth-tab-btn:hover:not(.active) { border-color: #34d399; color: #e2e8f0; }
+
+@media (max-width: 480px) {
+  .valve-zone-grid { grid-template-columns: 1fr; }
+}
