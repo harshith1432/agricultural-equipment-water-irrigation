@@ -1870,6 +1870,12 @@ button, input, select, textarea {
     align-items: center;
     justify-content: center;
   }
+  /* The same "Download the App" CTA already exists inside the mobile nav
+     drawer below - keeping the full-text button in the header too pushed
+     the hamburger icon itself off the right edge of the screen on phones. */
+  .nav-actions .btn-primary {
+    display: none;
+  }
 }
 
 @media (max-width: 1024px) {
