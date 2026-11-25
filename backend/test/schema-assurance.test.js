@@ -105,9 +105,10 @@ describe('Database Schema Assurance & Auto-Provisioning Engine', () => {
 
   it('3. Successfully registers new user via POST /api/auth/register and fills users table', async () => {
     const testEmail = `operator_${Date.now()}@agrispectra.test`;
+    const testCredential = process.env.TEST_USER_SECRET || ('Secured_' + Date.now() + '!');
     const res = await makeRequest('POST', '/api/auth/register', {
       email: testEmail,
-      password: 'SecurePassword2026!',
+      password: testCredential,
       displayName: 'Test Operator Alpha',
       role: 'Field Technician',
       farmId: 'farm-valley-1'

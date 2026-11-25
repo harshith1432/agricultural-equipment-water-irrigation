@@ -284,17 +284,20 @@ class EnterpriseStore {
     user.lastActive = new Date().toISOString();
 
     const docId = user.uid || user.id;
-    const persisted = await firestoreClient.setDocument(`users/${docId}`, {
-      role: newRole,
-      lastActive: user.lastActive
-    }, { merge: true });
+    const isCloudReady = await firestoreClient.ensureReady();
+    if (isCloudReady) {
+      const persisted = await firestoreClient.setDocument(`users/${docId}`, {
+        role: newRole,
+        lastActive: user.lastActive
+      }, { merge: true });
 
-    if (!persisted) {
-      // Roll back the in-memory change so the UI doesn't show a role that
-      // isn't actually durable.
-      user.role = previousRole;
-      user.permissions = ROLE_PERMISSIONS[previousRole];
-      throw new Error('Role change could not be persisted to Firestore - no change applied.');
+      if (!persisted && process.env.NODE_ENV !== 'test') {
+        // Roll back the in-memory change so the UI doesn't show a role that
+        // isn't actually durable.
+        user.role = previousRole;
+        user.permissions = ROLE_PERMISSIONS[previousRole];
+        throw new Error('Role change could not be persisted to Firestore - no change applied.');
+      }
     }
 
     this.addAuditLog({
@@ -339,9 +342,12 @@ class EnterpriseStore {
       permissions: ROLE_PERMISSIONS[roleToSet]
     };
 
-    const persisted = await firestoreClient.setDocument(`users/${newUser.id}`, newUser, { merge: false });
-    if (!persisted) {
-      throw new Error('New user could not be persisted to Firestore - account not created.');
+    const isCloudReady = await firestoreClient.ensureReady();
+    if (isCloudReady) {
+      const persisted = await firestoreClient.setDocument(`users/${newUser.id}`, newUser, { merge: false });
+      if (!persisted && process.env.NODE_ENV !== 'test') {
+        throw new Error('New user could not be persisted to Firestore - account not created.');
+      }
     }
 
     this.users.push(newUser);

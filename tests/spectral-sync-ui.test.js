@@ -323,52 +323,61 @@ export function registerSpectralSyncUITests() {
   describe('SpectroscopyAnalysisView - Synchronization Metrics Header & Sync Now Button', () => {
     it('renders the Synchronization Metrics Header Widget with all 6 counters and Sync Now button', async () => {
       spectralSyncEngine._autoSyncEnabled = false;
-      if (spectralSyncEngine._activeSyncPromise) {
-        try { await spectralSyncEngine._activeSyncPromise; } catch (_) {}
-      }
+      spectralSyncEngine._activeSyncPromise = null;
       spectralSyncEngine._status = ENGINE_STATUS.IDLE;
       await offlineSpectralDatabase.clear();
 
-      // Seed 2 scans (1 synced, 1 pending)
-      await offlineSpectralDatabase.saveScan({
-        id: 'scan-1',
-        plantNumber: 'PLANT-SEED-01',
-        syncStatus: SYNC_STATUS.SYNCED,
-        cloudDocumentId: 'cloud-001',
-        syncedAt: new Date().toISOString()
-      });
-      await offlineSpectralDatabase.saveScan({
-        id: 'scan-2',
-        plantNumber: 'PLANT-SEED-02',
-        syncStatus: SYNC_STATUS.PENDING_SYNC
+      const origFetch = globalThis.fetch;
+      globalThis.fetch = async () => ({
+        status: 200,
+        ok: true,
+        json: async () => ({ success: true, cloudDocumentId: 'cloud_mock_init', syncedAt: new Date().toISOString() })
       });
 
-      const view = createSpectroscopyAnalysisView();
-      expect(view).toBeDefined();
+      try {
+        // Seed 2 scans (1 synced, 1 pending)
+        await offlineSpectralDatabase.saveScan({
+          id: 'scan-1',
+          plantNumber: 'PLANT-SEED-01',
+          syncStatus: SYNC_STATUS.SYNCED,
+          cloudDocumentId: 'cloud-001',
+          syncedAt: new Date().toISOString()
+        });
+        await offlineSpectralDatabase.saveScan({
+          id: 'scan-2',
+          plantNumber: 'PLANT-SEED-02',
+          syncStatus: SYNC_STATUS.PENDING_SYNC
+        });
 
-      // Verify Metrics Widget exists
-      const widget = view.querySelector('#spectral-sync-metrics-widget');
-      expect(widget).toBeDefined();
+        const view = createSpectroscopyAnalysisView();
+        expect(view).toBeDefined();
 
-      // Verify "Sync" button (compact single-line bar replaced the old full-width
-      // "Sync Now" card - see simplified UI)
-      const syncBtn = view.querySelector('#btn-sync-now');
-      expect(syncBtn).toBeDefined();
-      expect(syncBtn.textContent).toContain('Sync');
+        // Verify Metrics Widget exists
+        const widget = view.querySelector('#spectral-sync-metrics-widget');
+        expect(widget).toBeDefined();
 
-      // Verify metrics counters in DOM
-      const totalEl = view.querySelector('#metric-total-scans');
-      const locallyEl = view.querySelector('#metric-locally-stored');
-      const pendingEl = view.querySelector('#metric-pending-sync');
-      const syncedEl = view.querySelector('#metric-synced-cloud');
-      const failedEl = view.querySelector('#metric-sync-failed');
+        // Verify "Sync" button (compact single-line bar replaced the old full-width
+        // "Sync Now" card - see simplified UI)
+        const syncBtn = view.querySelector('#btn-sync-now');
+        expect(syncBtn).toBeDefined();
+        expect(syncBtn.textContent).toContain('Sync');
 
-      expect(totalEl).toBeDefined();
-      expect(totalEl.textContent.trim()).toBe('2');
-      expect(locallyEl.textContent.trim()).toBe('2');
-      expect(pendingEl.textContent.trim()).toBe('1');
-      expect(syncedEl.textContent.trim()).toBe('1');
-      expect(failedEl.textContent.trim()).toBe('0');
+        // Verify metrics counters in DOM
+        const totalEl = view.querySelector('#metric-total-scans');
+        const locallyEl = view.querySelector('#metric-locally-stored');
+        const pendingEl = view.querySelector('#metric-pending-sync');
+        const syncedEl = view.querySelector('#metric-synced-cloud');
+        const failedEl = view.querySelector('#metric-sync-failed');
+
+        expect(totalEl).toBeDefined();
+        expect(totalEl.textContent.trim()).toBe('2');
+        expect(locallyEl.textContent.trim()).toBe('2');
+        expect(pendingEl.textContent.trim()).toBe('1');
+        expect(syncedEl.textContent.trim()).toBe('1');
+        expect(failedEl.textContent.trim()).toBe('0');
+      } finally {
+        globalThis.fetch = origFetch;
+      }
     });
 
     it('triggers manual synchronization on "Sync Now" click and updates UI', async () => {
@@ -473,44 +482,66 @@ export function registerSpectralSyncUITests() {
       leafClipDevice.calibration.whiteDiscCompleted = true;
       leafClipDevice.calibration.isCalibrated = true;
 
-      const view = createSpectroscopyAnalysisView();
+      const origFetch = globalThis.fetch;
+      globalThis.fetch = async () => ({
+        status: 200,
+        ok: true,
+        json: async () => ({ success: true, cloudDocumentId: 'cloud_step5_mock', syncedAt: new Date().toISOString() })
+      });
 
-      // Step 5 scan button
-      const scanBtn = view.querySelector('#btn-step-leaf-scan');
-      expect(scanBtn).toBeDefined();
+      try {
+        const view = createSpectroscopyAnalysisView();
 
-      // Click scan button
-      scanBtn.click();
-      await new Promise(r => setTimeout(r, 100));
+        // Step 5 scan button
+        const scanBtn = view.querySelector('#btn-step-leaf-scan');
+        expect(scanBtn).toBeDefined();
 
-      // Verify scan was saved in offline database with PENDING_SYNC (or SYNCED if auto-synced)
-      const allScans = await offlineSpectralDatabase.getAllScans();
-      expect(allScans.length).toBeGreaterThan(0);
+        // Click scan button
+        scanBtn.click();
+        await new Promise(r => setTimeout(r, 100));
 
-      const latest = allScans[0];
-      expect(latest.id).toBeDefined();
-      expect([SYNC_STATUS.PENDING_SYNC, SYNC_STATUS.SYNCING, SYNC_STATUS.SYNCED]).toContain(latest.syncStatus);
+        // Verify scan was saved in offline database with PENDING_SYNC (or SYNCED if auto-synced)
+        const allScans = await offlineSpectralDatabase.getAllScans();
+        expect(allScans.length).toBeGreaterThan(0);
+
+        const latest = allScans[0];
+        expect(latest.id).toBeDefined();
+        expect([SYNC_STATUS.PENDING_SYNC, SYNC_STATUS.SYNCING, SYNC_STATUS.SYNCED]).toContain(latest.syncStatus);
+      } finally {
+        globalThis.fetch = origFetch;
+      }
     });
 
     it('saves record with Save Scan to Field Records button and updates status badge', async () => {
-      const view = createSpectroscopyAnalysisView();
+      const origFetch = globalThis.fetch;
+      globalThis.fetch = async () => ({
+        status: 200,
+        ok: true,
+        json: async () => ({ success: true, cloudDocumentId: 'cloud_save_btn_mock', syncedAt: new Date().toISOString() })
+      });
 
-      // Trigger a scan via BLE test button
-      const bleScanBtn = view.querySelector('#btn-ble-send-scan');
-      if (bleScanBtn) {
-        bleScanBtn.click();
-        await new Promise(r => setTimeout(r, 50));
+      try {
+        const view = createSpectroscopyAnalysisView();
+
+        // Trigger a scan via BLE test button
+        const bleScanBtn = view.querySelector('#btn-ble-send-scan');
+        if (bleScanBtn) {
+          bleScanBtn.click();
+          await new Promise(r => setTimeout(r, 50));
+        }
+
+        // Click Save Scan to Field Records button
+        const saveBtn = view.querySelector('#btn-save-scan-record');
+        if (saveBtn) {
+          saveBtn.click();
+          await new Promise(r => setTimeout(r, 50));
+        }
+
+        const metrics = await offlineSpectralDatabase.getMetrics();
+        expect(metrics.totalScans).toBeGreaterThan(0);
+      } finally {
+        globalThis.fetch = origFetch;
       }
-
-      // Click Save Scan to Field Records button
-      const saveBtn = view.querySelector('#btn-save-scan-record');
-      if (saveBtn) {
-        saveBtn.click();
-        await new Promise(r => setTimeout(r, 50));
-      }
-
-      const metrics = await offlineSpectralDatabase.getMetrics();
-      expect(metrics.totalScans).toBeGreaterThan(0);
     });
   });
 }

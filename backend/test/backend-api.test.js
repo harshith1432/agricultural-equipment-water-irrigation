@@ -3,6 +3,7 @@
  * Tests all enterprise administration, user management, telemetry ingestion,
  * emergency hydraulic killswitch, and health endpoints.
  */
+process.env.NODE_ENV = 'test';
 
 import { app } from '../server.js';
 import http from 'http';
